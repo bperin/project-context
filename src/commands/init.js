@@ -1,140 +1,153 @@
-// init command — scaffolds the .ai/ directory
-// See MASTER_PROMPT.md for the full spec.
+const fs = require('fs');
+const path = require('path');
+const graphCommand = require('./graph');
 
-const fs = require("fs");
-const path = require("path");
+async function discoverProject(targetDir, aiDir) {
+  console.log('Running project discovery...');
+  
+  // 1. Detect project name and details from package.json, go.mod, etc., or git remote
+  let projectName = path.basename(path.resolve(targetDir));
+  let language = 'unknown';
+  let description = 'Project initialized with project-context';
+  let dependencies = [];
 
-const TEMPLATES_DIR = path.join(__dirname, "..", "templates");
-const WORKFLOWS_DIR = path.join(__dirname, "..", "workflows");
-
-const DIRECTORY_STRUCTURE = [
-  "context/architecture",
-  "context/decisions",
-  "context/identity",
-  "context/plans",
-  "context/skills",
-  "context/specs",
-  "context/state",
-  "context/tasks",
-  "context/workflows",
-  "graph/edges",
-  "graph/nodes",
-  "templates",
-];
-
-function init(options) {
-  const target = path.resolve(options.target);
-  const workspace = path.join(target, options.workspace);
-
-  console.log(`Scaffolding ${workspace}...`);
-
-  // Create directory structure
-  for (const dir of DIRECTORY_STRUCTURE) {
-    fs.mkdirSync(path.join(workspace, dir), { recursive: true });
+  const pkgJsonPath = path.join(targetDir, 'package.json');
+  if (fs.existsSync(pkgJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+      if (pkg.name) projectName = pkg.name;
+      if (pkg.description) description = pkg.description;
+      language = 'node';
+      dependencies = Object.keys(pkg.dependencies || {});
+    } catch (e) {}
+  } else if (fs.existsSync(path.join(targetDir, 'go.mod'))) {
+    language = 'go';
+  } else if (fs.existsSync(path.join(targetDir, 'Cargo.toml'))) {
+    language = 'rust';
+  } else if (fs.existsSync(path.join(targetDir, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, 'requirements.txt'))) {
+    language = 'python';
   }
 
-  // Copy templates into .ai/templates/ and .ai/context/<subdir>/
-  copyTemplates(workspace);
+  // Write identity/project.md
+  const identityDir = path.join(aiDir, 'context', 'identity');
+  fs.mkdirSync(identityDir, { recursive: true });
+  
+  const projectMd = `# Project Identity: ${projectName}
 
-  // Copy workflows into .ai/context/workflows/
-  copyWorkflows(workspace);
+## Overview
+- **Name**: ${projectName}
+- **Description**: ${description}
+- **Primary Language**: ${language}
+- **Discovered At**: ${new Date().toISOString()}
 
-  // Write AGENTS.md (the protocol)
-  writeAgentsMd(workspace);
+## Key Directories
+- Top-level directories inspected and mapped into graph nodes.
+`;
+  fs.writeFileSync(path.join(identityDir, 'project.md'), projectMd);
 
-  // Write STATE.md (stub)
-  writeStateMd(workspace);
-
-  // Write DECISIONS.md (stub)
-  writeDecisionsMd(workspace);
-
-  // Write context/state/current.md (stub)
-  writeCurrentMd(workspace);
-
-  console.log(`Done. ${workspace} scaffolded.`);
+  // Run graph generation as part of discovery
+  await graphCommand({ target: targetDir, workspace: path.basename(aiDir) });
 }
 
-function copyTemplates(workspace) {
-  const files = fs.readdirSync(TEMPLATES_DIR).filter((f) => f.endsWith(".md"));
-  for (const file of files) {
-    const src = path.join(TEMPLATES_DIR, file);
-    const content = fs.readFileSync(src, "utf-8");
+async function initCommand(options) {
+  const targetDir = path.resolve(options.target);
+  const aiDir = path.join(targetDir, options.workspace);
 
-    // Copy to .ai/templates/
-    fs.writeFileSync(path.join(workspace, "templates", file), content);
+  console.log(`Initializing .ai workspace at ${aiDir}...`);
 
-    // Copy to .ai/context/<subdir>/ based on filename prefix
-    const subdir = getSubdirForTemplate(file);
-    if (subdir) {
-      fs.writeFileSync(path.join(workspace, "context", subdir, file), content);
+  // Create full directory structure
+  const dirs = [
+    aiDir,
+    path.join(aiDir, 'context', 'architecture'),
+    path.join(aiDir, 'context', 'decisions'),
+    path.join(aiDir, 'context', 'identity'),
+    path.join(aiDir, 'context', 'plans'),
+    path.join(aiDir, 'context', 'skills'),
+    path.join(aiDir, 'context', 'specs'),
+    path.join(aiDir, 'context', 'state'),
+    path.join(aiDir, 'context', 'tasks'),
+    path.join(aiDir, 'context', 'workflows'),
+    path.join(aiDir, 'graph', 'edges'),
+    path.join(aiDir, 'graph', 'nodes'),
+    path.join(aiDir, 'templates')
+  ];
+
+  for (const d of dirs) {
+    fs.mkdirSync(d, { recursive: true });
+  }
+
+  const srcTemplates = path.join(__dirname, '..', 'templates');
+  const srcWorkflows = path.join(__dirname, '..', 'workflows');
+
+  // Copy templates into .ai/templates/
+  if (fs.existsSync(srcTemplates)) {
+    const templateFiles = fs.readdirSync(srcTemplates);
+    for (const f of templateFiles) {
+      const srcPath = path.join(srcTemplates, f);
+      if (fs.statSync(srcPath).isFile()) {
+        if (f === 'AGENTS.md') {
+          fs.copyFileSync(srcPath, path.join(aiDir, 'AGENTS.md'));
+        } else if (f === 'STATE.md') {
+          fs.copyFileSync(srcPath, path.join(aiDir, 'STATE.md'));
+        } else if (f === 'DECISIONS.md') {
+          fs.copyFileSync(srcPath, path.join(aiDir, 'DECISIONS.md'));
+        } else if (f === 'current.md') {
+          fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'state', 'current.md'));
+        } else if (f === 'overview.csv') {
+          fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'state', 'overview.csv'));
+        } else {
+          fs.copyFileSync(srcPath, path.join(aiDir, 'templates', f));
+          
+          // Also place templates in appropriate context subdirs as specified by architecture
+          if (f.includes('SPEC-')) {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'specs', f));
+          } else if (f.includes('PLAN-')) {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'plans', f));
+          } else if (f.includes('TASK-')) {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'tasks', f));
+          } else if (f.includes('ADR-')) {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'decisions', f));
+          } else if (f === 'architecture.template.md') {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'architecture', f));
+          } else if (f === 'identity.template.md') {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'identity', f));
+          } else if (f === 'state.template.md') {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'state', f));
+          } else if (f === 'skill.template.md' || f === 'skill.md') {
+            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'skills', f));
+          }
+        }
+      }
     }
   }
-}
 
-function getSubdirForTemplate(filename) {
-  if (filename.startsWith("SPEC-")) return "specs";
-  if (filename.startsWith("PLAN-")) return "plans";
-  if (filename.startsWith("TASK-")) return "tasks";
-  if (filename.startsWith("ADR-")) return "decisions";
-  if (filename.startsWith("architecture.")) return "architecture";
-  if (filename.startsWith("identity.")) return "identity";
-  if (filename.startsWith("skill")) return "skills";
-  if (filename.startsWith("state.")) return "state";
-  if (filename.startsWith("workflow.")) return "workflows";
-  return null;
-}
-
-function copyWorkflows(workspace) {
-  const files = fs.readdirSync(WORKFLOWS_DIR).filter((f) => f.endsWith(".md"));
-  for (const file of files) {
-    const src = path.join(WORKFLOWS_DIR, file);
-    const content = fs.readFileSync(src, "utf-8");
-    fs.writeFileSync(path.join(workspace, "context", "workflows", file), content);
+  // Copy workflows into .ai/context/workflows/
+  if (fs.existsSync(srcWorkflows)) {
+    const wfFiles = fs.readdirSync(srcWorkflows);
+    for (const f of wfFiles) {
+      const srcPath = path.join(srcWorkflows, f);
+      if (fs.statSync(srcPath).isFile()) {
+        fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'workflows', f));
+      }
+    }
   }
+
+  // Ensure core root files exist if not copied via templates
+  if (!fs.existsSync(path.join(aiDir, 'AGENTS.md'))) {
+    fs.writeFileSync(path.join(aiDir, 'AGENTS.md'), '# AGENTS Protocol\n');
+  }
+  if (!fs.existsSync(path.join(aiDir, 'STATE.md'))) {
+    fs.writeFileSync(path.join(aiDir, 'STATE.md'), '# State\n');
+  }
+  if (!fs.existsSync(path.join(aiDir, 'DECISIONS.md'))) {
+    fs.writeFileSync(path.join(aiDir, 'DECISIONS.md'), '# Decisions\n');
+  }
+
+  if (options.discover) {
+    await discoverProject(targetDir, aiDir);
+  }
+
+  console.log(`Successfully initialized .ai workspace at ${aiDir}`);
 }
 
-function writeAgentsMd(workspace) {
-  // Read the canonical AGENTS.md from the trust reference
-  // The agent implementing this should copy the full content from
-  // /Users/brian/code/trust/.ai-trust/AGENTS.md
-  const content = `# Agent Protocol
-
-<!-- TODO: Copy the full AGENTS.md protocol from the trust reference. -->
-<!-- See MASTER_PROMPT.md section "AGENTS.md — the protocol file" -->
-`;
-  fs.writeFileSync(path.join(workspace, "AGENTS.md"), content);
-}
-
-function writeStateMd(workspace) {
-  const content = `# State
-
-- **Status**: active
-- **Active Plan**: none
-- **Completed Tasks**: none
-- **Next**: none
-`;
-  fs.writeFileSync(path.join(workspace, "STATE.md"), content);
-}
-
-function writeDecisionsMd(workspace) {
-  const content = `# Decisions
-
-| ADR | Title | Status | Date |
-|-----|-------|--------|------|
-
-No decisions yet.
-`;
-  fs.writeFileSync(path.join(workspace, "DECISIONS.md"), content);
-}
-
-function writeCurrentMd(workspace) {
-  const content = `# Current State
-
-- **Status**: initialized
-- **Active Plan**: none
-- **Next**: write first spec
-`;
-  fs.writeFileSync(path.join(workspace, "context", "state", "current.md"), content);
-}
-
-module.exports = { init };
+module.exports = initCommand;

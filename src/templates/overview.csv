@@ -1,0 +1,22 @@
+Type,ID,Title,Status,Progress,Dependencies,Notes
+SPEC,SPEC-001,trust — Cryptographic Trust Core,committed,0% (0/3 plans done),none,3 plans under this spec
+SPEC,SPEC-002,auth — Authentication & Authorization,committed,0% (0/1 plans done),SPEC-001,1 plan under this spec
+SPEC,SPEC-003,chain — Blockchain Interoperability,committed,0% (0/1 plans done),SPEC-001,1 plan under this spec
+PLAN,PLAN-001,Primitive Wrappers (Layer 2),in_progress,69% (9/13 tasks done),SPEC-001,W5 not started — last workstream
+PLAN,PLAN-002,Crypto Compositions (Layer 3),draft,0% (0/2 tasks done),PLAN-001,stub
+PLAN,PLAN-003,Identity Proofs Attestations (Layer 3+),draft,0% (0 tasks),PLAN-001+PLAN-002,stub
+TASK,TASK-001,SHA-256 wrapper,done,—,TASK-005,W1 committed
+TASK,TASK-002,SHA-3 wrapper,done,—,TASK-005,W1 committed
+TASK,TASK-003,Keccak-256 wrapper,done,—,TASK-005,W1 committed
+TASK,TASK-004,BLAKE3 wrapper,done,—,TASK-005,W1 committed
+TASK,TASK-005,CSPRNG wrapper,done,—,none,W1 committed
+TASK,TASK-006,HKDF-SHA256,done,—,TASK-001,W2 committed
+TASK,TASK-007,X25519 ECDH,done,—,TASK-005,W2 committed
+TASK,TASK-008,AES-256-GCM,done,—,TASK-005,W3 committed
+TASK,TASK-009,XChaCha20-Poly1305,done,—,TASK-005,W3 committed
+TASK,TASK-010,AES-KW envelope,draft,—,TASK-008,PLAN-002 W1
+TASK,TASK-011,HPKE envelope,draft,—,TASK-007+TASK-008,PLAN-002 W1
+TASK,TASK-012,Ed25519 sign/verify,done,—,TASK-005,W4 committed v0.4.0
+TASK,TASK-013,secp256k1 sign/verify,done,—,TASK-005,W4 committed v0.4.0
+TASK,TASK-014,RSA-PSS/PKCS1v15 sign/verify,draft,—,TASK-005,W5 next
+TASK,TASK-015,ECDSA P-256/P-384 sign/verify,draft,—,TASK-005,W5 next

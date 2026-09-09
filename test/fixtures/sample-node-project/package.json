@@ -1,0 +1,8 @@
+{
+  "name": "sample-node-project",
+  "version": "1.0.0",
+  "description": "Mock node project fixture",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
