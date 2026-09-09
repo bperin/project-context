@@ -31,7 +31,7 @@ The important distinction is:
 - **Graph** answers: how are project entities related?
 - **RAG** answers: what additional information is semantically relevant?
 
-RAG is therefore a retrieval mechanism, not the project's source of truth.
+RAG is a retrieval mechanism, not the project's source of truth.
 
 ## Design principles
 
@@ -45,7 +45,7 @@ Structured relationships should be resolved deterministically before falling bac
 
 ### 3. Existing projects are first-class
 
-Project Context is intended to initialize against codebases that already exist. Discovery can inspect repository layout, manifests, Git state, and source symbols before creating the initial context model.
+Project Context can initialize directly against an existing codebase. Discovery inspects repository layout, manifests, Git state, and source symbols before creating the initial context model. Initialization is non-destructive: authored context files are preserved.
 
 ### 4. Cross-IDE
 
@@ -53,11 +53,9 @@ The project owns the context. Claude Code, Cursor, Gemini CLI, OpenCode, Kilo, D
 
 ### 5. Human-readable and machine-usable
 
-Markdown remains the primary authoring format. Structured metadata and graph data make the same information consumable by tooling.
+Markdown remains the primary authoring format. Structured graph JSON and compiled context packets make the same information consumable by tooling.
 
 ## Existing-project workflow
-
-The intended workflow is:
 
 ```text
 existing repository
@@ -66,35 +64,18 @@ project-context init
         ↓
 deterministic discovery
         ↓
-semantic / AST enrichment
+AST / semantic enrichment
         ↓
 .ai/ project context
         ↓
 graph + derived indexes
         ↓
-context compiled for an agent
+compiled context packet
+        ↓
+agent / IDE
 ```
 
-Discovery should be non-destructive. Existing source files and Git history remain the source material; Project Context adds a durable control plane around them.
-
-A future initialized project looks roughly like:
-
-```text
-.ai/
-├── context/
-│   ├── identity/
-│   ├── architecture/
-│   ├── state/
-│   ├── specs/
-│   ├── plans/
-│   ├── tasks/
-│   ├── decisions/
-│   ├── workflows/
-│   ├── skills/
-│   └── knowledge/
-├── graph/
-└── adapters/
-```
+Discovery currently covers Git metadata, common project manifests, repository layout, and Python / TypeScript / JavaScript classes and functions. The generated graph records project, directory, file, and symbol nodes plus `contains` and `defines` relationships.
 
 ## Context model
 
@@ -117,33 +98,27 @@ TASK       ──validates_with──→ TEST
 TASK       ──requires────────→ SKILL
 ```
 
-This allows agents to answer project questions through relationships rather than broad filesystem searches.
-
 ## Compiled context
 
-The target interface is a task-scoped context packet such as:
+The CLI exposes a task-scoped machine-readable packet:
 
-```text
-project.context(TASK-042)
+```bash
+project-context context --task TASK-042
 ```
 
-which can resolve:
+The packet contains project identity, architecture, current state, task context, specs, plans, decisions, graph nodes, graph edges, workflows, and skills. The goal is **minimum sufficient context**, not dumping the repository into the model context window.
 
-- project identity and architecture
-- current project state
-- the active task and its dependencies
-- applicable specifications and decisions
-- relevant files and symbols
-- required skills and workflow
-- semantic knowledge when the deterministic graph is insufficient
+To materialize the packet to disk:
 
-The goal is **minimum sufficient context**, not dumping the repository into the model context window.
+```bash
+project-context compile --task TASK-042
+```
+
+The result is written to `.ai/context/knowledge/compiled-context.json`.
 
 ## GraphRAG and Qdrant
 
 Qdrant is optional and should remain a derived semantic index.
-
-The intended boundary is:
 
 ```text
 Git / .ai/
@@ -161,38 +136,9 @@ Context compiler
 
 If Qdrant is deleted, the project should still contain all durable knowledge required to reconstruct the index.
 
-The repository includes an initial Qdrant specification in [`spec/01-graphrag-qdrant.md`](spec/01-graphrag-qdrant.md) and a local Docker configuration for experimentation.
-
-## Repository layout
-
-```text
-project-context/
-├── spec/                 protocol and architectural specifications
-├── templates/            reusable project-context templates
-├── scripts/              setup, discovery, and verification scripts
-├── .ai/                  example project-context artifacts
-├── bin/                  CLI entrypoint
-├── docker-compose.yml    local Qdrant environment
-├── package.json          npm package metadata
-└── AGENTS.md             development workflow for this repository
-```
+The repository includes [`spec/01-graphrag-qdrant.md`](spec/01-graphrag-qdrant.md), `scripts/init-qdrant.py`, and a local Docker configuration for experimentation.
 
 ## CLI
-
-The intended CLI surface is:
-
-```bash
-project-context init
-project-context inspect
-project-context graph
-project-context context --task TASK-042
-```
-
-For an existing codebase, `init` is intended to create the project context without replacing the application itself.
-
-> **Current implementation note:** the CLI entrypoint is present, but the repository is still under active implementation. Some command paths and discovery components are currently being wired together. Treat the specifications and tests as the source of intended behavior while the implementation converges.
-
-## Local development
 
 Install the package locally:
 
@@ -200,11 +146,34 @@ Install the package locally:
 npm install -g .
 ```
 
+Then run:
+
+```bash
+project-context init
+project-context inspect
+project-context graph
+project-context context --task TASK-042
+project-context compile --task TASK-042
+```
+
+Use a different project-context directory when needed:
+
+```bash
+project-context init --workspace .ai-cool-project
+project-context inspect --workspace .ai-cool-project
+```
+
+`init` is intended for existing codebases and does not replace application source. Existing authored context files are left untouched.
+
+## Local development
+
 Run the test suite:
 
 ```bash
 npm test
 ```
+
+The discovery suite exercises existing-project initialization, multi-manifest stack detection, Python and TypeScript symbol discovery, graph generation, task-scoped context, compilation, missing-context failures, invalid-command handling, and custom workspace names.
 
 Start the optional local Qdrant instance:
 
@@ -213,13 +182,29 @@ docker compose up -d
 python3 scripts/init-qdrant.py
 ```
 
+## Repository layout
+
+```text
+project-context/
+├── spec/                 protocol and architectural specifications
+├── templates/            reusable project-context templates
+├── scripts/              CLI, compiler, setup, discovery, and verification
+├── .ai/                  example project-context artifacts
+├── bin/                  npm CLI entrypoint
+├── docker-compose.yml    local Qdrant environment
+├── package.json          npm package metadata
+└── AGENTS.md             development workflow for this repository
+```
+
 ## Specifications
 
 - [`spec/00-thesis.md`](spec/00-thesis.md) — project-context thesis and architecture
-- [`spec/01-graphrag-qdrant.md`](spec/01-graphrag-qdrant.md) — structured GraphRAG and Qdrant design
+- [`spec/01-graphrag-qdrant.md`](spec/01-graphrag-qdrant.md) — derived GraphRAG and Qdrant design
 
 ## Status
 
-This repository is an active protocol/implementation project. The architecture is being developed around one core invariant:
+The core local workflow is implemented: existing-project discovery, context initialization, graph generation, task-scoped context compilation, and the npm CLI are covered by automated tests.
 
-> **Project Context is the source of truth; graph and semantic indexes are derived views; agents consume compiled context rather than reconstructing the project from scratch.**
+The remaining work is primarily expanding the graph ontology, deeper language-aware dependency extraction, semantic Qdrant ingestion/retrieval, and IDE adapters.
+
+> **Core invariant:** Project Context is the source of truth; graph and semantic indexes are derived views; agents consume compiled context rather than reconstructing the project from scratch.
