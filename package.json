@@ -1,0 +1,24 @@
+{
+  "name": "project-context-protocol",
+  "version": "1.0.0",
+  "description": "Robust cross-IDE multi-repository project management control plane and GraphRAG context protocol",
+  "main": "index.js",
+  "bin": {
+    "project-context": "./bin/cli.js"
+  },
+  "scripts": {
+    "test": "python3 scripts/test-setup.py"
+  },
+  "keywords": [
+    "ai",
+    "devin",
+    "gemini",
+    "cursor",
+    "project-management",
+    "graphrag",
+    "qdrant",
+    "context"
+  ],
+  "author": "Autonomous Agent",
+  "license": "MIT"
+}
