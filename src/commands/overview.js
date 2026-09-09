@@ -45,6 +45,13 @@ function collectFiles(dir) {
     .map(f => parseFile(path.join(dir, f)));
 }
 
+// writeCSV writes rows to a CSV file with a header row.
+function writeCSV(filePath, header, rows) {
+  const content = [header, ...rows].join('\n') + '\n';
+  fs.writeFileSync(filePath, content);
+  return rows.length;
+}
+
 async function overviewCommand(options) {
   const targetDir = path.resolve(options.target);
   const aiDir = path.join(targetDir, options.workspace);
@@ -54,46 +61,45 @@ async function overviewCommand(options) {
     process.exit(1);
   }
 
-  console.log(`Generating overview CSV from workspace at ${aiDir}...`);
+  console.log(`Generating overview CSVs from workspace at ${aiDir}...`);
 
-  const specs  = collectFiles(path.join(aiDir, 'context', 'specs'));
-  const plans  = collectFiles(path.join(aiDir, 'context', 'plans'));
-  const tasks  = collectFiles(path.join(aiDir, 'context', 'tasks'));
-
-  const lines = [];
-
-  // --- SPECS sheet ---
-  lines.push('# SPECS');
-  lines.push('ID,Title,Status,Progress,Dependencies,Commit');
-  for (const r of specs) {
-    lines.push(`${r.id},"${r.title}",${r.status},"${r.progress}","${r.deps}",${r.commit}`);
-  }
-
-  // --- PLANS sheet ---
-  lines.push('');
-  lines.push('# PLANS');
-  lines.push('ID,Title,Status,Progress,Dependencies,Commit');
-  for (const r of plans) {
-    lines.push(`${r.id},"${r.title}",${r.status},"${r.progress}","${r.deps}",${r.commit}`);
-  }
-
-  // --- TASKS sheet ---
-  lines.push('');
-  lines.push('# TASKS');
-  lines.push('ID,Title,Status,Dependencies,Commit');
-  for (const r of tasks) {
-    lines.push(`${r.id},"${r.title}",${r.status},"${r.deps}",${r.commit}`);
-  }
-
-  const csvContent = lines.join('\n') + '\n';
   const stateDir = path.join(aiDir, 'context', 'state');
   fs.mkdirSync(stateDir, { recursive: true });
 
-  const csvPath = path.join(stateDir, 'overview.csv');
-  fs.writeFileSync(csvPath, csvContent);
+  const specs = collectFiles(path.join(aiDir, 'context', 'specs'));
+  const plans = collectFiles(path.join(aiDir, 'context', 'plans'));
+  const tasks = collectFiles(path.join(aiDir, 'context', 'tasks'));
 
-  console.log(`Overview CSV generated at ${csvPath}`);
-  console.log(`  ${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks`);
+  // specs.csv — ID,Title,Status,Progress,Dependencies,Commit
+  const specsRows = specs.map(r =>
+    `${r.id},"${r.title}",${r.status},"${r.progress}","${r.deps}",${r.commit}`);
+  writeCSV(
+    path.join(stateDir, 'specs.csv'),
+    'ID,Title,Status,Progress,Dependencies,Commit',
+    specsRows
+  );
+
+  // plans.csv — ID,Title,Status,Progress,Dependencies,Commit
+  const plansRows = plans.map(r =>
+    `${r.id},"${r.title}",${r.status},"${r.progress}","${r.deps}",${r.commit}`);
+  writeCSV(
+    path.join(stateDir, 'plans.csv'),
+    'ID,Title,Status,Progress,Dependencies,Commit',
+    plansRows
+  );
+
+  // tasks.csv — ID,Title,Status,Dependencies,Commit
+  const tasksRows = tasks.map(r =>
+    `${r.id},"${r.title}",${r.status},"${r.deps}",${r.commit}`);
+  writeCSV(
+    path.join(stateDir, 'tasks.csv'),
+    'ID,Title,Status,Dependencies,Commit',
+    tasksRows
+  );
+
+  console.log(`  specs.csv: ${specs.length} rows`);
+  console.log(`  plans.csv: ${plans.length} rows`);
+  console.log(`  tasks.csv: ${tasks.length} rows`);
 }
 
 module.exports = overviewCommand;
