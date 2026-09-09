@@ -7,7 +7,7 @@
     "project-context": "./bin/cli.js"
   },
   "scripts": {
-    "test": "python3 scripts/test-setup.py"
+    "test": "python3 scripts/test-setup.py && python3 scripts/test-discovery.py"
   },
   "keywords": [
     "ai",
