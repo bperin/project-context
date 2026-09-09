@@ -10,6 +10,7 @@ Enforces the core invariant:
 
 import os
 import json
+import sys
 from pathlib import Path
 
 def compile_context(ai_dir: str = ".ai"):
@@ -44,11 +45,15 @@ def compile_context(ai_dir: str = ".ai"):
 
     # 2. Build Derived Index Payload (simulating Qdrant sync)
     print("\n[Derived Indexing] Building Qdrant payload from authoritative files...")
-    derived_index_path = ai_path / "context" / "knowledge" / "derived_index.json"
+    knowledge_dir = ai_path / "context" / "knowledge"
+    knowledge_dir.mkdir(parents=True, exist_ok=True)
+    derived_index_path = knowledge_dir / "derived_index.json"
     derived_index_path.write_text(json.dumps(compiled_view, indent=2))
     print(f"Derived index successfully written to {derived_index_path}")
     print("Invariant verified: Qdrant / derived indices can be wiped and fully rebuilt from Git files at any time.")
     return True
 
 if __name__ == "__main__":
-    compile_context()
+    target_ai = sys.argv[1] if len(sys.argv) > 1 else ".ai"
+    success = compile_context(target_ai)
+    sys.exit(0 if success else 1)
