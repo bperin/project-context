@@ -60,6 +60,76 @@ function parseIdentity(filePath) {
   return fields;
 }
 
+// parseMarkdownTables reads all markdown tables from a file and returns
+// them as { heading: { headers: [], rows: [[]] } }.
+function parseMarkdownTables(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const content = fs.readFileSync(filePath, 'utf8');
+  const tables = [];
+  let currentHeading = '';
+  let inTable = false;
+  let headers = [];
+  let rows = [];
+
+  for (const line of content.split('\n')) {
+    if (line.startsWith('#')) {
+      if (inTable && rows.length > 0) {
+        tables.push({ heading: currentHeading, headers, rows });
+      }
+      currentHeading = line.replace(/^#+\s*/, '').trim();
+      inTable = false;
+      headers = [];
+      rows = [];
+      continue;
+    }
+    if (line.startsWith('|') && line.endsWith('|')) {
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      if (!inTable) {
+        headers = cells;
+        inTable = true;
+      } else if (cells.every(c => /^[-:]+$/.test(c))) {
+        // separator row, skip
+        continue;
+      } else {
+        rows.push(cells);
+      }
+    } else if (inTable) {
+      if (rows.length > 0) {
+        tables.push({ heading: currentHeading, headers, rows });
+      }
+      inTable = false;
+      headers = [];
+      rows = [];
+    }
+  }
+  if (inTable && rows.length > 0) {
+    tables.push({ heading: currentHeading, headers, rows });
+  }
+  return tables;
+}
+
+// parseDecisions reads the ADR index table from DECISIONS.md.
+function parseDecisions(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const content = fs.readFileSync(filePath, 'utf8');
+  const rows = [];
+  let inTable = false;
+  for (const line of content.split('\n')) {
+    if (line.startsWith('|') && line.endsWith('|')) {
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      if (!inTable) {
+        inTable = true;
+        continue; // header row
+      }
+      if (cells.every(c => /^[-:]+$/.test(c))) continue; // separator
+      rows.push(cells);
+    } else if (inTable) {
+      break;
+    }
+  }
+  return rows;
+}
+
 // collectFiles reads all non-template .md files from a directory, sorted.
 function collectFiles(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -230,11 +300,36 @@ async function overviewCommand(options) {
     { header: 'Commit', key: 'commit', width: 12 },
   ], tasks.map(r => [r.uuid, r.id, r.title, r.status, r.deps, r.commit]), repoUrl);
 
+  // Architecture sheets — one per table in architecture.md
+  const archTables = parseMarkdownTables(path.join(aiDir, 'context', 'architecture', 'architecture.md'));
+  for (const t of archTables) {
+    // Excel sheet names can't contain * ? : \ / [ ]
+    const sheetName = t.heading.replace(/[*?:\\/[\]]/g, ' ').trim() || 'Architecture';
+    const cols = t.headers.map((h, i) => ({
+      header: h,
+      key: `col${i}`,
+      width: Math.max(15, Math.min(50, h.length + 5)),
+    }));
+    addSheet(workbook, sheetName, cols, t.rows, repoUrl);
+  }
+
+  // Decisions sheet — ADR index from DECISIONS.md
+  const decisions = parseDecisions(path.join(aiDir, 'DECISIONS.md'));
+  if (decisions.length > 0) {
+    addSheet(workbook, 'Decisions', [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Title', key: 'title', width: 60 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Date', key: 'date', width: 14 },
+    ], decisions, repoUrl);
+  }
+
   const xlsxPath = path.join(stateDir, 'overview.xlsx');
   await workbook.xlsx.writeFile(xlsxPath);
 
-  console.log(`  overview.xlsx: ${identity ? 'identity, ' : ''}${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks`);
-  console.log(`  Sheets: ${identity ? 'Identity, ' : ''}Specs, Plans, Tasks`);
+  const sheetNames = workbook.worksheets.map(ws => ws.name).join(', ');
+  console.log(`  overview.xlsx: ${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks, ${archTables.length} arch tables, ${decisions.length} decisions`);
+  console.log(`  Sheets: ${sheetNames}`);
   console.log(`  Status colors: green=done, yellow=in_progress, gray=draft, blue=committed`);
   if (repoUrl) console.log(`  Commit links: ${commitUrl(repoUrl, 'HASH')}`);
 }
