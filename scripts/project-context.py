@@ -5,11 +5,11 @@ Implements two-phase initialization for existing projects:
 1. Deterministic discovery (manifests, git, directory layout, AST inspection)
 2. Semantic enrichment (source: discovered, confidence: high/authoritative)
 And first-class commands:
-- init [--existing]
-- inspect
-- graph
-- context [--task TASK-ID]
-- compile
+- init [--existing] [--workspace <name>]
+- inspect [--workspace <name>]
+- graph [--workspace <name>]
+- context [--task TASK-ID] [--workspace <name>]
+- compile [--workspace <name>]
 """
 
 import os
@@ -116,9 +116,9 @@ def enrich_semantics(discovered: dict):
     discovered["confidence"] = "high"
     return discovered
 
-def cmd_init(target_dir: str = "."):
+def cmd_init(workspace_name: str = ".ai", target_dir: str = "."):
     root = Path(target_dir).resolve()
-    ai_dir = root / ".ai"
+    ai_dir = root / workspace_name
     ai_dir.mkdir(parents=True, exist_ok=True)
 
     for sub in [
@@ -161,6 +161,9 @@ def cmd_init(target_dir: str = "."):
 
     nodes_dir = ai_dir / "graph" / "nodes"
     for d in enriched["top_directories"]:
+        # Don't create directory nodes for the workspace dir itself
+        if d == workspace_name:
+            continue
         node_file = nodes_dir / f"{d}.json"
         node_file.write_text(json.dumps({
             "id": f"dir_{d}",
@@ -172,6 +175,8 @@ def cmd_init(target_dir: str = "."):
 
     # Write discovered AST symbols to graph node files as child symbols
     for rel_path, syms in enriched["symbols"].items():
+        if rel_path.startswith(workspace_name):
+            continue
         sym_file = nodes_dir / f"{Path(rel_path).stem}_symbols.json"
         sym_file.write_text(json.dumps({
             "id": f"file_{Path(rel_path).name}",
@@ -184,10 +189,10 @@ def cmd_init(target_dir: str = "."):
 
     print(f"\nSuccessfully initialized project context in {ai_dir}/")
 
-def cmd_inspect():
-    ai_dir = Path(".ai")
+def cmd_inspect(workspace_name: str = ".ai"):
+    ai_dir = Path(workspace_name)
     if not ai_dir.exists():
-        print("No .ai/ directory found. Run `project-context init` first.")
+        print(f"No {workspace_name}/ directory found. Run `project-context init` first.")
         return
     
     identity = ai_dir / "context" / "identity" / "project.md"
@@ -196,8 +201,8 @@ def cmd_inspect():
     else:
         print("No project identity found.")
 
-def cmd_graph():
-    nodes_dir = Path(".ai/graph/nodes")
+def cmd_graph(workspace_name: str = ".ai"):
+    nodes_dir = Path(workspace_name) / "graph" / "nodes"
     if not nodes_dir.exists():
         print("No graph nodes found.")
         return
@@ -208,10 +213,10 @@ def cmd_graph():
         sym_str = f" [symbols: {len(data['symbols'])}]" if "symbols" in data else ""
         print(f"  - {data['id']} ({data['type']}): {data['path']}{sym_str} [source: {data['source']}, confidence: {data['confidence']}]")
 
-def cmd_context(task_id: str = None):
-    ai_dir = Path(".ai")
+def cmd_context(task_id: str = None, workspace_name: str = ".ai"):
+    ai_dir = Path(workspace_name)
     if not ai_dir.exists():
-        print(json.dumps({"error": "No .ai/ directory found."}))
+        print(json.dumps({"error": f"No {workspace_name}/ directory found."}))
         return
 
     packet = {
@@ -226,20 +231,27 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     cmd = args[0] if args else "init"
 
+    # Extract workspace custom name from flag --workspace
+    workspace = ".ai"
+    if "--workspace" in args:
+        idx = args.index("--workspace")
+        if idx + 1 < len(args):
+            workspace = args[idx + 1]
+
     if cmd == "init":
-        cmd_init()
+        cmd_init(workspace)
     elif cmd == "inspect":
-        cmd_inspect()
+        cmd_inspect(workspace)
     elif cmd == "graph":
-        cmd_graph()
+        cmd_graph(workspace)
     elif cmd == "context":
         task = None
         if "--task" in args:
             idx = args.index("--task")
             if idx + 1 < len(args):
                 task = args[idx + 1]
-        cmd_context(task)
+        cmd_context(task, workspace)
     else:
         print(f"Unknown command: {cmd}")
-        print("Usage: project-context [init|inspect|graph|context [--task TASK-ID]]")
+        print("Usage: project-context [init|inspect|graph|context [--task TASK-ID]] [--workspace <name>]")
         sys.exit(1)

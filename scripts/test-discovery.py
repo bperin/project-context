@@ -93,6 +93,14 @@ def test_discovery():
         assert res_invalid.returncode != 0, "Invalid command did not exit with error"
         assert "Unknown command" in res_invalid.stdout, "Usage warning not printed"
 
+        # 7. Test Custom Workspace Name Flag
+        res_custom = subprocess.run(["python3", cli_script, "init", "--workspace", ".ai-cool-project"], cwd=proj, capture_output=True, text=True)
+        assert res_custom.returncode == 0, "Custom workspace init failed"
+        assert os.path.isdir(os.path.join(proj, ".ai-cool-project")), "Custom workspace dir not created"
+        
+        res_custom_inspect = subprocess.run(["python3", cli_script, "inspect", "--workspace", ".ai-cool-project"], cwd=proj, capture_output=True, text=True)
+        assert "Project Identity" in res_custom_inspect.stdout, "Custom workspace inspect failed"
+
     print("All Discovery & CLI tests passed successfully!")
 
 if __name__ == "__main__":
