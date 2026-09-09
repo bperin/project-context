@@ -130,6 +130,30 @@ function parseDecisions(filePath) {
   return rows;
 }
 
+// parseWorkflows reads all workflow .md files and extracts name, trigger, and path.
+function parseWorkflows(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.md') && !f.includes('template'))
+    .sort()
+    .map(f => {
+      const fp = path.join(dir, f);
+      const content = fs.readFileSync(fp, 'utf8');
+      const titleMatch = content.match(/^#\s+(.*)/m);
+      let title = titleMatch ? titleMatch[1].replace(/^Workflow:\s*/, '') : f;
+      title = title.replace(/[—–]/g, '-');
+
+      let trigger = '';
+      const whenMatch = content.match(/##\s+When[\r\n]+([\s\S]*?)(?=##|$)/i);
+      if (whenMatch) {
+        const lines = whenMatch[1].split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('<!--'));
+        trigger = lines.join(' ').slice(0, 200);
+      }
+
+      return { file: f, title, trigger };
+    });
+}
+
 // collectFiles reads all non-template .md files from a directory, sorted.
 function collectFiles(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -324,11 +348,31 @@ async function overviewCommand(options) {
     ], decisions, repoUrl);
   }
 
+  // Workflows sheet — links to workflow files
+  const workflows = parseWorkflows(path.join(aiDir, 'context', 'workflows'));
+  if (workflows.length > 0) {
+    // Build GitHub links to the workflow files
+    const workflowRows = workflows.map(w => {
+      let link = '';
+      if (repoUrl) {
+        const m = repoUrl.match(/github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/);
+        if (m) link = `https://github.com/${m[1]}/blob/dev/.ai-trust/context/workflows/${w.file}`;
+      }
+      return [w.file, w.title, w.trigger, link];
+    });
+    addSheet(workbook, 'Workflows', [
+      { header: 'File', key: 'file', width: 28 },
+      { header: 'Title', key: 'title', width: 35 },
+      { header: 'Trigger', key: 'trigger', width: 60 },
+      { header: 'Link', key: 'link', width: 50 },
+    ], workflowRows, repoUrl);
+  }
+
   const xlsxPath = path.join(stateDir, 'overview.xlsx');
   await workbook.xlsx.writeFile(xlsxPath);
 
   const sheetNames = workbook.worksheets.map(ws => ws.name).join(', ');
-  console.log(`  overview.xlsx: ${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks, ${archTables.length} arch tables, ${decisions.length} decisions`);
+  console.log(`  overview.xlsx: ${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks, ${archTables.length} arch tables, ${decisions.length} decisions, ${workflows.length} workflows`);
   console.log(`  Sheets: ${sheetNames}`);
   console.log(`  Status colors: green=done, yellow=in_progress, gray=draft, blue=committed`);
   if (repoUrl) console.log(`  Commit links: ${commitUrl(repoUrl, 'HASH')}`);
