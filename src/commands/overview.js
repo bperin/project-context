@@ -59,7 +59,12 @@ async function overviewCommand(options) {
       const depsMatch = content.match(/\*\*Dependencies\*\*[:\s]+(.*)/i);
       const deps = depsMatch ? depsMatch[1].trim().replace(/"/g, '""') : 'none';
 
-      const notes = '—';
+      // Extract Commit (for done tasks)
+      let commit = '—';
+      const commitMatch = content.match(/\*\*Commit\*\*[:\s]+([0-9a-f]{7,40})/i);
+      if (commitMatch) commit = commitMatch[1];
+
+      const notes = commit;
 
       csvRows.push(`${type},${id},"${title}",${status},"${progress}","${deps}","${notes}"`);
     }
