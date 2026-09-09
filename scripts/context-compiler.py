@@ -1,59 +1,41 @@
 #!/usr/bin/env python3
-"""
-Project Context Compiler
-Enforces the core invariant:
-- Git / .ai/ files = Authoritative project state
-- Graph = Authoritative relationships
-- Qdrant = Derived semantic index (rebuildable from files)
-- Context Compiler = Authoritative runtime view for agents
-"""
+"""Compatibility entrypoint for the Project Context compiler.
 
-import os
+The canonical compiler implementation lives in scripts/project-context.py so
+there is one CLI contract and one packet format. This wrapper keeps the older
+standalone command usable.
+"""
+from __future__ import annotations
+
+import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
-def compile_context(ai_dir: str = ".ai"):
-    ai_path = Path(ai_dir)
-    if not ai_path.exists():
-        print(f"Error: {ai_dir} directory not found. Run project-context init first.")
-        return False
 
-    print("=== PROJECT CONTEXT COMPILER ===")
-    print(f"Reading authoritative state from: {ai_path.absolute()}")
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Compile a Project Context packet")
+    parser.add_argument("--workspace", default=".ai")
+    parser.add_argument("--task")
+    args = parser.parse_args()
 
-    # 1. Load Authoritative State Files
-    state_file = ai_path / "context" / "state" / "STATE.md"
-    specs_dir = ai_path / "context" / "specs"
-    plans_dir = ai_path / "context" / "plans"
-    tasks_dir = ai_path / "context" / "tasks"
-    decisions_dir = ai_path / "context" / "decisions"
+    script = Path(__file__).with_name("project-context.py")
+    command = [sys.executable, str(script), "compile", "--workspace", args.workspace]
+    if args.task:
+        command += ["--task", args.task]
 
-    compiled_view = {
-        "state": state_file.read_text() if state_file.exists() else "",
-        "specs": [f.name for f in specs_dir.glob("*.md")] if specs_dir.exists() else [],
-        "plans": [f.name for f in plans_dir.glob("*.md")] if plans_dir.exists() else [],
-        "tasks": [f.name for f in tasks_dir.glob("*.md")] if tasks_dir.exists() else [],
-        "decisions": [f.name for f in decisions_dir.glob("*.md")] if decisions_dir.exists() else []
-    }
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode:
+        sys.stdout.write(result.stdout)
+        sys.stderr.write(result.stderr)
+        return result.returncode
 
-    print(f"  - Loaded State: {bool(compiled_view['state']) }")
-    print(f"  - Specs found: {len(compiled_view['specs'])}")
-    print(f"  - Plans found: {len(compiled_view['plans'])}")
-    print(f"  - Tasks found: {len(compiled_view['tasks'])}")
-    print(f"  - Decisions found: {len(compiled_view['decisions'])}")
+    output_path = result.stdout.strip()
+    if output_path:
+        print(f"Compiled context: {output_path}")
+    return 0
 
-    # 2. Build Derived Index Payload (simulating Qdrant sync)
-    print("\n[Derived Indexing] Building Qdrant payload from authoritative files...")
-    knowledge_dir = ai_path / "context" / "knowledge"
-    knowledge_dir.mkdir(parents=True, exist_ok=True)
-    derived_index_path = knowledge_dir / "derived_index.json"
-    derived_index_path.write_text(json.dumps(compiled_view, indent=2))
-    print(f"Derived index successfully written to {derived_index_path}")
-    print("Invariant verified: Qdrant / derived indices can be wiped and fully rebuilt from Git files at any time.")
-    return True
 
 if __name__ == "__main__":
-    target_ai = sys.argv[1] if len(sys.argv) > 1 else ".ai"
-    success = compile_context(target_ai)
-    sys.exit(0 if success else 1)
+    raise SystemExit(main())
