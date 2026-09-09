@@ -24,6 +24,8 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^12.1.0",
-    "csv-stringify": "^6.8.3"
+    "csv-stringify": "^6.8.3",
+    "exceljs": "^4.4.0",
+    "uuid": "^14.0.2"
   }
 }
