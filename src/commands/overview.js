@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
-const { v5: uuidv5 } = require('uuid');
 
 // Namespace for deterministic UUIDs (v5). Generated once, fixed forever.
 // This is the UUID for the string "project-context" in the nil namespace.
@@ -41,8 +40,10 @@ function parseFile(filePath) {
   const commitMatch = content.match(/\*\*Commit\*\*[:\s]+([0-9a-f]{7,40})/i);
   if (commitMatch) commit = commitMatch[1];
 
-  // Deterministic UUID from the ID — same ID always produces same UUID
-  const uuid = uuidv5(id, NAMESPACE);
+  // Read UUID from the file (written by init or backfill)
+  let uuid = '';
+  const uuidMatch = content.match(/\*\*UUID\*\*[:\s]+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  if (uuidMatch) uuid = uuidMatch[1];
 
   return { id, uuid, title, status, progress, deps, commit };
 }
@@ -123,8 +124,11 @@ function addSheet(workbook, name, columns, rows, repoUrl) {
         const url = commitUrl(repoUrl, hash);
         if (url) {
           const cell = excelRow.getCell(commitCol + 1);
-          cell.value = { text: hash, hyperlink: url };
-          cell.font = { color: { argb: 'FF0563C1' }, underline: true };
+          cell.value = {
+            text: hash,
+            hyperlink: url,
+          };
+          cell.style.font = { color: { argb: 'FF0563C1' }, underline: true };
         }
       }
     }
