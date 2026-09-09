@@ -1,13 +1,14 @@
 {
   "name": "project-context-protocol",
-  "version": "1.0.0",
-  "description": "Robust cross-IDE multi-repository project management control plane and GraphRAG context protocol",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Scaffold and manage .ai/ project context for AI agents — cross-IDE, graph-first",
+  "main": "bin/cli.js",
   "bin": {
     "project-context": "./bin/cli.js"
   },
   "scripts": {
-    "test": "python3 scripts/test-setup.py && python3 scripts/test-discovery.py"
+    "test": "node bin/cli.js init --target /tmp/test-pc && node bin/cli.js overview --target /tmp/test-pc",
+    "start": "node bin/cli.js"
   },
   "keywords": [
     "ai",
@@ -15,10 +16,13 @@
     "gemini",
     "cursor",
     "project-management",
-    "graphrag",
-    "qdrant",
-    "context"
+    "context",
+    "graph",
+    "scaffold"
   ],
   "author": "Autonomous Agent",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0"
+  }
 }

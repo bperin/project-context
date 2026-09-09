@@ -1,0 +1,1 @@
+const { init } = require("./init");
