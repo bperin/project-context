@@ -15,6 +15,7 @@ And first-class commands:
 import os
 import sys
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -24,6 +25,32 @@ def run_cmd(cmd):
         return res.stdout.strip()
     except Exception:
         return ""
+
+def parse_python_ast(file_path: Path):
+    """Extracts classes and functions from a Python file using simple regex/regex-AST parsing."""
+    symbols = []
+    try:
+        content = file_path.read_text()
+        for match in re.finditer(r"^\s*(def|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)", content, re.MULTILINE):
+            sym_type, sym_name = match.groups()
+            symbols.append({"name": sym_name, "type": "function" if sym_type == "def" else "class"})
+    except Exception:
+        pass
+    return symbols
+
+def parse_typescript_ast(file_path: Path):
+    """Extracts classes and functions from a TypeScript/JavaScript file."""
+    symbols = []
+    try:
+        content = file_path.read_text()
+        # Match class or export function/class or standard function
+        for match in re.finditer(r"\b(function|class|const|let)\s+([a-zA-Z_][a-zA-Z0-9_]*)", content):
+            sym_type, sym_name = match.groups()
+            if sym_type in ["function", "class"]:
+                symbols.append({"name": sym_name, "type": sym_type})
+    except Exception:
+        pass
+    return symbols
 
 def discover_project(target_dir: str = "."):
     root = Path(target_dir).resolve()
@@ -39,6 +66,16 @@ def discover_project(target_dir: str = "."):
     
     top_dirs = [d.name for d in root.iterdir() if d.is_dir() and not d.name.startswith(".")]
 
+    # AST Symbol Discovery
+    discovered_symbols = {}
+    for ext, parser in [("*.py", parse_python_ast), ("*.ts", parse_typescript_ast), ("*.js", parse_typescript_ast)]:
+        for p in root.rglob(ext):
+            if any(part.startswith(".") for part in p.parts):
+                continue
+            syms = parser(p)
+            if syms:
+                discovered_symbols[str(p.relative_to(root))] = syms
+
     discovered = {
         "project_name": root.name,
         "manifests": manifests,
@@ -47,6 +84,7 @@ def discover_project(target_dir: str = "."):
             "commits": int(git_commits) if git_commits.isdigit() else 0
         },
         "top_directories": top_dirs,
+        "symbols": discovered_symbols,
         "source": "discovered",
         "confidence": "high"
     }
@@ -54,6 +92,7 @@ def discover_project(target_dir: str = "."):
     print(f"  - Detected manifests: {manifests}", file=sys.stderr)
     print(f"  - Git status: branch={discovered['git']['branch']}, commits={discovered['git']['commits']}", file=sys.stderr)
     print(f"  - Top-level directories: {top_dirs}", file=sys.stderr)
+    print(f"  - Discovered AST files: {list(discovered_symbols.keys())}", file=sys.stderr)
     return discovered
 
 def enrich_semantics(discovered: dict):
@@ -62,9 +101,9 @@ def enrich_semantics(discovered: dict):
     stack = []
     if "go.mod" in discovered["manifests"]:
         stack.append("Go")
-    if "package.json" in discovered["manifests"]:
+    if "package.json" in discovered["manifests"] or any(f.endswith((".ts", ".js")) for f in discovered["symbols"]):
         stack.append("Node.js / TypeScript")
-    if "pyproject.toml" in discovered["manifests"]:
+    if "pyproject.toml" in discovered["manifests"] or any(f.endswith(".py") for f in discovered["symbols"]):
         stack.append("Python")
     if "Cargo.toml" in discovered["manifests"]:
         stack.append("Rust")
@@ -131,6 +170,18 @@ def cmd_init(target_dir: str = "."):
             "confidence": "high"
         }, indent=2))
 
+    # Write discovered AST symbols to graph node files as child symbols
+    for rel_path, syms in enriched["symbols"].items():
+        sym_file = nodes_dir / f"{Path(rel_path).stem}_symbols.json"
+        sym_file.write_text(json.dumps({
+            "id": f"file_{Path(rel_path).name}",
+            "type": "file",
+            "path": rel_path,
+            "symbols": syms,
+            "source": "discovered",
+            "confidence": "high"
+        }, indent=2))
+
     print(f"\nSuccessfully initialized project context in {ai_dir}/")
 
 def cmd_inspect():
@@ -154,7 +205,8 @@ def cmd_graph():
     print("Nodes discovered:")
     for f in nodes_dir.glob("*.json"):
         data = json.loads(f.read_text())
-        print(f"  - {data['id']} ({data['type']}): {data['path']} [source: {data['source']}, confidence: {data['confidence']}]")
+        sym_str = f" [symbols: {len(data['symbols'])}]" if "symbols" in data else ""
+        print(f"  - {data['id']} ({data['type']}): {data['path']}{sym_str} [source: {data['source']}, confidence: {data['confidence']}]")
 
 def cmd_context(task_id: str = None):
     ai_dir = Path(".ai")

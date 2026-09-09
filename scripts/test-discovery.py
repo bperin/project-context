@@ -24,6 +24,14 @@ def test_discovery():
         with open(os.path.join(proj, "README.md"), "w") as f:
             f.write("# Mock Repo")
 
+        # Create Python file for AST test
+        with open(os.path.join(proj, "src", "service.py"), "w") as f:
+            f.write("class UserService:\n    def get_user():\n        pass\n\ndef main_runner():\n    pass")
+
+        # Create TypeScript file for AST test
+        with open(os.path.join(proj, "src", "index.ts"), "w") as f:
+            f.write("class ApiClient {}\nfunction initialize() {}")
+
         # Git init
         subprocess.run(["git", "init"], cwd=proj, capture_output=True)
         subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=proj, capture_output=True)
@@ -40,18 +48,32 @@ def test_discovery():
         assert os.path.isdir(os.path.join(proj, ".ai")), ".ai not created"
         assert os.path.isfile(os.path.join(proj, ".ai", "context", "identity", "project.md")), "Identity not created"
 
-        # 2. Test inspect (Multi-manifest stack verification)
+        # 2. Test inspect (Multi-manifest & AST stack verification)
         res = subprocess.run(["python3", cli_script, "inspect"], cwd=proj, capture_output=True, text=True)
         print("INSPECT STDOUT:\n", res.stdout)
         assert res.returncode == 0, "Inspect failed"
         assert "Go" in res.stdout, "Go stack not detected"
         assert "Node.js" in res.stdout, "Node.js stack not detected"
+        assert "Python" in res.stdout, "Python AST stack not detected"
 
-        # 3. Test graph
+        # 3. Test graph (Check parsed AST node files)
         res = subprocess.run(["python3", cli_script, "graph"], cwd=proj, capture_output=True, text=True)
         print("GRAPH STDOUT:\n", res.stdout)
         assert res.returncode == 0, "Graph failed"
         assert "src" in res.stdout, "src directory node missing"
+        assert "service_symbols.json" in os.listdir(os.path.join(proj, ".ai", "graph", "nodes")), "service_symbols file missing"
+        assert "index_symbols.json" in os.listdir(os.path.join(proj, ".ai", "graph", "nodes")), "index_symbols file missing"
+
+        # Verify parsed AST symbol structure
+        with open(os.path.join(proj, ".ai", "graph", "nodes", "service_symbols.json")) as f:
+            service_data = json.load(f)
+            assert any(s["name"] == "UserService" and s["type"] == "class" for s in service_data["symbols"]), "UserService missing"
+            assert any(s["name"] == "get_user" and s["type"] == "function" for s in service_data["symbols"]), "get_user missing"
+
+        with open(os.path.join(proj, ".ai", "graph", "nodes", "index_symbols.json")) as f:
+            index_data = json.load(f)
+            assert any(s["name"] == "ApiClient" and s["type"] == "class" for s in index_data["symbols"]), "ApiClient missing"
+            assert any(s["name"] == "initialize" and s["type"] == "function" for s in index_data["symbols"]), "initialize missing"
 
         # 4. Test context --task TASK-042
         res = subprocess.run(["python3", cli_script, "context", "--task", "TASK-042"], cwd=proj, capture_output=True, text=True)
