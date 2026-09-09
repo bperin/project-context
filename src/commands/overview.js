@@ -48,6 +48,18 @@ function parseFile(filePath) {
   return { id, uuid, title, status, progress, deps, commit };
 }
 
+// parseIdentity reads the project identity markdown file.
+function parseIdentity(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  const content = fs.readFileSync(filePath, 'utf8');
+  const fields = {};
+  for (const line of content.split('\n')) {
+    const m = line.match(/-\s+\*\*([^*]+)\*\*[:\s]+(.*)/);
+    if (m) fields[m[1]] = m[2].trim();
+  }
+  return fields;
+}
+
 // collectFiles reads all non-template .md files from a directory, sorted.
 function collectFiles(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -176,6 +188,16 @@ async function overviewCommand(options) {
   workbook.creator = 'project-context';
   workbook.created = new Date();
 
+  // Identity sheet
+  const identity = parseIdentity(path.join(aiDir, 'context', 'identity', 'project.md'));
+  if (identity) {
+    const idRows = Object.entries(identity).map(([k, v]) => [k, v]);
+    addSheet(workbook, 'Identity', [
+      { header: 'Field', key: 'field', width: 20 },
+      { header: 'Value', key: 'value', width: 60 },
+    ], idRows, repoUrl);
+  }
+
   // Specs sheet
   addSheet(workbook, 'Specs', [
     { header: 'UUID', key: 'uuid', width: 38 },
@@ -211,8 +233,8 @@ async function overviewCommand(options) {
   const xlsxPath = path.join(stateDir, 'overview.xlsx');
   await workbook.xlsx.writeFile(xlsxPath);
 
-  console.log(`  overview.xlsx: ${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks`);
-  console.log(`  Sheets: Specs, Plans, Tasks`);
+  console.log(`  overview.xlsx: ${identity ? 'identity, ' : ''}${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks`);
+  console.log(`  Sheets: ${identity ? 'Identity, ' : ''}Specs, Plans, Tasks`);
   console.log(`  Status colors: green=done, yellow=in_progress, gray=draft, blue=committed`);
   if (repoUrl) console.log(`  Commit links: ${commitUrl(repoUrl, 'HASH')}`);
 }
