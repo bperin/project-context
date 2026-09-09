@@ -1,49 +1,20 @@
-# SPEC-001: Structured GraphRAG with Qdrant Vector & Relational Storage
+# SPEC-001: Project Context Compiler & Derived Qdrant GraphRAG
 
 ## Supersedes
 
-- Supersedes: none
-- Reason: First formal specification for structured RAG indexing.
+- Supersedes: previous SPEC-001 (raw vector storage)
+- Reason: Enforce strict ownership invariant where Git / `.ai/` files are authoritative project state and Qdrant is a purely derived, rebuildable semantic index.
 - Superseded by: none
 
-## What
+## Ownership Invariant
 
-A structured GraphRAG indexing and retrieval pipeline where Qdrant stores semantically embedded entity and relationship payloads rather than raw unorganized code dumps. Instead of ingesting entire codebases blindly into vectors, code is parsed into an entity-relationship graph (nodes for packages, modules, functions, and structs; edges for dependencies, callers, and data ownership), embedded, and stored in Qdrant with rich relational payloads.
+1. **Git / `.ai/` files** = Authoritative project state (specs, plans, tasks, state, ADRs).
+2. **Graph** = Authoritative relationships (nodes & edges derived from files).
+3. **Qdrant** = Derived semantic index (fully rebuildable from `.ai/` files at any time).
+4. **Context Compiler** = Authoritative runtime view presented to agents/IDE adapters.
 
-## Why
-
-- **Eliminates Noise:** Blindly vectorizing all files creates bloated indexes full of boilerplate and low-signal text.
-- **Provides Relational Context:** GraphRAG links semantic search hits to structured subgraphs (neighbors, callers, dependencies) to give AI agents precise architectural context.
-- **Production Performance:** Leverages Qdrant's sub-200ms vector search and payload filtering alongside graph traversal.
+**Delete Qdrant, rebuild it, and zero project knowledge is lost.**
 
 ## Desired Behavior
 
-### Ingestion & Structuring
-1. Source files are parsed into semantic entities (Modules, Functions, Classes, APIs) and relationships (CALLS, DEFINES, OWNS).
-2. Each entity and relationship chunk is structured with explicit metadata (repository, path, symbols, dependencies).
-3. Embeddings are generated for the summarized entity descriptions and stored in Qdrant collections with indexed payloads.
-
-### Retrieval & Querying
-1. Agent queries are embedded and matched against Qdrant entity collections using top-k semantic search.
-2. Retrieved entity IDs serve as anchor points to traverse connected neighborhood relations.
-3. The resulting structured subgraph (the "structured context") is provided to agents instead of raw file dumps.
-
-## Scope
-
-### In Scope
-- Schema definition for entity and relationship payloads in Qdrant.
-- Integration protocol between `.ai/context/knowledge/` and Qdrant collections.
-- Python reference pipeline scripts for ingestion and retrieval.
-
-### Out of Scope
-- Hosted managed Qdrant cluster provisioning (assumes local or remote Qdrant instance URL).
-
-## Constraints
-
-- Qdrant payloads must strictly mirror the project's directory hierarchy and schema.
-- No raw unindexed file blobs allowed in vector collections.
-
-## Success Criteria
-
-1. Qdrant vector search successfully retrieves entity nodes with associated relationship edges.
-2. Query responses return precise subgraphs rather than raw unparsed files.
+The Context Compiler reads authoritative `.ai/` files, builds the relationship graph and structured chunks, and pushes them to Qdrant as a derived index. Agents query the compiled runtime view or search Qdrant for semantic anchor points, but all source of truth remains in version-controlled Markdown files.
