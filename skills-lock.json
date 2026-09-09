@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "csv": {
+      "source": "vercel-labs/bash-tool",
+      "sourceType": "github",
+      "skillPath": "examples/skills-tool/skills/csv/SKILL.md",
+      "computedHash": "25acf2096ece5f0b1e0fb10b89c0b52d57fa9640c896fab2493405d0a0919fbb"
+    }
+  }
+}

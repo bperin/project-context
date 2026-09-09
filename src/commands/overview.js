@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { stringify } = require('csv-stringify/sync');
 
 // parseFile reads a markdown context file and extracts its metadata.
 function parseFile(filePath) {
@@ -7,7 +8,7 @@ function parseFile(filePath) {
   const id = path.basename(filePath, '.md');
 
   const titleMatch = content.match(/^#\s+(.*)/m);
-  const title = titleMatch ? titleMatch[1].replace(/"/g, '""') : id;
+  const title = titleMatch ? titleMatch[1] : id;
 
   let status = 'draft';
   const statusSectionMatch = content.match(/##\s+Status[\r\n]+([\s\S]*?)(?=##|$)/i);
@@ -24,10 +25,10 @@ function parseFile(filePath) {
   }
 
   const progressMatch = content.match(/\*\*Progress\*\*[:\s]+(.*)/i);
-  const progress = progressMatch ? progressMatch[1].trim().replace(/"/g, '""') : '—';
+  const progress = progressMatch ? progressMatch[1].trim() : '—';
 
   const depsMatch = content.match(/\*\*Dependencies\*\*[:\s]+(.*)/i);
-  const deps = depsMatch ? depsMatch[1].trim().replace(/"/g, '""') : 'none';
+  const deps = depsMatch ? depsMatch[1].trim() : 'none';
 
   let commit = '—';
   const commitMatch = content.match(/\*\*Commit\*\*[:\s]+([0-9a-f]{7,40})/i);
@@ -36,7 +37,7 @@ function parseFile(filePath) {
   return { id, title, status, progress, deps, commit };
 }
 
-// collectFiles reads all non-template .md files from a directory.
+// collectFiles reads all non-template .md files from a directory, sorted.
 function collectFiles(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
@@ -45,10 +46,10 @@ function collectFiles(dir) {
     .map(f => parseFile(path.join(dir, f)));
 }
 
-// writeCSV writes rows to a CSV file with a header row.
-function writeCSV(filePath, header, rows) {
-  const content = [header, ...rows].join('\n') + '\n';
-  fs.writeFileSync(filePath, content);
+// writeCSV writes rows to a CSV file using RFC 4180 compliant quoting.
+function writeCSV(filePath, columns, rows) {
+  const csv = stringify(rows, { header: true, columns });
+  fs.writeFileSync(filePath, csv);
   return rows.length;
 }
 
@@ -70,36 +71,24 @@ async function overviewCommand(options) {
   const plans = collectFiles(path.join(aiDir, 'context', 'plans'));
   const tasks = collectFiles(path.join(aiDir, 'context', 'tasks'));
 
-  // specs.csv — ID,Title,Status,Progress,Dependencies,Commit
-  const specsRows = specs.map(r =>
-    `${r.id},"${r.title}",${r.status},"${r.progress}","${r.deps}",${r.commit}`);
-  writeCSV(
-    path.join(stateDir, 'specs.csv'),
-    'ID,Title,Status,Progress,Dependencies,Commit',
-    specsRows
-  );
+  // specs.csv
+  const specCols = ['ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Commit'];
+  const specRows = specs.map(r => [r.id, r.title, r.status, r.progress, r.deps, r.commit]);
+  writeCSV(path.join(stateDir, 'specs.csv'), specCols, specRows);
 
-  // plans.csv — ID,Title,Status,Progress,Dependencies,Commit
-  const plansRows = plans.map(r =>
-    `${r.id},"${r.title}",${r.status},"${r.progress}","${r.deps}",${r.commit}`);
-  writeCSV(
-    path.join(stateDir, 'plans.csv'),
-    'ID,Title,Status,Progress,Dependencies,Commit',
-    plansRows
-  );
+  // plans.csv
+  const planCols = ['ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Commit'];
+  const planRows = plans.map(r => [r.id, r.title, r.status, r.progress, r.deps, r.commit]);
+  writeCSV(path.join(stateDir, 'plans.csv'), planCols, planRows);
 
-  // tasks.csv — ID,Title,Status,Dependencies,Commit
-  const tasksRows = tasks.map(r =>
-    `${r.id},"${r.title}",${r.status},"${r.deps}",${r.commit}`);
-  writeCSV(
-    path.join(stateDir, 'tasks.csv'),
-    'ID,Title,Status,Dependencies,Commit',
-    tasksRows
-  );
+  // tasks.csv
+  const taskCols = ['ID', 'Title', 'Status', 'Dependencies', 'Commit'];
+  const taskRows = tasks.map(r => [r.id, r.title, r.status, r.deps, r.commit]);
+  writeCSV(path.join(stateDir, 'tasks.csv'), taskCols, taskRows);
 
-  console.log(`  specs.csv: ${specs.length} rows`);
-  console.log(`  plans.csv: ${plans.length} rows`);
-  console.log(`  tasks.csv: ${tasks.length} rows`);
+  console.log(`  specs.csv: ${specRows.length} rows`);
+  console.log(`  plans.csv: ${planRows.length} rows`);
+  console.log(`  tasks.csv: ${taskRows.length} rows`);
 }
 
 module.exports = overviewCommand;
