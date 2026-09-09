@@ -45,7 +45,39 @@ function parseFile(filePath) {
   const uuidMatch = content.match(/\*\*UUID\*\*[:\s]+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
   if (uuidMatch) uuid = uuidMatch[1];
 
-  return { id, uuid, title, status, progress, deps, commit };
+  // Extract description (Goal for tasks, What for specs, Objective for plans)
+  let description = '';
+  const descMatch = content.match(/##\s+(?:Goal|What|Objective)[\r\n]+([\s\S]*?)(?=##|$)/i);
+  if (descMatch) {
+    description = descMatch[1].trim().split('\n').map(l => l.trim()).filter(l => l).join(' ');
+  }
+
+  // Extract acceptance criteria (tasks) / success criteria (specs) / completion criteria (plans)
+  let criteria = '';
+  const critMatch = content.match(/##\s+(?:Acceptance Criteria|Success Criteria|Completion Criteria)[\r\n]+([\s\S]*?)(?=##|$)/i);
+  if (critMatch) {
+    criteria = critMatch[1].trim().split('\n')
+      .map(l => l.replace(/^\d+\.\s*/, '').replace(/^[-*]\s*/, '').trim())
+      .filter(l => l)
+      .join('; ');
+  }
+
+  // Extract files (tasks only)
+  let files = '';
+  const filesMatch = content.match(/##\s+Relevant Files[\r\n]+([\s\S]*?)(?=##|$)/i);
+  if (filesMatch) {
+    files = filesMatch[1].match(/[-*]\s+(`[^`]+`)/g) || [];
+    files = files.map(f => f.replace(/[-*]\s+/, '').replace(/`/g, '')).join(', ');
+  }
+
+  // Extract scope (specs only)
+  let scope = '';
+  const scopeMatch = content.match(/##\s+Scope[\r\n]+([\s\S]*?)(?=##|$)/i);
+  if (scopeMatch) {
+    scope = scopeMatch[1].trim().split('\n').map(l => l.trim()).filter(l => l).join(' ');
+  }
+
+  return { id, uuid, title, status, progress, deps, commit, description, criteria, files, scope };
 }
 
 // parseIdentity reads the project identity markdown file.
@@ -259,14 +291,10 @@ async function overviewCommand(options) {
     process.exit(1);
   }
 
-  console.log(`Generating overview spreadsheet from workspace at ${aiDir}...`);
+  console.log(`Updating overview spreadsheet at ${aiDir}...`);
 
   const stateDir = path.join(aiDir, 'context', 'state');
   fs.mkdirSync(stateDir, { recursive: true });
-
-  const specs = collectFiles(path.join(aiDir, 'context', 'specs'));
-  const plans = collectFiles(path.join(aiDir, 'context', 'plans'));
-  const tasks = collectFiles(path.join(aiDir, 'context', 'tasks'));
 
   // Get repo URL for commit hyperlinks
   let repoUrl = '';
@@ -278,85 +306,35 @@ async function overviewCommand(options) {
     // No git remote — skip hyperlinks
   }
 
+  const xlsxPath = path.join(stateDir, 'overview.xlsx');
+
+  // If no existing xlsx, error — the xlsx is the source of truth now
+  if (!fs.existsSync(xlsxPath)) {
+    console.error('overview.xlsx not found. The xlsx is the source of truth — create it first or restore from git.');
+    process.exit(1);
+  }
+
+  // Load existing workbook — preserve all sheets
   const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(xlsxPath);
   workbook.creator = 'project-context';
   workbook.created = new Date();
 
-  // Identity sheet
-  const identity = parseIdentity(path.join(aiDir, 'context', 'identity', 'project.md'));
-  if (identity) {
-    const idRows = Object.entries(identity).map(([k, v]) => [k, v]);
-    addSheet(workbook, 'Identity', [
-      { header: 'Field', key: 'field', width: 20 },
-      { header: 'Value', key: 'value', width: 60 },
-    ], idRows, repoUrl);
-  }
+  let workflowCount = 0;
 
-  // Specs sheet
-  addSheet(workbook, 'Specs', [
-    { header: 'UUID', key: 'uuid', width: 38 },
-    { header: 'ID', key: 'id', width: 12 },
-    { header: 'Title', key: 'title', width: 50 },
-    { header: 'Status', key: 'status', width: 14 },
-    { header: 'Progress', key: 'progress', width: 28 },
-    { header: 'Dependencies', key: 'deps', width: 30 },
-    { header: 'Commit', key: 'commit', width: 12 },
-  ], specs.map(r => [r.uuid, r.id, r.title, r.status, r.progress, r.deps, r.commit]), repoUrl);
-
-  // Plans sheet
-  addSheet(workbook, 'Plans', [
-    { header: 'UUID', key: 'uuid', width: 38 },
-    { header: 'ID', key: 'id', width: 12 },
-    { header: 'Title', key: 'title', width: 50 },
-    { header: 'Status', key: 'status', width: 14 },
-    { header: 'Progress', key: 'progress', width: 28 },
-    { header: 'Dependencies', key: 'deps', width: 30 },
-    { header: 'Commit', key: 'commit', width: 12 },
-  ], plans.map(r => [r.uuid, r.id, r.title, r.status, r.progress, r.deps, r.commit]), repoUrl);
-
-  // Tasks sheet
-  addSheet(workbook, 'Tasks', [
-    { header: 'UUID', key: 'uuid', width: 38 },
-    { header: 'ID', key: 'id', width: 12 },
-    { header: 'Title', key: 'title', width: 50 },
-    { header: 'Status', key: 'status', width: 14 },
-    { header: 'Dependencies', key: 'deps', width: 40 },
-    { header: 'Commit', key: 'commit', width: 12 },
-  ], tasks.map(r => [r.uuid, r.id, r.title, r.status, r.deps, r.commit]), repoUrl);
-
-  // Architecture sheets — one per table in architecture.md
-  const archTables = parseMarkdownTables(path.join(aiDir, 'context', 'architecture', 'architecture.md'));
-  for (const t of archTables) {
-    // Excel sheet names can't contain * ? : \ / [ ]
-    const sheetName = t.heading.replace(/[*?:\\/[\]]/g, ' ').trim() || 'Architecture';
-    const cols = t.headers.map((h, i) => ({
-      header: h,
-      key: `col${i}`,
-      width: Math.max(15, Math.min(50, h.length + 5)),
-    }));
-    addSheet(workbook, sheetName, cols, t.rows, repoUrl);
-  }
-
-  // Decisions sheet — ADR index from DECISIONS.md
-  const decisions = parseDecisions(path.join(aiDir, 'DECISIONS.md'));
-  if (decisions.length > 0) {
-    addSheet(workbook, 'Decisions', [
-      { header: 'ID', key: 'id', width: 10 },
-      { header: 'Title', key: 'title', width: 60 },
-      { header: 'Status', key: 'status', width: 14 },
-      { header: 'Date', key: 'date', width: 14 },
-    ], decisions, repoUrl);
-  }
-
-  // Workflows sheet — links to workflow files
-  const workflows = parseWorkflows(path.join(aiDir, 'context', 'workflows'));
+  // Update Workflows sheet from workflow markdown files (these still exist as .md)
+  const workflowsDir = path.join(aiDir, 'context', 'workflows');
+  const workflows = parseWorkflows(workflowsDir);
   if (workflows.length > 0) {
-    // Build GitHub links to the workflow files
+    // Remove existing Workflows sheet if present
+    const existingWs = workbook.getWorksheet('Workflows');
+    if (existingWs) workbook.removeWorksheet(existingWs.id);
+
     const workflowRows = workflows.map(w => {
       let link = '';
       if (repoUrl) {
         const m = repoUrl.match(/github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/);
-        if (m) link = `https://github.com/${m[1]}/blob/dev/.ai-trust/context/workflows/${w.file}`;
+        if (m) link = `https://github.com/${m[1]}/blob/dev/${options.workspace}/context/workflows/${w.file}`;
       }
       return [w.file, w.title, w.trigger, link];
     });
@@ -366,15 +344,15 @@ async function overviewCommand(options) {
       { header: 'Trigger', key: 'trigger', width: 60 },
       { header: 'Link', key: 'link', width: 50 },
     ], workflowRows, repoUrl);
+    workflowCount = workflows.length;
   }
 
-  const xlsxPath = path.join(stateDir, 'overview.xlsx');
   await workbook.xlsx.writeFile(xlsxPath);
 
   const sheetNames = workbook.worksheets.map(ws => ws.name).join(', ');
-  console.log(`  overview.xlsx: ${specs.length} specs, ${plans.length} plans, ${tasks.length} tasks, ${archTables.length} arch tables, ${decisions.length} decisions, ${workflows.length} workflows`);
   console.log(`  Sheets: ${sheetNames}`);
-  console.log(`  Status colors: green=done, yellow=in_progress, gray=draft, blue=committed`);
+  console.log(`  Workflows refreshed: ${workflowCount}`);
+  console.log(`  All other sheets preserved from existing xlsx (xlsx is source of truth)`);
   if (repoUrl) console.log(`  Commit links: ${commitUrl(repoUrl, 'HASH')}`);
 }
 
