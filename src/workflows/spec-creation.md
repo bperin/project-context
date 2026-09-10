@@ -97,10 +97,57 @@ biases the planner shares, and sources the writer never checked.
    Pull exact standard citations and attack references from the research
    file — do not invent them.
 
-4. **Spawn the planner** (foreground, `subagent_explore` profile). The
-   planner is not a registered subagent profile, so spawn
-   `subagent_explore` and embed the planner role in the task prompt.
-   Give it:
+4. **Round 1-2: blind reviewer** (foreground, `blind-reviewer` profile —
+   cheap model). The blind reviewer catches structural, template, and
+   rule-compliance issues without burning heavy-model credits. Give it:
+   - The spec file path
+   - `AGENTS.md` path
+   - The architecture document path
+   - The project's algorithm registry (if applicable)
+   - No context summary, no conversation history, no research file.
+   - The blind reviewer checks:
+     - **Technical rigor**: are algorithms and protocols correctly
+       distinguished? Are domain-specific requirements present where
+       relevant?
+     - **Dependency compliance**: would any desired behavior require a
+       forbidden import?
+     - **Completeness**: are there spec behaviors with no success
+       criterion? Success criteria with no corresponding behavior?
+     - **Internal consistency**: does the spec contradict itself?
+     - **Rule compliance**: does the spec respect AGENTS.md conventions?
+     - **Template compliance**: are all required sections present?
+
+5. **Apply blind reviewer findings.** Revise the spec.
+
+6. **Spawn the security reviewer** (foreground, `subagent_explore`
+   profile with security skills loaded in the prompt) **only if the
+   spec touches crypto, auth, or security primitives**. This runs in
+   parallel with the blind reviewer — both are cheap. Give it:
+   - The spec file path
+   - `AGENTS.md` path (for the algorithm-to-skill matrix)
+   - The project's algorithm registry path (if applicable)
+   - The security reviewer checks:
+     - **Algorithm registry**: is every algorithm in the spec present
+       in `trust/algorithms.json` (or the project's registry)?
+     - **Skill gating**: are the primary and secondary skills for each
+       algorithm listed? Are they installed?
+     - **Attack surface**: are known attacks and failure modes
+       documented (from the research file)?
+     - **Dependency compliance**: would any behavior require a
+       forbidden import?
+
+7. **Apply security reviewer findings.** Revise the spec.
+
+8. **Round counter (rounds 1-2).** If the blind reviewer or security
+   reviewer found MUST-FIX or SHOULD-FIX issues, go back to step 4
+   (re-spawn blind reviewer on the revised spec). Max 2 cheap rounds.
+
+9. **Round 3 (final): planner** (foreground, `planner` profile — heavy
+   model with `adhd` loaded). The planner fires only once, on the
+   final round, for deep architecture and coverage review. Load the
+   `adhd` skill first — use it to explore alternative architectures
+   and challenge the spec's problem fit from divergent angles before
+   reviewing. Give it:
    - The spec file path
    - The research findings file path
    - A 1-2 sentence context summary (what this spec is for, key user
@@ -125,58 +172,15 @@ biases the planner shares, and sources the writer never checked.
      - **Research completeness**: are standards and attack sources
        cited from primary sources, not vague references?
 
-5. **Apply planner findings.** Revise the spec. If the planner found a
-   fundamental problem (wrong problem, wrong scope), stop and discuss
-   with the user before rewriting.
+10. **Apply planner findings.** Revise the spec. If the planner found a
+    fundamental problem (wrong problem, wrong scope), stop and discuss
+    with the user before rewriting.
 
-6. **Spawn the security reviewer** (foreground, `subagent_explore`
-   profile with security skills loaded in the prompt) **only if the
-   spec touches crypto, auth, or security primitives**. Give it:
-   - The spec file path
-   - `AGENTS.md` path (for the algorithm-to-skill matrix)
-   - The project's algorithm registry path (if applicable)
-   - The security reviewer checks:
-     - **Algorithm registry**: is every algorithm in the spec present
-       in `trust/algorithms.json` (or the project's registry)?
-     - **Skill gating**: are the primary and secondary skills for each
-       algorithm listed? Are they installed?
-     - **Attack surface**: are known attacks and failure modes
-       documented (from the research file)?
-     - **Dependency compliance**: would any behavior require a
-       forbidden import?
+11. **Escalation.** If the planner found MUST-FIX issues that require
+    another round, escalate to the user with a summary of the
+    disagreement. Do not loop the heavy model more than once.
 
-7. **Apply security reviewer findings.** Revise the spec.
-
-8. **Spawn the blind reviewer** (foreground, `blind-reviewer`
-   profile). Give it:
-   - The spec file path
-   - `AGENTS.md` path
-   - The architecture document path
-   - The project's algorithm registry (if applicable — every algorithm
-     must be in the registry)
-   - No context summary, no conversation history, no research file.
-   - The blind reviewer checks:
-     - **Technical rigor**: are algorithms and protocols correctly
-       distinguished? Are domain-specific requirements (canonicalization,
-       constant-time handling, nonce management, etc.) present where
-       relevant? Are known attacks or failure modes documented?
-     - **Dependency compliance**: would any desired behavior require a
-       forbidden import or violate the project's dependency rules?
-     - **Completeness**: are there spec behaviors with no success
-       criterion? Success criteria with no corresponding behavior?
-     - **Internal consistency**: does the spec contradict itself? Do
-       the constraints align with the desired behaviors?
-     - **Rule compliance**: does the spec respect AGENTS.md conventions?
-
-9. **Apply blind reviewer findings.** Revise the spec.
-
-10. **Round counter.** This is round 1. If any reviewer found MUST-FIX
-    or SHOULD-FIX issues, go back to step 4 (re-spawn planner, security,
-    and blind reviewer on the revised spec). Max 3 rounds. If still
-    unresolved after round 3, escalate to the user with a summary of
-    the disagreement.
-
-11. **Commit.** When all reviewers pass (only NITs or clean), commit the
+12. **Commit.** When all reviewers pass (only NITs or clean), commit the
     spec with a message summarizing what the review changed.
 
 ## Expected output
@@ -197,9 +201,10 @@ A spec that:
   test vector").
 - Has constraints that align with the desired behaviors (no
   contradictions).
-- Has been stress-tested from five angles: intent (writer), sources
-  (research), context (planner), security (security reviewer), and
-  rules (blind reviewer).
+- Has been stress-tested from five angles: intent (writer + adhd),
+  sources (research), rules (blind reviewer, cheap rounds 1-2),
+  security (security reviewer), and architecture (planner, heavy
+  round 3).
 
 ## Subagent prompt templates
 

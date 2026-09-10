@@ -119,57 +119,9 @@ A plan that leaves these vague forces the implementer to guess.
      packages used.
    - Call out actual file paths to create/modify.
 
-5. **Spawn the planner** (foreground, `subagent_explore` profile). The
-   planner is not a registered subagent profile, so spawn
-   `subagent_explore` and embed the planner role in the task prompt.
-   Give it:
-   - The plan file path
-   - The source spec path
-   - The research findings file path
-   - The project's algorithm registry path (if applicable)
-   - `AGENTS.md` path
-   - A 1-2 sentence context summary (what this plan covers, key user
-     priorities)
-   - The planner checks:
-     - **Spec coverage**: does every spec desired behavior have a
-       workstream? Does every workstream trace to a spec behavior?
-     - **Approach soundness**: is this the right way to implement the
-       spec? Are there simpler approaches the writer dismissed?
-     - **Workstream ordering**: are workstreams ordered so no
-       workstream depends on a later one? Are dependency edges explicit?
-     - **Scope vs. spec**: is the plan trying to do more than the spec
-       asks? Less? Is the Out of Scope section honest?
-     - **Research completeness**: are standards and vectors cited from
-       primary sources, not vague references?
-     - **Completion criteria**: is every criterion objectively
-       verifiable (a command to run, a grep to check, a test to pass)?
-
-6. **Apply planner findings.** Revise the plan.
-
-7. **Spawn the security reviewer** (foreground, `subagent_explore`
-   profile with security skills loaded in the prompt) **only if the
-   plan touches crypto, auth, or security primitives**. Give it:
-   - The plan file path
-   - The research findings file path
-   - The project's algorithm registry path (if applicable)
-   - `AGENTS.md` path (for the algorithm-to-skill matrix)
-   - The security reviewer checks:
-     - **Algorithm registry**: is every algorithm in the plan present
-       in the registry?
-     - **Skill gating**: are primary and secondary skills listed for
-       each algorithm? Are they installed?
-     - **Test vectors**: every algorithm names a specific test vector
-       from its governing standard. "Known test vector" is not specific
-       enough.
-     - **Negative tests**: every algorithm has at least one negative
-       test.
-     - **Dependency compliance**: would any workstream require a
-       forbidden import?
-
-8. **Apply security reviewer findings.** Revise the plan.
-
-9. **Spawn the blind reviewer** (foreground, `blind-reviewer`
-   profile). Give it:
+5. **Round 1-2: blind reviewer** (foreground, `blind-reviewer` profile —
+   cheap model). The blind reviewer catches structural, template, and
+   rule-compliance issues without burning heavy-model credits. Give it:
    - The plan file path
    - The source spec path
    - The project's algorithm registry path (if applicable)
@@ -193,15 +145,75 @@ A plan that leaves these vague forces the implementer to guess.
        forbidden import?
      - **Spec constraints**: does the plan violate any constraint from
        the spec or AGENTS.md?
+     - **Template compliance**: are all required sections present
+       (Workstreams, Out of Scope, Requirements, Acceptance Criteria,
+       Research Findings, Security Considerations)?
 
-10. **Apply blind reviewer findings.** Revise the plan.
+6. **Apply blind reviewer findings.** Revise the plan.
 
-11. **Round counter.** This is round 1. If any reviewer found
-    MUST-FIX or SHOULD-FIX issues, go back to step 5 (re-spawn planner,
-    security, and blind reviewer on the revised plan). Max 3 rounds. If
-    still unresolved after round 3, escalate to the user.
+7. **Spawn the security reviewer** (foreground, `subagent_explore`
+   profile with security skills loaded in the prompt) **only if the
+   plan touches crypto, auth, or security primitives**. This runs in
+   parallel with the blind reviewer — both are cheap. Give it:
+   - The plan file path
+   - The research findings file path
+   - The project's algorithm registry path (if applicable)
+   - `AGENTS.md` path (for the algorithm-to-skill matrix)
+   - The security reviewer checks:
+     - **Algorithm registry**: is every algorithm in the plan present
+       in the registry?
+     - **Skill gating**: are primary and secondary skills listed for
+       each algorithm? Are they installed?
+     - **Test vectors**: every algorithm names a specific test vector
+       from its governing standard. "Known test vector" is not specific
+       enough.
+     - **Negative tests**: every algorithm has at least one negative
+       test.
+     - **Dependency compliance**: would any workstream require a
+       forbidden import?
 
-12. **Commit.** When all reviewers pass, commit the plan with a
+8. **Apply security reviewer findings.** Revise the plan.
+
+9. **Round counter (rounds 1-2).** If the blind reviewer or security
+   reviewer found MUST-FIX or SHOULD-FIX issues, go back to step 5
+   (re-spawn blind reviewer on the revised plan). Max 2 cheap rounds.
+
+10. **Round 3 (final): planner** (foreground, `planner` profile — heavy
+    model with `adhd` loaded). The planner fires only once, on the
+    final round, for deep architecture and coverage review. Load the
+    `adhd` skill first — use it to explore alternative implementation
+    approaches and challenge the plan's architecture from divergent
+    angles before reviewing. Give it:
+    - The plan file path
+    - The source spec path
+    - The research findings file path
+    - The project's algorithm registry path (if applicable)
+    - `AGENTS.md` path
+    - A 1-2 sentence context summary (what this plan covers, key user
+      priorities)
+    - The planner checks:
+      - **Spec coverage**: does every spec desired behavior have a
+        workstream? Does every workstream trace to a spec behavior?
+      - **Approach soundness**: is this the right way to implement the
+        spec? Are there simpler approaches the writer dismissed?
+      - **Workstream ordering**: are workstreams ordered so no
+        workstream depends on a later one? Are dependency edges explicit?
+      - **Scope vs. spec**: is the plan trying to do more than the spec
+        asks? Less? Is the Out of Scope section honest?
+      - **Research completeness**: are standards and vectors cited from
+        primary sources, not vague references?
+      - **Completion criteria**: is every criterion objectively
+        verifiable (a command to run, a grep to check, a test to pass)?
+
+11. **Apply planner findings.** Revise the plan. If the planner found a
+    fundamental problem (wrong architecture, wrong workstream order),
+    stop and discuss with the user before rewriting.
+
+12. **Escalation.** If the planner found MUST-FIX issues that require
+    another round, escalate to the user with a summary of the
+    disagreement. Do not loop the heavy model more than once.
+
+13. **Commit.** When all reviewers pass, commit the plan with a
     message summarizing what the review changed.
 
 ## Expected output
