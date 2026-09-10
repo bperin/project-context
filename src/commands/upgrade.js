@@ -96,7 +96,7 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Copy subagent profiles (code-optimizer, blind-reviewer, test-agent)
+  // Copy subagent profiles (code-optimizer, blind-reviewer, test-agent, planner)
   if (fs.existsSync(srcAgents)) {
     const dstAgentsDir = path.join(agentsDir, 'agents');
     fs.mkdirSync(dstAgentsDir, { recursive: true });
@@ -104,6 +104,20 @@ async function upgradeCommand(options) {
       if (!f.endsWith('.md')) continue;
       copyWithHeader(path.join(srcAgents, f), path.join(dstAgentsDir, f));
     }
+
+    // Also copy to .devin/agents/ at the project root so the Devin host
+    // discovers custom subagent profiles. The host scans .devin/agents/
+    // and .agents/agents/ — not .ai-trust/.agents/agents/.
+    const devinAgentsDir = path.join(targetDir, '.devin', 'agents');
+    fs.mkdirSync(devinAgentsDir, { recursive: true });
+    for (const f of fs.readdirSync(srcAgents)) {
+      if (!f.endsWith('.md')) continue;
+      // Copy without the generated header — the host reads frontmatter
+      // directly and a header comment could interfere with YAML parsing.
+      const content = fs.readFileSync(path.join(srcAgents, f), 'utf8');
+      fs.writeFileSync(path.join(devinAgentsDir, f), content);
+    }
+    console.log(`Copied subagent profiles to ${devinAgentsDir}`);
   }
 
   // Copy bundled language skills from skills/ (at package root), unless
