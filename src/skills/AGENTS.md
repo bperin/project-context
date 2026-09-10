@@ -162,7 +162,7 @@ skill invoke --skill <skill-name>
 - **`spec-optimizer`** — optimizes **specs** for problem fit, scope discipline, approach soundness, and coverage. Runs BEFORE the reviewer. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy).
 - **`plan-optimizer`** — optimizes **plans** for spec coverage, workstream ordering, approach soundness, and dependency edges. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high` (medium).
 - **`task-optimizer`** — optimizes **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high`.
-- **`reviewer`** — checks documents (spec, plan, task) and code for correctness, rule compliance, template compliance, and dependency compliance. Runs AFTER the optimizer (documents) or code-optimizer (code). Read-only, with context. Model: `swe-1.7-medium`.
+- **`reviewer`** — checks documents (spec, plan, task) and code for correctness, rule compliance, template compliance, and dependency compliance. Loads alwaysOn + the language-specific code review skill. Runs AFTER the optimizer (documents) or code-optimizer (code). Read-only, with context. Model: `swe-1.7-medium`.
 - **`code-optimizer`** — optimizes implemented code for inefficiencies, OOM risks, concurrency bugs, error handling gaps, and style. Runs after the implementer, before the reviewer. Read-only, with context. Model: `glm-5.2-high`.
 - **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
 
@@ -172,18 +172,16 @@ orchestrator's model.
 
 ### Language skill matrix
 
-When a task is code-heavy, the `test-agent`, `code-optimizer`, and `task-optimizer` load language-specific skills based on the repo's manifests:
+When a task is code-heavy, the `test-agent`, `code-optimizer`, `reviewer`, and `task-optimizer` load language-specific skills based on the repo's manifests:
 
-| Language | Detected by | Primary skill | Secondary skills |
-|---|---|---|---|
-| Go | `go.mod` | `golang-testing` | `golang-performance`, `golang-security`, `golang-code-style` |
-| TypeScript | `package.json` | `typescript-unit-testing` | `typescript-security-review`, `typescript-code-review`, `accelint-ts-performance` |
-| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-performance-optimization`, `python-cybersecurity-tool-development`, `python-code-style` |
-| Rust | `Cargo.toml` | `rust-testing` | `rust-performance`, `rust-security` |
+| Language | Detected by | test-agent | code-optimizer | reviewer | task-optimizer |
+|---|---|---|---|---|---|
+| Go | `go.mod` | `golang-testing` | `golang-performance` | `go-code-review` | `golang-performance` |
+| TypeScript | `package.json` | `typescript-unit-testing` | `typescript-code-review` | `typescript-security-review` | `typescript-code-review` |
+| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-code-style` | `python-code-style` | `python-code-style` |
+| Rust | `Cargo.toml` | `rust-testing` | `rust-performance` | `rust-security` | `rust-performance` |
 
-For `task-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance`. For `code-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance` (same lens, applied to implemented code). For `test-agent`, the primary is the testing skill listed above.
-
-If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing. The orchestrator can install it later with `npx skills add <owner/repo@skill> -g -y`.
+Each specialized agent loads its own column. The implementer loads the task's primary skill from the algorithm registry (not from this matrix). If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing. The orchestrator can install it later with `npx skills add <owner/repo@skill> -g -y`.
 
 ### Skill triggers
 
