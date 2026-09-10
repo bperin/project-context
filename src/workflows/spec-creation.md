@@ -97,13 +97,18 @@ biases the planner shares, and sources the writer never checked.
    Pull exact standard citations and attack references from the research
    file — do not invent them.
 
-4. **Spawn the planner** (foreground, `planner` profile). Give it:
+4. **Spawn the planner** (foreground, `subagent_explore` profile). The
+   planner is not a registered subagent profile, so spawn
+   `subagent_explore` and embed the planner role in the task prompt.
+   Give it:
    - The spec file path
    - The research findings file path
    - A 1-2 sentence context summary (what this spec is for, key user
      constraints)
    - `AGENTS.md` path
    - The architecture document path
+   - Instruction to read `.ai-trust/.agents/agents/planner.md` first for
+     its role definition and output format
    - The planner checks:
      - **Requirements coverage**: does every desired behavior map to a
        measurable success criterion? Any orphans in either direction?
@@ -124,8 +129,8 @@ biases the planner shares, and sources the writer never checked.
    fundamental problem (wrong problem, wrong scope), stop and discuss
    with the user before rewriting.
 
-6. **Spawn the security reviewer** (foreground, `planner` or
-   `code-optimizer` profile with security skills loaded) **only if the
+6. **Spawn the security reviewer** (foreground, `subagent_explore`
+   profile with security skills loaded in the prompt) **only if the
    spec touches crypto, auth, or security primitives**. Give it:
    - The spec file path
    - `AGENTS.md` path (for the algorithm-to-skill matrix)
@@ -218,52 +223,63 @@ for every claim. Do not write the spec.
 ### Planner
 
 ```
-You are a spec planner for this project. Read AGENTS.md for full
-project conventions and rules.
+<role>
+You are a planning reviewer for this project. You review specs and plans
+— not tasks, not code. Your job is to pressure-test the document as a
+blueprint. Read .ai-trust/.agents/agents/planner.md first for your full
+role definition, output format, and what you do NOT check.
+</role>
 
-Context: <1-2 sentence summary of what this spec is for>
+<context>
+<summary><1-2 sentence summary of what this spec is for></summary>
+</context>
 
-Read the spec at <path>.
-Also read the research findings at <path> and the architecture document
-at <path>.
-
-Check:
-- Requirements coverage: every desired behavior maps to a success
-  criterion? Any orphans?
-- Problem fit: does this spec solve the actual problem? Is the scope
-  right?
-- Completeness: are there missing behaviors the architecture asks for?
-- Dependency compliance: does it respect the project's dependency
-  rules (see AGENTS.md)?
-- Testability: is every desired behavior testable? Are success criteria
-  objective?
-- Scope discipline: is Out of Scope honest? Any scope creep?
-- Research completeness: are standards and attack sources cited from
-  primary sources?
-
-Return findings as MUST-FIX, SHOULD-FIX, OPTIMIZE, NIT. Cite line
-numbers and exact text. Be specific.
+<instructions>
+1. Read AGENTS.md at <path> for project conventions and rules.
+2. Read the spec at <path>.
+3. Read the research findings at <path>.
+4. Read the architecture document at <path>.
+5. Check:
+   - Requirements coverage: every desired behavior maps to a success
+     criterion? Any orphans?
+   - Problem fit: does this spec solve the actual problem? Is the scope
+     right?
+   - Completeness: are there missing behaviors the architecture asks for?
+   - Dependency compliance: does it respect the project's dependency
+     rules (see AGENTS.md)?
+   - Testability: is every desired behavior testable? Are success
+     criteria objective?
+   - Scope discipline: is Out of Scope honest? Any scope creep?
+   - Research completeness: are standards and attack sources cited from
+     primary sources?
+6. Return findings in the format specified by planner.md.
+</instructions>
 ```
 
 ### Security reviewer
 
 ```
-You are a security reviewer for this spec. Read AGENTS.md for the
-algorithm-to-skill matrix and dependency rules.
+<role>
+You are a security reviewer for this spec. You review crypto, auth, and
+security primitives only. Read AGENTS.md for the algorithm-to-skill
+matrix and dependency rules.
+</role>
 
-Read the spec at <path>.
-Also read the project's algorithm registry at <path> (if applicable).
-
-Check:
-- Algorithm registry: is every algorithm in the spec present in the
-  registry?
-- Skill gating: are primary and secondary skills listed for each
-  algorithm? Are they installed?
-- Attack surface: are known attacks and failure modes documented?
-- Dependency compliance: would any behavior require a forbidden import?
-
-Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
-exact text.
+<instructions>
+1. Read AGENTS.md at <path> for the algorithm-to-skill matrix.
+2. Read the spec at <path>.
+3. Read the project's algorithm registry at <path> (if applicable).
+4. Check:
+   - Algorithm registry: is every algorithm in the spec present in the
+     registry?
+   - Skill gating: are primary and secondary skills listed for each
+     algorithm? Are they installed?
+   - Attack surface: are known attacks and failure modes documented?
+   - Dependency compliance: would any behavior require a forbidden
+     import?
+5. Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
+   exact text.
+</instructions>
 ```
 
 ### Blind reviewer

@@ -119,7 +119,10 @@ A plan that leaves these vague forces the implementer to guess.
      packages used.
    - Call out actual file paths to create/modify.
 
-5. **Spawn the planner** (foreground, `planner` profile). Give it:
+5. **Spawn the planner** (foreground, `subagent_explore` profile). The
+   planner is not a registered subagent profile, so spawn
+   `subagent_explore` and embed the planner role in the task prompt.
+   Give it:
    - The plan file path
    - The source spec path
    - The research findings file path
@@ -143,8 +146,8 @@ A plan that leaves these vague forces the implementer to guess.
 
 6. **Apply planner findings.** Revise the plan.
 
-7. **Spawn the security reviewer** (foreground, `planner` or
-   `code-optimizer` profile with security skills loaded) **only if the
+7. **Spawn the security reviewer** (foreground, `subagent_explore`
+   profile with security skills loaded in the prompt) **only if the
    plan touches crypto, auth, or security primitives**. Give it:
    - The plan file path
    - The research findings file path
@@ -248,54 +251,66 @@ for every claim. Do not write the plan.
 ### Planner
 
 ```
-You are a plan planner for this project. Read AGENTS.md for project
-conventions, skill-gated implementation rules, and testing rules.
+<role>
+You are a planning reviewer for this project. You review specs and plans
+— not tasks, not code. Your job is to pressure-test the document as a
+blueprint. Read .ai-trust/.agents/agents/planner.md first for your full
+role definition, output format, and what you do NOT check.
+</role>
 
-Context: <1-2 sentence summary of what this plan covers>
+<context>
+<summary><1-2 sentence summary of what this plan covers></summary>
+</context>
 
-Read the plan at <path>.
-Also read the source spec at <path>, the research findings at <path>,
-and the project's algorithm registry (if applicable).
-
-Check:
-- Spec coverage: does every spec behavior have a workstream? Any
-  orphans?
-- Approach soundness: is this the right way to implement the spec?
-- Workstream ordering: are workstreams correctly ordered? Are
-  dependency edges explicit?
-- Scope: is the plan doing more or less than the spec asks? Is Out of
-  Scope honest?
-- Research completeness: are standards and vectors cited from primary
-  sources?
-- Completion criteria: are they objectively verifiable?
-
-Return findings as MUST-FIX, SHOULD-FIX, OPTIMIZE, NIT. Cite line
-numbers and exact text.
+<instructions>
+1. Read AGENTS.md at <path> for project conventions, skill-gated
+   implementation rules, and testing rules.
+2. Read the plan at <path>.
+3. Read the source spec at <path>.
+4. Read the research findings at <path>.
+5. Read the project's algorithm registry at <path> (if applicable).
+6. Check:
+   - Spec coverage: does every spec behavior have a workstream? Any
+     orphans?
+   - Approach soundness: is this the right way to implement the spec?
+   - Workstream ordering: are workstreams correctly ordered? Are
+     dependency edges explicit?
+   - Scope: is the plan doing more or less than the spec asks? Is Out
+     of Scope honest?
+   - Research completeness: are standards and vectors cited from
+     primary sources?
+   - Completion criteria: are they objectively verifiable?
+7. Return findings in the format specified by planner.md.
+</instructions>
 ```
 
 ### Security reviewer
 
 ```
-You are a security reviewer for this plan. Read AGENTS.md for the
-algorithm-to-skill matrix and dependency rules.
+<role>
+You are a security reviewer for this plan. You review crypto, auth, and
+security primitives only. Read AGENTS.md for the algorithm-to-skill
+matrix and dependency rules.
+</role>
 
-Read the plan at <path>.
-Also read the research findings at <path> and the project's algorithm
-registry at <path> (if applicable).
-
-Check:
-- Algorithm registry: is every algorithm in the plan present in the
-  registry?
-- Skill gating: are primary and secondary skills listed for each
-  algorithm? Are they installed?
-- Test vectors: are they specific (named source, not "known test
-  vector")?
-- Negative tests: does every algorithm have at least one?
-- Dependency compliance: would any workstream require a forbidden
-  import?
-
-Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
-exact text.
+<instructions>
+1. Read AGENTS.md at <path> for the algorithm-to-skill matrix.
+2. Read the plan at <path>.
+3. Read the research findings at <path>.
+4. Read the project's algorithm registry at <path> (if applicable).
+5. Check:
+   - Algorithm registry: is every algorithm in the plan present in the
+     registry?
+   - Skill gating: are primary and secondary skills listed for each
+     algorithm? Are they installed?
+   - Test vectors: are they specific (named source, not "known test
+     vector")?
+   - Negative tests: does every algorithm have at least one?
+   - Dependency compliance: would any workstream require a forbidden
+     import?
+6. Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
+   exact text.
+</instructions>
 ```
 
 ### Blind reviewer
