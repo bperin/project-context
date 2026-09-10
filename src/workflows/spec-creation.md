@@ -6,7 +6,7 @@ When a spec is written or substantially revised, before it's committed.
 
 ## Pattern
 
-Writer-optimizer-blind review. Three perspectives, escalating objectivity:
+Writer-code-optimizer-blind review. Three perspectives, escalating objectivity:
 
 ```
 Writer writes the spec (with full context — knows the goal, the user's intent)
@@ -16,9 +16,9 @@ If any reviewer finds issues → writer revises → re-review
 Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
-The writer has intent. The optimizer has context. The blind reviewer has
+The writer has intent. The code-optimizer has context. The blind reviewer has
 neither — only the rules and the mission. This catches gaps the writer
-rationalized away and biases the optimizer shares.
+rationalized away and biases the code-optimizer shares.
 
 ## Roles
 
@@ -60,13 +60,13 @@ rationalized away and biases the optimizer shares.
 2. **Write the spec.** Use `SPEC-NNN.template.md`. The spec describes
    WHAT and WHY, not HOW. Do not turn it into an implementation plan.
 
-3. **Spawn the optimizer** (foreground, `subagent_explore` profile). Give it:
+3. **Spawn the code-optimizer** (foreground, `subagent_explore` profile). Give it:
    - The spec file path
    - A 1-2 sentence context summary (what this spec is for, key user
      constraints)
    - `AGENTS.md` path
    - The architecture document path
-   - The optimizer checks:
+   - The code-optimizer checks:
      - **Problem fit**: does this spec solve the actual problem? Is
        the scope right — not too narrow, not too broad?
      - **Completeness**: does it cover everything the architecture asks
@@ -78,7 +78,7 @@ rationalized away and biases the optimizer shares.
      - **Scope discipline**: is the Out of Scope section honest? Are
        there features sneaking in that belong in a future spec?
 
-4. **Apply optimizer findings.** Revise the spec. If the optimizer found a
+4. **Apply code-optimizer findings.** Revise the spec. If the code-optimizer found a
    fundamental problem (wrong problem, wrong scope), stop and discuss
    with the user before rewriting.
 
@@ -130,14 +130,14 @@ A spec that:
 - Has constraints that align with the desired behaviors (no
   contradictions).
 - Has been stress-tested from three angles: intent (writer), context
-  (optimizer), and rules (blind reviewer).
+  (code-optimizer), and rules (blind reviewer).
 
 ## Subagent prompt templates
 
 ### Critic
 
 ```
-You are a spec optimizer for this project. Read AGENTS.md for full
+You are a spec code-optimizer for this project. Read AGENTS.md for full
 project conventions and rules.
 
 Context: <1-2 sentence summary of what this spec is for>
@@ -201,11 +201,11 @@ reference files.
 
 ## Constraints
 
-- No spec is committed without passing both the optimizer and blind reviewer.
+- No spec is committed without passing both the code-optimizer and blind reviewer.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds a fundamental architecture problem, stop and
   discuss with the user before rewriting.
-- The optimizer has context (a brief summary). The blind reviewer has
+- The code-optimizer has context (a brief summary). The blind reviewer has
   none. This is intentional — the blind reviewer's lack of context is
   what makes it objective.
 - Reviewers are read-only. They report findings; the writer revises.

@@ -1,6 +1,6 @@
 ---
 name: create-spec
-description: "Run the spec-creation workflow — divergent ideation (adhd skill), write spec, optimizer + blind review, max 3 rounds"
+description: "Run the spec-creation workflow — divergent ideation (adhd skill), write spec, code-optimizer + blind review, max 3 rounds"
 argument-hint: "<SPEC-NNN title>"
 triggers:
   - user
@@ -34,7 +34,7 @@ Read the full workflow at `workflows/spec-creation.md` before starting. Follow i
 
 ## What you are doing
 
-Creating a new spec (SPEC-NNN) using the writer-optimizer-blind review pattern.
+Creating a new spec (SPEC-NNN) using the writer-code-optimizer-blind review pattern.
 
 ## Steps
 
@@ -94,18 +94,18 @@ Creating a new spec (SPEC-NNN) using the writer-optimizer-blind review pattern.
 | | | | | |
 ```
 
-4. **Build a context packet** for the optimizer:
+4. **Build a context packet** for the code-optimizer:
    ```bash
    node /Users/brian/code/project-context/bin/cli.js context SPEC-NNN -t . -o .context-packet.json
    ```
 
-5. **Spawn the optimizer** using the `skill` tool to invoke `/optimizer` (subagent, read-only, with context). Feed it:
+5. **Spawn the code-optimizer** using the `skill` tool to invoke `/code-optimizer` (subagent, read-only, with context). Feed it:
    - The spec file path
    - The context packet file path
    - A 1-2 sentence context summary of what this spec is for
    - The AGENTS.md path
 
-6. **Apply optimizer findings.** Append each finding to the `## Review Findings` table in the spec with the current round, reviewer `optimizer`, type, and a brief description. Revise the spec. If the optimizer found a fundamental problem (wrong problem, wrong scope), stop and discuss with the user before rewriting.
+6. **Apply code-optimizer findings.** Append each finding to the `## Review Findings` table in the spec with the current round, reviewer `code-optimizer`, type, and a brief description. Revise the spec. If the code-optimizer found a fundamental problem (wrong problem, wrong scope), stop and discuss with the user before rewriting.
 
 7. **Spawn the blind reviewer** using the `skill` tool to invoke `/blind-reviewer` (subagent, read-only, no context). Feed it:
    - The spec file path

@@ -10,7 +10,7 @@ implementation.
 
 ## Pattern
 
-Writer-optimizer-blind review. Same three-pass pattern as spec and plan
+Writer-code-optimizer-blind review. Same three-pass pattern as spec and plan
 creation:
 
 ```
@@ -112,8 +112,8 @@ information for its role.
 3. **Write the task file.** Use `TASK-NNN.template.md`. Follow the
    skill's guidance for the Required Change and Constraints.
 
-4. **Spawn the optimizer** (foreground, `subagent_explore` profile). Give
-   it the optimizer context packet. The optimizer checks:
+4. **Spawn the code-optimizer** (foreground, `subagent_explore` profile). Give
+   it the code-optimizer context packet. The code-optimizer checks:
    - **Plan alignment**: does this task implement the plan's
      workstream? Are all workstream deliverables covered?
    - **Technical accuracy**: does the Required Change match what the
@@ -130,7 +130,7 @@ information for its role.
    - **Scope vs. plan**: is the task trying to do more or less than
      the plan's workstream asks?
 
-5. **Apply optimizer findings.** Revise the task file.
+5. **Apply code-optimizer findings.** Revise the task file.
 
 6. **Spawn the blind reviewer** (foreground, `subagent_explore`
    profile). Give it the blind reviewer context packet. The blind
@@ -182,14 +182,14 @@ A task file that:
   says — cited APIs are real, skill guidance is reflected in
   constraints.
 - Has been stress-tested from three angles: intent (writer), context
-  (optimizer), and rules (blind reviewer).
+  (code-optimizer), and rules (blind reviewer).
 
 ## Subagent prompt templates
 
 ### Critic
 
 ```
-You are a task optimizer for this project. Read AGENTS.md for full
+You are a task code-optimizer for this project. Read AGENTS.md for full
 project conventions and rules.
 
 Context: <1-2 sentence summary of what this task covers>
@@ -251,7 +251,7 @@ reference files.
 
 ## Outputs
 
-- Review findings (MUST-FIX / SHOULD-FIX / NIT) from the optimizer and
+- Review findings (MUST-FIX / SHOULD-FIX / NIT) from the code-optimizer and
   blind reviewer
 - A corrected task file (if findings) from the writer
 - A clean task file ready for the implement workflow
@@ -259,7 +259,7 @@ reference files.
 ## Constraints
 
 - No task file enters the implement workflow without passing both the
-  optimizer and blind reviewer.
+  code-optimizer and blind reviewer.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - The primary skill MUST be loaded before writing the task file, not
   after. Writing a task spec blind and then reviewing it defeats the
@@ -267,7 +267,7 @@ reference files.
 - The reviewer checks the task file against the skill, not the
   implementation against the task. Implementation review is the
   implement workflow's job.
-- The optimizer has context (a brief summary). The blind reviewer has
+- The code-optimizer has context (a brief summary). The blind reviewer has
   none.
 - Reviewers are read-only. They report findings; the writer revises.
 - One review per task file. If a workstream has multiple tasks, review

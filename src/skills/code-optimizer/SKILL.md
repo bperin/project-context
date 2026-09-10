@@ -1,10 +1,10 @@
 ---
-name: optimizer
-description: "Spawn the optimizer subagent (read-only, with context) to review a spec/plan/task"
+name: code-optimizer
+description: "Spawn the code-optimizer subagent (read-only, with context) to review a spec/plan/task"
 argument-hint: "<document-path> <context-packet-path> <summary> <agents-md-path>"
 triggers:
   - model
-agent: optimizer
+agent: code-optimizer
 ---
 
 The caller will provide:
@@ -13,4 +13,4 @@ The caller will provide:
 - A 1-2 sentence context summary of what this document is for
 - The AGENTS.md path
 
-Read the document, context packet, and AGENTS.md, then return findings in the format specified by the optimizer agent profile.
+Read the document, context packet, and AGENTS.md, then return findings in the format specified by the code-optimizer agent profile.

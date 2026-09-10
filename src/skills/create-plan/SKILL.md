@@ -1,6 +1,6 @@
 ---
 name: create-plan
-description: "Run the plan-creation workflow — divergent ideation (adhd skill), write plan, optimizer + blind review, max 3 rounds"
+description: "Run the plan-creation workflow — divergent ideation (adhd skill), write plan, code-optimizer + blind review, max 3 rounds"
 argument-hint: "<PLAN-NNN> from <SPEC-NNN>"
 triggers:
   - user
@@ -124,13 +124,13 @@ SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
    node /Users/brian/code/project-context/bin/cli.js context PLAN-NNN -t . -o .context-packet.json
    ```
 
-6. **Spawn the optimizer** using the `skill` tool to invoke `/optimizer` (subagent, read-only, with context). Feed it:
+6. **Spawn the code-optimizer** using the `skill` tool to invoke `/code-optimizer` (subagent, read-only, with context). Feed it:
    - The plan file path
    - The context packet file path
    - A 1-2 sentence context summary of what this plan is for
    - The AGENTS.md path
 
-7. **Apply optimizer findings.** Append each finding to the `## Review Findings` table in the plan with the current round, reviewer `optimizer`, type, and a brief description. Revise the plan.
+7. **Apply code-optimizer findings.** Append each finding to the `## Review Findings` table in the plan with the current round, reviewer `code-optimizer`, type, and a brief description. Revise the plan.
 
 8. **Spawn the blind reviewer** using the `skill` tool to invoke `/blind-reviewer` (subagent, read-only, no context). Feed it:
    - The plan file path

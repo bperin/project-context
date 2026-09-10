@@ -7,7 +7,7 @@ plan is committed.
 
 ## Pattern
 
-Writer-optimizer-blind review. Same three-pass pattern as the spec workflow:
+Writer-code-optimizer-blind review. Same three-pass pattern as the spec workflow:
 
 ```
 Writer writes the plan (with full context — knows the spec, the user's goals)
@@ -86,14 +86,14 @@ A plan that leaves these vague forces the implementer to guess.
      packages used.
    - Call out actual file paths to create/modify.
 
-4. **Spawn the optimizer** (foreground, `subagent_explore` profile). Give it:
+4. **Spawn the code-optimizer** (foreground, `subagent_explore` profile). Give it:
    - The plan file path
    - The source spec path
    - The project's algorithm registry path (if applicable)
    - `AGENTS.md` path
    - A 1-2 sentence context summary (what this plan covers, key user
      priorities)
-   - The optimizer checks:
+   - The code-optimizer checks:
      - **Spec coverage**: does every spec desired behavior have a
        workstream? Does every workstream trace to a spec behavior?
      - **Approach soundness**: is this the right way to implement the
@@ -105,7 +105,7 @@ A plan that leaves these vague forces the implementer to guess.
      - **Scope vs. spec**: is the plan trying to do more than the spec
        asks? Less?
 
-5. **Apply optimizer findings.** Revise the plan.
+5. **Apply code-optimizer findings.** Revise the plan.
 
 6. **Spawn the blind reviewer** (foreground, `subagent_explore`
    profile). Give it:
@@ -164,14 +164,14 @@ A plan that:
 - Respects the project's dependency rules (see AGENTS.md).
 - Lists external packages to add and standard library packages used.
 - Has been stress-tested from three angles: intent (writer), context
-  (optimizer), and rules (blind reviewer).
+  (code-optimizer), and rules (blind reviewer).
 
 ## Subagent prompt templates
 
 ### Critic
 
 ```
-You are a plan optimizer for this project. Read AGENTS.md for project
+You are a plan code-optimizer for this project. Read AGENTS.md for project
 conventions, skill-gated implementation rules, and testing rules.
 
 Context: <1-2 sentence summary of what this plan covers>
@@ -232,11 +232,11 @@ Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers.
 
 ## Constraints
 
-- No plan is committed without passing both the optimizer and blind reviewer.
+- No plan is committed without passing both the code-optimizer and blind reviewer.
 - No implementation starts until the plan is reviewed and committed.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds the spec is wrong (not the plan), stop and go back
   to the spec workflow.
-- The optimizer has context (a brief summary). The blind reviewer has
+- The code-optimizer has context (a brief summary). The blind reviewer has
   none.
 - Reviewers are read-only. They report findings; the writer revises.

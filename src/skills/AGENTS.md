@@ -21,7 +21,7 @@ The directory structure is flat — no nesting:
 ├── overview.xlsx                    # Source of truth — all specs, plans, tasks
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (optimizer, blind-reviewer)
+│   ├── agents/                      # Custom subagent profiles (code-optimizer, blind-reviewer)
 │   └── skills/                      # Workflow + utility + skill wrappers
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── specs/SPEC-NNN.md               # Spec documents
@@ -127,7 +127,7 @@ skill invoke --skill <skill-name>
 
 ### Subagent profiles
 
-`optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/optimizer`, `/blind-reviewer`, `/test`) use `agent: optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
+`code-optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/code-optimizer`, `/blind-reviewer`, `/test`) use `agent: code-optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
 
 ### Skill triggers
 
@@ -138,7 +138,7 @@ skill invoke --skill <skill-name>
 
 Orchestrator skills (spec-create, plan-create, task-create, implement,
 review, approve-spec, approve-plan) use both triggers. Utility skills
-(inspect, context, uuid) use both. Subagent wrapper skills (optimizer,
+(inspect, context, uuid) use both. Subagent wrapper skills (code-optimizer,
 blind-reviewer) use `model` only — they are spawned by orchestrators, not
 invoked directly by users.
 
@@ -201,18 +201,18 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-SPEC → `/create-spec` workflow (writer-optimizer-blind, max 3 rounds)
+SPEC → `/create-spec` workflow (writer-code-optimizer-blind, max 3 rounds)
   ↓
-PLAN → `/create-plan` workflow (writer-optimizer-blind, max 3 rounds)
+PLAN → `/create-plan` workflow (writer-code-optimizer-blind, max 3 rounds)
   ↓
-TASK → `/create-task` workflow (writer-optimizer-blind, max 3 rounds)
+TASK → `/create-task` workflow (writer-code-optimizer-blind, max 3 rounds)
   ↓
 IMPLEMENT → `/implement` workflow (primary → secondary → reviewer → tester)
   ↓
 REVIEW → `/review` workflow (mechanical → review subagent → apply → PR)
 ```
 
-## Writer-optimizer-blind pattern
+## Writer-code-optimizer-blind pattern
 
 Every creation workflow (spec, plan, task) uses three perspectives with
 escalating objectivity:
@@ -243,7 +243,7 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 | `/inspect-project` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
-| `/optimizer` | Subagent | Review with context (read-only) |
+| `/code-optimizer` | Subagent | Review with context (read-only) |
 | `/blind-reviewer` | Subagent | Review without context (read-only) |
 | `/test-agent` | Subagent | Write the full test suite (write access) |
 
@@ -265,5 +265,5 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
    generation, column order, and duplicate detection.
 9. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-10. **The optimizer suggests, the writer revises.** Subagents are
+10. **The code-optimizer suggests, the writer revises.** Subagents are
     read-only. They report findings. The orchestrator applies fixes.

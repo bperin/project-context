@@ -20,14 +20,14 @@ You have **write access** — you create and edit test files. You do not modify 
 
 Before writing tests, detect the project language from the repo:
 
-| File | Language | Primary testing skill |
-|---|---|---|
-| `go.mod` | Go | `golang-testing` |
-| `package.json` | JavaScript / TypeScript | `javascript-testing` or `typescript-testing` |
-| `pyproject.toml`, `requirements.txt`, `setup.py` | Python | `python-testing` |
-| `Cargo.toml` | Rust | `rust-testing` |
+| File | Language | Primary testing skill | Secondary skills |
+|---|---|---|---|
+| `go.mod` | Go | `golang-testing` | `golang-performance`, `golang-security` |
+| `package.json` | JavaScript / TypeScript | `javascript-testing` or `typescript-testing` | — |
+| `pyproject.toml`, `requirements.txt`, `setup.py` | Python | `python-testing` | — |
+| `Cargo.toml` | Rust | `rust-testing` | — |
 
-Load the matching skill first. If no matching skill is installed, use your general knowledge for that language's standard test framework and ask the orchestrator to install the skill later.
+Load the primary skill first, then any secondary skills that match the task's triggers or the Skill Matrix in `overview.xlsx`. If no matching skill is installed, use your general knowledge for that language's standard test framework and ask the orchestrator to install the skill later.
 
 ## What you do
 

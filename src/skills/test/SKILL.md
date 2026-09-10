@@ -15,11 +15,11 @@ The caller will provide:
 Read the task, context packet, and AGENTS.md.
 
 Detect the project language and load the matching testing skill:
-- `go.mod` → `golang-testing`
+- `go.mod` → primary `golang-testing`, secondary `golang-performance`, `golang-security`
 - `package.json` → `javascript-testing` or `typescript-testing`
 - `pyproject.toml`/`requirements.txt` → `python-testing`
 - `Cargo.toml` → `rust-testing`
 
-If no matching skill is installed, use general knowledge for that language's standard test framework and ask the orchestrator to install the skill later.
+Load the primary skill first, then any secondary skills from the task's `Skills` column or the Skill Matrix.
 
 Write the full test suite. Do not modify implementation code. Run the tests. Report the tests written and results.

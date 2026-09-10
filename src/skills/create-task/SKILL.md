@@ -1,6 +1,6 @@
 ---
 name: create-task
-description: "Run the task-creation workflow — write task from plan, optimizer + blind review, max 3 rounds"
+description: "Run the task-creation workflow — write task from plan, code-optimizer + blind review, max 3 rounds"
 argument-hint: "<TASK-NNN> from <PLAN-NNN>"
 triggers:
   - user
@@ -110,13 +110,13 @@ Read the full workflow at `workflows/task-creation.md` before starting. Follow i
    node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
    ```
 
-6. **Spawn the optimizer** using the `skill` tool to invoke `/optimizer` (subagent, read-only, with context). Feed it:
+6. **Spawn the code-optimizer** using the `skill` tool to invoke `/code-optimizer` (subagent, read-only, with context). Feed it:
    - The task file path
    - The context packet file path
    - A 1-2 sentence context summary of what this task is for
    - The AGENTS.md path
 
-7. **Apply optimizer findings.** Append each finding to the `## Review Findings` table in the task with the current round, reviewer `optimizer`, type, and a brief description. Revise the task.
+7. **Apply code-optimizer findings.** Append each finding to the `## Review Findings` table in the task with the current round, reviewer `code-optimizer`, type, and a brief description. Revise the task.
 
 8. **Spawn the blind reviewer** using the `skill` tool to invoke `/blind-reviewer` (subagent, read-only, no context). Feed it:
    - The task file path
