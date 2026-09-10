@@ -40,10 +40,8 @@ The `overview.xlsx` spreadsheet holds all structured data:
 | Data Ownership | What data lives where, who owns it |
 | Realtime/Events/Channels | Event flows and channels |
 | Deployment | Library vs binary, deploy targets |
-| Always-on (user-level) | Skills loaded at session start |
-| On-demand (project-local) | Skills loaded for any task in this project |
-| On-demand (user-level) | Skills loaded when the trigger condition matches |
-| Skill Matrix | Trigger → primary/secondary skill mapping |
+| Skills | Unified skill registry: Skill, Path, Layer, Workflow/Trigger, Purpose |
+| Skill Matrix | Trigger × Language → primary/secondary skill mapping |
 | Decisions | ADR index |
 | Workflows | Links to workflow files |
 

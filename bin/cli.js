@@ -111,6 +111,7 @@ program
   .description('Build a minimal context packet for a spec/plan/task (for feeding subagents)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
+  .option('--workflow <name>', 'Workflow context for always-on/project-local skill filtering (default: all)')
   .option('-o, --output <path>', 'Write to file instead of stdout')
   .action((id, options) => {
     try {

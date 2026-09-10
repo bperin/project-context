@@ -31,8 +31,7 @@ async function runTests() {
   const expectedSheets = [
     'Identity', 'Specs', 'Plans', 'Tasks', 'Modules', 'Code Structure',
     'Components', 'Dependencies', 'Data Ownership', 'Realtime   Events   Channels',
-    'Deployment', 'Always-on (user-level)', 'On-demand (project-local)',
-    'On-demand (user-level)', 'Skill Matrix', 'Decisions', 'Workflows',
+    'Deployment', 'Skills', 'Skill Matrix', 'Decisions', 'Workflows',
   ];
   const actualSheets = wb.worksheets.map(ws => ws.name);
   for (const name of expectedSheets) {
@@ -81,16 +80,12 @@ async function runTests() {
   }
 
   // Clear seeded skill rows and populate test layers
-  const alwaysOn = wb3.getWorksheet('Always-on (user-level)');
-  alwaysOn.spliceRows(2, alwaysOn.rowCount);
-  alwaysOn.addRow(['go-systems-programmer', '', 'Base Go style']);
-  const onDemandProject = wb3.getWorksheet('On-demand (project-local)');
-  onDemandProject.spliceRows(2, onDemandProject.rowCount);
-  onDemandProject.addRow(['project-linter', '', '']);
-  const onDemandUser = wb3.getWorksheet('On-demand (user-level)');
-  onDemandUser.spliceRows(2, onDemandUser.rowCount);
-  onDemandUser.addRow(['security-check', '', 'security']);
-  onDemandUser.addRow(['ed25519-user', '', 'ed25519']);
+  const skills = wb3.getWorksheet('Skills');
+  skills.spliceRows(2, skills.rowCount);
+  skills.addRow(['go-systems-programmer', 'user-level', 'always-on', 'all', 'Base Go style']);
+  skills.addRow(['project-linter', 'user-level', 'project-local', 'all', 'Base project lint']);
+  skills.addRow(['security-check', 'user-level', 'user-local', 'security', 'Security guardrails']);
+  skills.addRow(['ed25519-user', 'user-level', 'user-local', 'ed25519', 'Ed25519 user helper']);
   const matrix = wb3.getWorksheet('Skill Matrix');
   matrix.spliceRows(2, matrix.rowCount);
   matrix.addRow(['ed25519', 'Go', 'ed25519-skill', 'wycheproof, crypto', 'Ed25519 implementation']);

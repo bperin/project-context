@@ -15,9 +15,7 @@ const SHEET_DEFS = [
   { name: 'Data Ownership', headers: ['Data', 'Owner', 'Store', 'Ephemeral?'] },
   { name: 'Realtime   Events   Channels', headers: ['Channel', 'Direction', 'Transport', 'Purpose'] },
   { name: 'Deployment', headers: ['Unit', 'Type', 'Deploys to', 'Notes'] },
-  { name: 'Always-on (user-level)', headers: ['Skill', 'Path', 'Purpose'] },
-  { name: 'On-demand (project-local)', headers: ['Skill', 'Path', 'Trigger'] },
-  { name: 'On-demand (user-level)', headers: ['Skill', 'Path', 'Trigger'] },
+  { name: 'Skills', headers: ['Skill', 'Path', 'Layer', 'Workflow/Trigger', 'Purpose'] },
   { name: 'Skill Matrix', headers: ['Trigger', 'Language', 'Primary Skills', 'Secondary Skills', 'Notes'] },
   { name: 'Decisions', headers: ['ID', 'Title', 'Status', 'Date'] },
   { name: 'Workflows', headers: ['File', 'Title', 'Trigger', 'Link'] },
@@ -33,12 +31,12 @@ const SHEET_DEFS = [
 const LANGUAGE_PRESETS = {
   node: {
     stack: 'JavaScript/Node',
-    alwaysOn: [['typescript-code-review', 'user-level', 'Code quality checks at session start']],
-    projectLocal: [['typescript-unit-testing', 'user-level', 'Any task in this JS/TS project']],
-    userLevel: [
-      ['accelint-ts-performance', 'user-level', 'performance'],
-      ['typescript-security-review', 'user-level', 'security'],
-      ['js-ts-performance-readability', 'user-level', 'performance'],
+    skills: [
+      ['typescript-code-review', 'user-level', 'always-on', 'all', 'Code quality checks at session start'],
+      ['typescript-unit-testing', 'user-level', 'project-local', 'all', 'Any task in this JS/TS project'],
+      ['typescript-security-review', 'user-level', 'user-local', 'security', 'Security review for JS/TS code'],
+      ['accelint-ts-performance', 'user-level', 'user-local', 'performance', 'JS/TS performance audit and optimization'],
+      ['js-ts-performance-readability', 'user-level', 'user-local', 'api-routing', 'Readable, performant JS/TS'],
     ],
     matrix: [
       ['api-validation', 'JavaScript/Node', 'typescript-unit-testing', 'typescript-code-review', 'REST API input validation, error handling'],
@@ -50,20 +48,18 @@ const LANGUAGE_PRESETS = {
   },
   go: {
     stack: 'Go',
-    alwaysOn: [
-      ['go-systems-programmer', 'user-level', 'Explicit wiring, stdlib-first, consumer-side interfaces'],
-      ['go-security-expert', 'user-level', 'alg enforcement, claim validation, constant-time, crypto/rand'],
-      ['go-memory-oom-guard', 'user-level', 'Key material lifetime, memory leaks in long-running processes'],
-    ],
-    projectLocal: [['golang-testing', 'user-level', 'Any task in this Go project']],
-    userLevel: [
-      ['golang-security', 'user-level', 'crypto'],
-      ['golang-code-style', 'user-level', 'code-review'],
-      ['golang-error-handling', 'user-level', 'error-boundaries'],
-      ['golang-concurrency', 'user-level', 'concurrency'],
-      ['golang-performance', 'user-level', 'performance'],
-      ['wycheproof', 'user-level', 'crypto-testing'],
-      ['go-code-review', 'user-level', 'pr-review'],
+    skills: [
+      ['go-systems-programmer', 'user-level', 'always-on', 'all', 'Explicit wiring, stdlib-first, consumer-side interfaces'],
+      ['go-security-expert', 'user-level', 'always-on', 'task-implementation', 'alg enforcement, claim validation, constant-time, crypto/rand'],
+      ['go-memory-oom-guard', 'user-level', 'always-on', 'task-implementation', 'Key material lifetime, memory leaks'],
+      ['golang-testing', 'user-level', 'project-local', 'all', 'Any task in this Go project'],
+      ['golang-security', 'user-level', 'user-local', 'crypto', 'When writing crypto/auth code'],
+      ['golang-code-style', 'user-level', 'user-local', 'code-review', 'When writing or reviewing Go code for style'],
+      ['golang-error-handling', 'user-level', 'user-local', 'error-boundaries', 'When designing error boundaries'],
+      ['golang-concurrency', 'user-level', 'user-local', 'concurrency', 'When writing concurrent code'],
+      ['golang-performance', 'user-level', 'user-local', 'performance', 'When profiling shows a bottleneck'],
+      ['wycheproof', 'user-level', 'user-local', 'crypto-testing', 'When testing crypto — known attack vectors'],
+      ['go-code-review', 'user-level', 'user-local', 'pr-review', 'Before any PR'],
     ],
     matrix: [
       ['crypto', 'Go', 'golang-security', 'wycheproof', 'Cryptographic primitive implementation'],
@@ -76,10 +72,10 @@ const LANGUAGE_PRESETS = {
   },
   rust: {
     stack: 'Rust',
-    alwaysOn: [['rust-security', 'user-level', 'Supply chain safety, memory-safe FFI']],
-    projectLocal: [['rust-testing', 'user-level', 'Any task in this Rust project']],
-    userLevel: [
-      ['rust-performance', 'user-level', 'performance'],
+    skills: [
+      ['rust-security', 'user-level', 'always-on', 'all', 'Supply chain safety, memory-safe FFI'],
+      ['rust-testing', 'user-level', 'project-local', 'all', 'Any task in this Rust project'],
+      ['rust-performance', 'user-level', 'user-local', 'performance', 'Performance optimization for Rust'],
     ],
     matrix: [
       ['testing', 'Rust', 'rust-testing', 'rust-performance', 'Unit, integration, async, property-based, coverage'],
@@ -89,11 +85,11 @@ const LANGUAGE_PRESETS = {
   },
   python: {
     stack: 'Python',
-    alwaysOn: [['python-code-style', 'user-level', 'Linting, formatting, naming, docstrings']],
-    projectLocal: [['python-testing-patterns', 'user-level', 'Any task in this Python project']],
-    userLevel: [
-      ['python-performance-optimization', 'user-level', 'performance'],
-      ['python-cybersecurity-tool-development', 'user-level', 'security'],
+    skills: [
+      ['python-code-style', 'user-level', 'always-on', 'all', 'Linting, formatting, naming, docstrings'],
+      ['python-testing-patterns', 'user-level', 'project-local', 'all', 'Any task in this Python project'],
+      ['python-performance-optimization', 'user-level', 'user-local', 'performance', 'Performance optimization for Python'],
+      ['python-cybersecurity-tool-development', 'user-level', 'user-local', 'security', 'Python cybersecurity tool development'],
     ],
     matrix: [
       ['testing', 'Python', 'python-testing-patterns', 'python-code-style', 'pytest, fixtures, mocking, TDD'],
@@ -103,9 +99,7 @@ const LANGUAGE_PRESETS = {
   },
   unknown: {
     stack: 'Unknown',
-    alwaysOn: [],
-    projectLocal: [],
-    userLevel: [],
+    skills: [],
     matrix: [['example-trigger', 'any', 'primary-skill', 'secondary-skill', 'Replace with your own triggers and skills']],
   },
 };
@@ -166,22 +160,10 @@ async function createOverviewXlsx(xlsxPath, targetDir) {
     matrix.addRow(row);
   }
 
-  // Always-on skills — populated from language preset
-  const alwaysOn = wb.getWorksheet('Always-on (user-level)');
-  for (const row of preset.alwaysOn) {
-    alwaysOn.addRow(row);
-  }
-
-  // On-demand (project-local) — populated from language preset
-  const onDemandProject = wb.getWorksheet('On-demand (project-local)');
-  for (const row of preset.projectLocal) {
-    onDemandProject.addRow(row);
-  }
-
-  // On-demand (user-level) — populated from language preset
-  const onDemandUser = wb.getWorksheet('On-demand (user-level)');
-  for (const row of preset.userLevel) {
-    onDemandUser.addRow(row);
+  // Skills sheet — populated from language preset
+  const skills = wb.getWorksheet('Skills');
+  for (const row of preset.skills) {
+    skills.addRow(row);
   }
 
   await wb.xlsx.writeFile(xlsxPath);

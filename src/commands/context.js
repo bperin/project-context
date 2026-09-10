@@ -37,19 +37,50 @@ function parseSkills(skillsStr) {
   return skillsStr.split(',').map(s => s.trim()).filter(Boolean);
 }
 
-// readSkillList reads a sheet and returns the skills whose trigger column
-// is empty or matches one of the provided task triggers.
-async function readSkillList(wb, name, taskTriggers = []) {
-  const rows = await readSheet(wb, name);
+// readSkillLayers reads the unified Skills sheet and returns the three layers
+// filtered by the current workflow and task triggers.
+//
+// Skills sheet schema:
+//   Skill | Path | Layer | Workflow/Trigger | Purpose
+//
+// Layer values:
+//   - always-on     : loaded at session start for the given workflow (or 'all')
+//   - project-local : loaded for any task in this project for the given workflow (or 'all')
+//   - user-local    : loaded when the task's trigger matches Workflow/Trigger
+//
+// The workflow argument is the current workflow name (e.g. 'task-implementation',
+// 'spec-creation'). If omitted, 'all' is used as the default.
+async function readSkillLayers(wb, taskTriggers, workflow = 'all') {
+  const rows = await readSheet(wb, 'Skills');
   const triggerSet = new Set(taskTriggers.map(t => t.toLowerCase()));
-  const skills = [];
+  const workflowNorm = String(workflow || 'all').toLowerCase().trim();
+
+  const alwaysOn = [];
+  const projectLocal = [];
+  const userLocal = [];
+
   for (const r of rows) {
-    const trigger = (r.trigger || '').trim().toLowerCase();
-    if (trigger && !triggerSet.has(trigger)) continue;
-    const skill = r.skill || r.skills || '';
-    skills.push(...parseSkills(String(skill)));
+    const skill = String(r.skill || '').trim();
+    if (!skill) continue;
+    const layer = String(r.layer || '').trim().toLowerCase();
+    const wfOrTrigger = String(r['workflow/trigger'] || '').trim().toLowerCase();
+
+    if (layer === 'always-on') {
+      if (wfOrTrigger === 'all' || wfOrTrigger === workflowNorm) {
+        alwaysOn.push(...parseSkills(skill));
+      }
+    } else if (layer === 'project-local') {
+      if (wfOrTrigger === 'all' || wfOrTrigger === workflowNorm) {
+        projectLocal.push(...parseSkills(skill));
+      }
+    } else if (layer === 'user-local') {
+      if (triggerSet.has(wfOrTrigger)) {
+        userLocal.push(...parseSkills(skill));
+      }
+    }
   }
-  return skills;
+
+  return { alwaysOn, projectLocal, userLocal };
 }
 
 // readProjectLanguage reads the Identity sheet and returns the primary
@@ -124,7 +155,7 @@ async function collectSkills(wb, type, row, matrix) {
 }
 
 // buildPacket constructs a minimal context packet for a spec/plan/task.
-async function buildPacket(xlsxPath, targetId) {
+async function buildPacket(xlsxPath, targetId, options = {}) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(xlsxPath);
 
@@ -133,10 +164,6 @@ async function buildPacket(xlsxPath, targetId) {
   const tasks = await readSheet(wb, 'Tasks');
   const modules = await readSheet(wb, 'Modules');
   const components = await readSheet(wb, 'Components');
-
-  // Project-level skill layers and trigger-to-skill matrix (filtered by language)
-  const projectLanguage = await readProjectLanguage(wb);
-  const skillMatrix = await readSkillMatrix(wb, projectLanguage);
 
   // Determine type by ID prefix
   let type, row, parent, children, grandparent;
@@ -186,11 +213,14 @@ async function buildPacket(xlsxPath, targetId) {
     throw new Error(`Unknown ID format: ${targetId}. Expected SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
   }
 
-  // Project-level skill layers (now that we know the task triggers)
+  // Project-level skill layers (filtered by workflow and task triggers)
+  const projectLanguage = await readProjectLanguage(wb);
   const taskTriggers = parseSkills(row.triggers || '');
-  const alwaysOnUser = await readSkillList(wb, 'Always-on (user-level)');
-  const onDemandProject = await readSkillList(wb, 'On-demand (project-local)', taskTriggers);
-  const onDemandUser = await readSkillList(wb, 'On-demand (user-level)', taskTriggers);
+  const workflow = options.workflow || 'all';
+  const skillLayers = await readSkillLayers(wb, taskTriggers, workflow);
+  const skillMatrix = await readSkillMatrix(wb, projectLanguage);
+
+  const { alwaysOn, projectLocal, userLocal } = skillLayers;
 
   // Collect applicable skills (async now because collectSkills reads the matrix)
   const targetSkills = await collectSkills(wb, type, row, skillMatrix);
@@ -268,15 +298,15 @@ async function buildPacket(xlsxPath, targetId) {
     // matrixSkills: skills mapped from this task's Triggers via the Skill Matrix.
     // primarySkills / secondarySkills: the implementer's skill lenses.
     skillLayers: {
-      alwaysOn: alwaysOnUser,
-      projectLocal: onDemandProject,
-      userLocal: onDemandUser,
+      alwaysOn,
+      projectLocal,
+      userLocal,
       matrixSkills,
       primarySkills,
       secondarySkills,
     },
     // All applicable skills (deduplicated, ordered: alwaysOn → projectLocal → userLocal → matrix → target → parent → grandparent)
-    allSkills: [...new Set([...alwaysOnUser, ...onDemandProject, ...onDemandUser, ...matrixSkills, ...targetSkills, ...parentSkills, ...grandparentSkills])],
+    allSkills: [...new Set([...alwaysOn, ...projectLocal, ...userLocal, ...matrixSkills, ...targetSkills, ...parentSkills, ...grandparentSkills])],
   };
 
   return packet;
@@ -299,7 +329,7 @@ async function contextCommand(options) {
   }
 
   try {
-    const packet = await buildPacket(xlsxPath, targetId);
+    const packet = await buildPacket(xlsxPath, targetId, options);
     const json = JSON.stringify(packet, null, 2);
 
     if (options.output) {

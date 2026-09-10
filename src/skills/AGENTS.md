@@ -60,9 +60,30 @@ the xlsx is the index.
 | Always-on (user-level) | Skills loaded at session start |
 | On-demand (project-local) | Skills loaded for any task in this project |
 | On-demand (user-level) | Skills loaded when the trigger condition matches |
-| Skill Matrix | Trigger → primary/secondary skill mapping |
+| Skill Matrix | Trigger × Language → primary/secondary skill mapping |
 | Decisions | ADR index |
 | Workflows | Links to workflow files |
+
+### Skills sheet
+
+The `Skills` sheet is a unified skill registry:
+
+```
+| Skill | Path | Layer | Workflow/Trigger | Purpose |
+|-------|------|-------|------------------|---------|
+| go-systems-programmer | user-level | always-on | all | Base Go style for all sessions |
+| go-security-expert | user-level | always-on | task-implementation | Security for crypto tasks |
+| golang-testing | user-level | project-local | all | Testing for any Go task |
+| golang-security | user-level | user-local | crypto | Crypto security review |
+```
+
+- **Skill**: the skill name (used with `skill invoke --skill <name>`)
+- **Path**: `user-level`, `project-local`, or the path to the skill
+- **Layer**: `always-on`, `project-local`, or `user-local`
+- **Workflow/Trigger**:
+  - For `always-on` / `project-local`: the workflow name (e.g. `task-implementation`) or `all`
+  - For `user-local`: the trigger name (e.g. `crypto`)
+- **Purpose**: human-readable note
 
 ### Skills column
 
@@ -75,8 +96,10 @@ comma-separated skill names. Skills cascade downward:
   and adds its own.
 
 When building a context packet, all applicable skills are collected
-and deduplicated: always-on + on-demand project + on-demand user +
-Skill Matrix triggers + target skills + parent skills + grandparent skills.
+and deduplicated: always-on (for this workflow) + project-local (for this
+workflow) + user-local (matching the task's triggers) + Skill Matrix
+(by language and trigger) + target skills + parent skills + grandparent
+skills.
 
 ### Skill layers
 
@@ -84,22 +107,23 @@ The context packet exposes four skill layers plus a trigger matrix:
 
 | Layer | Source | When to load |
 |-------|--------|--------------|
-| `alwaysOn` | `Always-on (user-level)` sheet | At session start, for every task |
-| `projectLocal` | `On-demand (project-local)` sheet | When working on this project |
-| `userLocal` | `On-demand (user-level)` sheet | When the trigger condition in the sheet matches |
-| `matrixSkills` | `Skill Matrix` sheet | When the task's `Triggers` column matches a matrix row |
+| `alwaysOn` | `Skills` sheet, layer `always-on` | At session start, for the current workflow |
+| `projectLocal` | `Skills` sheet, layer `project-local` | When working on any task in this project, for the current workflow |
+| `userLocal` | `Skills` sheet, layer `user-local` | When the task's `Triggers` column matches the row's `Workflow/Trigger` |
+| `matrixSkills` | `Skill Matrix` sheet | When the task's `Triggers` column matches a matrix row for the project language |
 | `target/parent/grandparent` | `Skills` column on Specs/Plans/Tasks | Cascaded from spec → plan → task |
 
 ### Skill Matrix
 
-The `Skill Matrix` sheet maps a `Trigger` to `Primary Skills` and
+The `Skill Matrix` sheet maps a `Trigger` + `Language` to `Primary Skills` and
 `Secondary Skills`:
 
 ```
-| Trigger    | Primary Skills       | Secondary Skills     | Notes |
-|------------|----------------------|----------------------|-------|
-| ed25519    | ed25519-skill        | wycheproof, crypto   | …     |
-| ui-review  | design-system, a11y  | —                    | …     |
+| Trigger  | Language | Primary Skills        | Secondary Skills     | Notes |
+|----------|----------|----------------------|----------------------|-------|
+| ed25519  | Go       | ed25519-skill        | wycheproof, crypto   | …     |
+| ed25519  | Rust     | rust-ed25519         | rust-security        | …     |
+| ui-review| any      | design-system, a11y  | —                    | …     |
 ```
 
 A task lists its triggers in the `Triggers` column (e.g. `ed25519, crypto`).
@@ -168,6 +192,7 @@ node /Users/brian/code/project-context/bin/cli.js uuid SPEC-001
 
 # Build a minimal context packet for a spec/plan/task (JSON output)
 # -w is optional — auto-detects .{reponame}-manager
+# --workflow defaults to 'all'; use it to scope always-on/project-local skills
 node /Users/brian/code/project-context/bin/cli.js context TASK-012 -t .
 
 # Read the xlsx and print specs/plans/tasks with status
