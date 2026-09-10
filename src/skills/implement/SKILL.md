@@ -55,7 +55,7 @@ Read the full workflow at `workflows/task-implementation.md` before starting. Fo
 
 7. **Apply code review findings.** Append MUST-FIX and SHOULD-FIX findings to the task's `## Review Findings` table with reviewer `code-reviewer` and the current date. Fix MUST-FIX issues. Re-run verification. Mark resolved findings as `resolved` in the table.
 
-8. **Spawn testing agent** (background, write access, testing skill). It writes the full test suite.
+8. **Spawn testing agent** (background, write access) via `/test TASK-NNN`. It writes the full test suite.
 
 9. **Run all tests.** Fix failures until all pass.
 

@@ -127,11 +127,7 @@ skill invoke --skill <skill-name>
 
 ### Subagent profiles
 
-`optimizer` and `blind-reviewer` are **custom subagent profiles** under
-`.agents/agents/`. They are not invoked as regular skills. The thin skill
-wrappers (`/optimizer`, `/blind-reviewer`) use `agent: optimizer` /
-`agent: blind-reviewer` in their frontmatter to spawn them. Subagents can
-run in the foreground or background — the orchestrator decides.
+`optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/optimizer`, `/blind-reviewer`, `/test`) use `agent: optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
 
 ### Skill triggers
 
@@ -241,6 +237,7 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 | `/create-task` | Orchestrator | Run task-creation workflow |
 | `/implement` | Orchestrator | Run task-implementation workflow |
 | `/review` | Orchestrator | Run code-review workflow |
+| `/test` | Orchestrator | Spawn the test-agent (background, write access) |
 | `/approve-spec` | Orchestrator | Approve a committed spec and start `/create-plan` |
 | `/approve-plan` | Orchestrator | Approve a committed plan and start `/create-task` for each task |
 | `/inspect-project` | Utility | Read xlsx, print status |
@@ -248,6 +245,7 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 | `/uuid` | Utility | Generate v5 UUID |
 | `/optimizer` | Subagent | Review with context (read-only) |
 | `/blind-reviewer` | Subagent | Review without context (read-only) |
+| `/test-agent` | Subagent | Write the full test suite (write access) |
 
 ## Rules for all skills
 
