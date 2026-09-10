@@ -11,6 +11,7 @@ const uuidCommand = require('../src/commands/uuid');
 const contextCommand = require('../src/commands/context');
 const setStatusCommand = require('../src/commands/set-status');
 const addCommand = require('../src/commands/add');
+const upgradeCommand = require('../src/commands/upgrade');
 
 const program = new Command();
 
@@ -45,6 +46,21 @@ program
       await initCommand(options);
     } catch (err) {
       console.error('Error during init:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('upgrade')
+  .description('Refresh an existing project-context workspace: skills, workflows, AGENTS.md, hooks, and xlsx structure (preserves project data)')
+  .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
+  .option('-t, --target <path>', 'Target project directory', '.')
+  .action(async (options) => {
+    try {
+      options.workspace = resolveWorkspace(options);
+      await upgradeCommand(options);
+    } catch (err) {
+      console.error('Error during upgrade:', err.message);
       process.exit(1);
     }
   });
