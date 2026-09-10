@@ -21,7 +21,7 @@ The directory structure is flat — no nesting:
 ├── overview.xlsx                    # Source of truth — all specs, plans, tasks
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (code-optimizer, blind-reviewer)
+│   ├── agents/                      # Custom subagent profiles (spec-optimizer, plan-optimizer, task-optimizer, blind-reviewer)
 │   └── skills/                      # Workflow + utility + skill wrappers
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── specs/SPEC-NNN.md               # Spec documents
@@ -151,16 +151,17 @@ skill invoke --skill <skill-name>
 
 ### Subagent profiles
 
-`planner`, `code-optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/planner`, `/code-optimizer`, `/blind-reviewer`, `/test`) use `agent: planner` / `agent: code-optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
+`spec-optimizer`, `plan-optimizer`, `task-optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/spec-optimizer`, `/plan-optimizer`, `/task-optimizer`, `/blind-reviewer`, `/test`) use `agent: spec-optimizer` / `agent: plan-optimizer` / `agent: task-optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
 
-- **`planner`** — reviews **specs and plans** for coverage, scope, requirements traceability, workstream ordering, and research completeness. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy — fires only on round 3).
-- **`code-optimizer`** — reviews **tasks** for problem fit, file paths, algorithm IDs, and test vectors. Read-only, with context. Not used for specs or plans. Model: `glm-5.2-high`.
+- **`spec-optimizer`** — reviews **specs** for problem fit, desired behaviors, success criteria, scope, testability, and research completeness. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy — fires only on round 3).
+- **`plan-optimizer`** — reviews **plans** for spec coverage, workstream ordering, dependency edges, completion criteria, and algorithm/skill mapping. Read-only, with context. Model: `glm-5.2-high` (medium — fires only on round 3).
+- **`task-optimizer`** — reviews **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Read-only, with context. Not used for specs or plans. Model: `glm-5.2-high`.
 - **`blind-reviewer`** — reviews any document against rules only, no context. Read-only. Model: `swe-1.7-medium` (cheap — handles rounds 1-2).
 - **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
 
 ### Language skill matrix
 
-When a task is code-heavy, the `test-agent` and `code-optimizer` load language-specific skills based on the repo's manifests:
+When a task is code-heavy, the `test-agent` and `task-optimizer` load language-specific skills based on the repo's manifests:
 
 | Language | Detected by | Primary skill | Secondary skills |
 |---|---|---|---|
@@ -169,7 +170,7 @@ When a task is code-heavy, the `test-agent` and `code-optimizer` load language-s
 | Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-performance-optimization`, `python-cybersecurity-tool-development`, `python-code-style` |
 | Rust | `Cargo.toml` | `rust-testing` | `rust-performance`, `rust-security` |
 
-For `code-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance`. For `test-agent`, the primary is the testing skill listed above.
+For `task-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance`. For `test-agent`, the primary is the testing skill listed above.
 
 If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing. The orchestrator can install it later with `npx skills add <owner/repo@skill> -g -y`.
 
@@ -182,9 +183,9 @@ If a language skill is not installed, the subagent uses general knowledge and re
 
 Orchestrator skills (spec-create, plan-create, task-create, implement,
 review, approve-spec, approve-plan) use both triggers. Utility skills
-(inspect, context, uuid) use both. Subagent wrapper skills (code-optimizer,
-blind-reviewer) use `model` only — they are spawned by orchestrators, not
-invoked directly by users.
+(inspect, context, uuid) use both. Subagent wrapper skills (spec-optimizer,
+plan-optimizer, task-optimizer, blind-reviewer) use `model` only — they are
+spawned by orchestrators, not invoked directly by users.
 
 ## CLI commands
 
@@ -246,11 +247,11 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-SPEC → `/create-spec` workflow (adhd → research → write → blind rounds 1-2 → planner round 3)
+SPEC → `/create-spec` workflow (adhd → research → write → blind rounds 1-2 → spec-optimizer round 3)
   ↓
-PLAN → `/create-plan` workflow (adhd → research → write → blind rounds 1-2 → planner round 3)
+PLAN → `/create-plan` workflow (adhd → research → write → blind rounds 1-2 → plan-optimizer round 3)
   ↓
-TASK → `/create-task` workflow (adhd → write → code-optimizer → blind)
+TASK → `/create-task` workflow (adhd → write → task-optimizer → blind)
   ↓
 IMPLEMENT → `/implement` workflow (adhd → primary → secondary → reviewer → tester)
   ↓
@@ -270,16 +271,22 @@ by document type:
    catches structural, template, and rule-compliance issues. Security
    reviewer runs in parallel when crypto work is involved. Max 2 cheap
    rounds.
-3. **Round 3: planner** (heavy model, `gpt-5.6-sol-medium`, with `adhd`
+3. **Round 3: spec-optimizer** (heavy model, `gpt-5.6-sol-medium`, with `adhd`
    loaded) — deep architecture, coverage, and problem-fit review. Fires
    once. If unresolved, escalate to the user.
 
-This keeps heavy-model calls to 1 per spec/plan, not 6.
+This keeps heavy-model calls to 1 per spec, not 6.
 
-### Task creation (code-optimizer → blind)
+### Plan creation (blind rounds 1-2 → plan-optimizer round 3)
+
+Same tiered pattern as spec creation, but the round-3 reviewer is the
+`plan-optimizer` (medium model, `glm-5.2-high`) checking spec coverage,
+workstream ordering, dependency edges, and completion criteria.
+
+### Task creation (task-optimizer → blind)
 
 1. **Writer** (orchestrator) — loads `adhd`, writes the task file.
-2. **Code-optimizer** (subagent, read-only, with context) — sees the
+2. **Task-optimizer** (subagent, read-only, with context) — sees the
    task + a context summary. Checks file paths, algorithm IDs, test
    vectors, and scope. Reports findings. Does not fix.
 3. **Blind reviewer** (subagent, read-only, no context) — sees only the
@@ -303,8 +310,9 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 | `/inspect-project` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
-| `/code-optimizer` | Subagent | Review a task with context (read-only) |
-| `/planner` | Subagent | Review a spec or plan with context (read-only) |
+| `/spec-optimizer` | Subagent | Review a spec with context (read-only) |
+| `/plan-optimizer` | Subagent | Review a plan with context (read-only) |
+| `/task-optimizer` | Subagent | Review a task with context (read-only) |
 | `/blind-reviewer` | Subagent | Review without context (read-only) |
 | `/test-agent` | Subagent | Write the full test suite (write access) |
 
@@ -328,4 +336,5 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
    Load all applicable skills before starting work.
 10. **Reviewers suggest, the writer revises.** Subagents are
     read-only. They report findings. The orchestrator applies fixes.
-    Use `planner` for specs/plans, `code-optimizer` for tasks.
+    Use `spec-optimizer` for specs, `plan-optimizer` for plans,
+    `task-optimizer` for tasks.

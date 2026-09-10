@@ -6,11 +6,11 @@
 
 ```mermaid
 flowchart TD
-    SPEC["SPEC written"] --> SPECW["spec-creation workflow<br/>writer - code-optimizer - blind<br/>max 3 rounds"]
+    SPEC["SPEC written"] --> SPECW["spec-creation workflow<br/>writer - blind rounds 1-2 - spec-optimizer round 3<br/>max 3 rounds"]
     SPECW -->|committed| PLAN["PLAN written"]
-    PLAN --> PLANW["plan-creation workflow<br/>writer - code-optimizer - blind<br/>max 3 rounds"]
+    PLAN --> PLANW["plan-creation workflow<br/>writer - blind rounds 1-2 - plan-optimizer round 3<br/>max 3 rounds"]
     PLANW -->|committed| TASK["TASK written"]
-    TASK --> TASKW["task-creation workflow<br/>writer - code-optimizer - blind<br/>max 3 rounds"]
+    TASK --> TASKW["task-creation workflow<br/>writer - task-optimizer - blind<br/>max 3 rounds"]
     TASKW -->|committed| IMPL["task-implementation workflow"]
     IMPL -->|tests fail| TF["test-failure workflow<br/>triage - fix - re-run<br/>max 3 rounds"]
     TF -->|fixed| IMPL
@@ -126,7 +126,9 @@ The control plane is the set of rules the orchestrator follows to decide **when 
 | `/inspect-project` | user or model | Anytime the agent needs a current view of the xlsx |
 | `/context` | model | During orchestration to build a packet for a subagent |
 | `/uuid` | model | Whenever a new spec/plan/task needs a UUID |
-| `/code-optimizer` | model only | Spawned by `/create-spec`, `/create-plan`, or `/create-task` during review rounds |
+| `/spec-optimizer` | model only | Spawned by `/create-spec` during round 3 review |
+| `/plan-optimizer` | model only | Spawned by `/create-plan` during round 3 review |
+| `/task-optimizer` | model only | Spawned by `/create-task` during review rounds |
 | `/blind-reviewer` | model only | Spawned by `/create-spec`, `/create-plan`, or `/create-task` during review rounds |
 
 ### State transitions
@@ -140,7 +142,7 @@ TASK:    draft → review → committed → in_progress → done → superseded
 ```
 
 - `draft` — document is being written or revised.
-- `review` — the document is in the code-optimizer + blind review loop.
+- `review` — the document is in the optimizer + blind review loop.
 - `committed` — review passed; the document is authoritative.
 - `in_progress` — for plans and tasks, implementation has started.
 - `done` — all work is complete (tasks) or the spec/plan has been delivered.
@@ -153,11 +155,11 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
 1. **Optimizer and blind reviewer can run in parallel** for the same document. They are independent and read-only. The orchestrator spawns both as background subagents, then waits for both results before deciding whether to revise.
 2. **Secondary implementer and code reviewer can overlap.** The secondary implementer runs in the foreground; once it finishes, the code reviewer runs in the background while the primary moves on to the next task.
 3. **Testing agent runs after code review passes.** It can run in the background; the primary monitors.
-4. **No nested subagents by default.** The code-optimizer and blind reviewer do not spawn their own subagents. Custom profiles can set `max-nesting` if needed, but the default workflow does not use nested subagents.
+4. **No nested subagents by default.** The optimizers and blind reviewer do not spawn their own subagents. Custom profiles can set `max-nesting` if needed, but the default workflow does not use nested subagents.
 
 ### Escalation rules
 
-1. **Creation review (spec/plan/task):** max 3 rounds of code-optimizer + blind reviewer. If the document still has MUST-FIX or SHOULD-FIX issues after round 3, the orchestrator stops and escalates to the user with:
+1. **Creation review (spec/plan/task):** max 3 rounds of optimizer + blind reviewer. If the document still has MUST-FIX or SHOULD-FIX issues after round 3, the orchestrator stops and escalates to the user with:
    - The document path
    - The unresolved findings
    - A summary of what has changed across the 3 rounds
@@ -168,7 +170,7 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
 ### Failure and retry rules
 
 1. **Subagent fails to start or returns an error.** Do not treat this as a finding. Retry once. If the subagent fails twice, report the error to the user and stop the workflow.
-2. **Subagent findings are empty.** If both code-optimizer and blind reviewer return no findings, the document passes. Do not invent findings.
+2. **Subagent findings are empty.** If both the optimizer and blind reviewer return no findings, the document passes. Do not invent findings.
 3. **Subagent returns only NITs.** NITs do not block the round. The orchestrator may apply them or commit the document as-is. Do not spawn another round for NITs alone.
 4. **Tool call denied in a background subagent.** Background subagents cannot ask for new permissions. If a subagent fails because a tool was denied, resume it in the foreground or re-run it with the needed permissions.
 

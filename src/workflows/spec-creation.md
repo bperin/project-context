@@ -6,13 +6,13 @@ When a spec is written or substantially revised, before it's committed.
 
 ## Pattern
 
-Writer-research-planner-security-blind review. Five perspectives,
+Writer-research-spec-optimizer-security-blind review. Five perspectives,
 escalating objectivity:
 
 ```
 Writer writes the spec (with full context — knows the goal, the user's intent)
     → Research agent gathers primary sources (standards, attack vectors, test vectors)
-    → Planner reviews (with context — challenges scope, coverage, requirements)
+    → Spec-optimizer reviews (with context — challenges scope, coverage, requirements)
     → Security reviewer checks crypto/auth workstreams (if any)
     → Blind reviewer reviews (no context — judges only against AGENTS.md + architecture)
 If any reviewer finds issues → writer revises → re-review
@@ -20,10 +20,10 @@ Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
 The writer has intent. The research agent has primary sources. The
-planner has context. The security reviewer has the algorithm-to-skill
+spec-optimizer has context. The security reviewer has the algorithm-to-skill
 matrix. The blind reviewer has neither context nor sources — only the
 rules and the mission. This catches gaps the writer rationalized away,
-biases the planner shares, and sources the writer never checked.
+biases the spec-optimizer shares, and sources the writer never checked.
 
 ## Roles
 
@@ -49,7 +49,7 @@ biases the planner shares, and sources the writer never checked.
   `decisions/SPEC-NNN-research.md`) with a citation for every claim.
 - Does not write the spec. The writer consumes the research file.
 
-### Role 3: Planner (subagent, read-only, with context)
+### Role 3: Spec-optimizer (subagent, read-only, with context)
 
 - Sees the spec file **and** a brief context summary from the writer
   (1-2 sentences: what this spec is for, what constraints the user
@@ -142,8 +142,8 @@ biases the planner shares, and sources the writer never checked.
    reviewer found MUST-FIX or SHOULD-FIX issues, go back to step 4
    (re-spawn blind reviewer on the revised spec). Max 2 cheap rounds.
 
-9. **Round 3 (final): planner** (foreground, `planner` profile — heavy
-   model with `adhd` loaded). The planner fires only once, on the
+9. **Round 3 (final): spec-optimizer** (foreground, `spec-optimizer` profile — heavy
+   model with `adhd` loaded). The spec-optimizer fires only once, on the
    final round, for deep architecture and coverage review. Load the
    `adhd` skill first — use it to explore alternative architectures
    and challenge the spec's problem fit from divergent angles before
@@ -154,9 +154,9 @@ biases the planner shares, and sources the writer never checked.
      constraints)
    - `AGENTS.md` path
    - The architecture document path
-   - Instruction to read `.ai-trust/.agents/agents/planner.md` first for
+   - Instruction to read `.ai-trust/.agents/agents/spec-optimizer.md` first for
      its role definition and output format
-   - The planner checks:
+   - The spec-optimizer checks:
      - **Requirements coverage**: does every desired behavior map to a
        measurable success criterion? Any orphans in either direction?
      - **Problem fit**: does this spec solve the actual problem? Is
@@ -172,11 +172,11 @@ biases the planner shares, and sources the writer never checked.
      - **Research completeness**: are standards and attack sources
        cited from primary sources, not vague references?
 
-10. **Apply planner findings.** Revise the spec. If the planner found a
+10. **Apply spec-optimizer findings.** Revise the spec. If the spec-optimizer found a
     fundamental problem (wrong problem, wrong scope), stop and discuss
     with the user before rewriting.
 
-11. **Escalation.** If the planner found MUST-FIX issues that require
+11. **Escalation.** If the spec-optimizer found MUST-FIX issues that require
     another round, escalate to the user with a summary of the
     disagreement. Do not loop the heavy model more than once.
 
@@ -203,7 +203,7 @@ A spec that:
   contradictions).
 - Has been stress-tested from five angles: intent (writer + adhd),
   sources (research), rules (blind reviewer, cheap rounds 1-2),
-  security (security reviewer), and architecture (planner, heavy
+  security (security reviewer), and architecture (spec-optimizer, heavy
   round 3).
 
 ## Subagent prompt templates
@@ -225,14 +225,14 @@ Write the findings to decisions/SPEC-NNN-research.md with a citation
 for every claim. Do not write the spec.
 ```
 
-### Planner
+### Spec-optimizer
 
 ```
 <role>
-You are a planning reviewer for this project. You review specs and plans
-— not tasks, not code. Your job is to pressure-test the document as a
-blueprint. Read .ai-trust/.agents/agents/planner.md first for your full
-role definition, output format, and what you do NOT check.
+You are a spec optimizer for this project. You review specs only — not
+plans, not tasks, not code. Your job is to pressure-test the spec as a
+blueprint. Read .ai-trust/.agents/agents/spec-optimizer.md first for your
+full role definition, output format, and what you do NOT check.
 </role>
 
 <context>
@@ -257,7 +257,7 @@ role definition, output format, and what you do NOT check.
    - Scope discipline: is Out of Scope honest? Any scope creep?
    - Research completeness: are standards and attack sources cited from
      primary sources?
-6. Return findings in the format specified by planner.md.
+6. Return findings in the format specified by spec-optimizer.md.
 </instructions>
 ```
 
@@ -331,12 +331,12 @@ reference files.
 
 ## Constraints
 
-- No spec is committed without passing the planner, security reviewer
+- No spec is committed without passing the spec-optimizer, security reviewer
   (when applicable), and blind reviewer.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds a fundamental architecture problem, stop and
   discuss with the user before rewriting.
-- The planner has context (a brief summary). The blind reviewer has
+- The spec-optimizer has context (a brief summary). The blind reviewer has
   none. This is intentional — the blind reviewer's lack of context is
   what makes it objective.
 - The research agent writes findings only. It does not write the spec.

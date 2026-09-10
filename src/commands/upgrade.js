@@ -96,7 +96,7 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Copy subagent profiles (code-optimizer, blind-reviewer, test-agent, planner)
+  // Copy subagent profiles (spec-optimizer, plan-optimizer, task-optimizer, blind-reviewer, test-agent)
   if (fs.existsSync(srcAgents)) {
     const dstAgentsDir = path.join(agentsDir, 'agents');
     fs.mkdirSync(dstAgentsDir, { recursive: true });

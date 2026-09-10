@@ -39,7 +39,9 @@ async function runTests() {
   }
 
   // Verify custom subagent profiles are copied
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'code-optimizer.md')), 'code-optimizer agent profile missing');
+  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'spec-optimizer.md')), 'spec-optimizer agent profile missing');
+  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'plan-optimizer.md')), 'plan-optimizer agent profile missing');
+  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'task-optimizer.md')), 'task-optimizer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'blind-reviewer.md')), 'blind-reviewer agent profile missing');
   console.log('Testing graph...');
   await graphCommand({ target: targetDir, workspace: ws });

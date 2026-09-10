@@ -7,13 +7,13 @@ plan is committed.
 
 ## Pattern
 
-Writer-research-planner-security-blind review. Same five-pass pattern
+Writer-research-plan-optimizer-security-blind review. Same five-pass pattern
 as the spec workflow:
 
 ```
 Writer writes the plan (with full context — knows the spec, the user's goals)
     → Research agent gathers primary sources (standards, vectors, attack sources)
-    → Planner reviews (with context — challenges approach, coverage, ordering)
+    → Plan-optimizer reviews (with context — challenges approach, coverage, ordering)
     → Security reviewer checks crypto/auth workstreams (if any)
     → Blind reviewer reviews (no context — judges against AGENTS.md + the spec)
 If any reviewer finds issues → writer revises → re-review
@@ -53,7 +53,7 @@ A plan that leaves these vague forces the implementer to guess.
   for every claim.
 - Does not write the plan. The writer consumes the research file.
 
-### Role 3: Planner (subagent, read-only, with context)
+### Role 3: Plan-optimizer (subagent, read-only, with context)
 
 - Sees the plan file, the source spec, the research findings, the
   project's algorithm registry (if applicable), and a brief context
@@ -178,12 +178,12 @@ A plan that leaves these vague forces the implementer to guess.
    reviewer found MUST-FIX or SHOULD-FIX issues, go back to step 5
    (re-spawn blind reviewer on the revised plan). Max 2 cheap rounds.
 
-10. **Round 3 (final): planner** (foreground, `planner` profile — heavy
-    model with `adhd` loaded). The planner fires only once, on the
-    final round, for deep architecture and coverage review. Load the
-    `adhd` skill first — use it to explore alternative implementation
-    approaches and challenge the plan's architecture from divergent
-    angles before reviewing. Give it:
+10. **Round 3 (final): plan-optimizer** (foreground, `plan-optimizer`
+    profile — medium model with `adhd` loaded). The plan-optimizer fires
+    only once, on the final round, for deep coverage and ordering
+    review. Load the `adhd` skill first — use it to explore alternative
+    implementation approaches and challenge the plan's architecture
+    from divergent angles before reviewing. Give it:
     - The plan file path
     - The source spec path
     - The research findings file path
@@ -191,7 +191,7 @@ A plan that leaves these vague forces the implementer to guess.
     - `AGENTS.md` path
     - A 1-2 sentence context summary (what this plan covers, key user
       priorities)
-    - The planner checks:
+    - The plan-optimizer checks:
       - **Spec coverage**: does every spec desired behavior have a
         workstream? Does every workstream trace to a spec behavior?
       - **Approach soundness**: is this the right way to implement the
@@ -205,13 +205,13 @@ A plan that leaves these vague forces the implementer to guess.
       - **Completion criteria**: is every criterion objectively
         verifiable (a command to run, a grep to check, a test to pass)?
 
-11. **Apply planner findings.** Revise the plan. If the planner found a
+11. **Apply plan-optimizer findings.** Revise the plan. If the plan-optimizer found a
     fundamental problem (wrong architecture, wrong workstream order),
     stop and discuss with the user before rewriting.
 
-12. **Escalation.** If the planner found MUST-FIX issues that require
+12. **Escalation.** If the plan-optimizer found MUST-FIX issues that require
     another round, escalate to the user with a summary of the
-    disagreement. Do not loop the heavy model more than once.
+    disagreement. Do not loop the medium model more than once.
 
 13. **Commit.** When all reviewers pass, commit the plan with a
     message summarizing what the review changed.
@@ -238,7 +238,7 @@ A plan that:
 - Lists external packages to add and standard library packages used.
 - Has an honest Out of Scope section.
 - Has been stress-tested from five angles: intent (writer), sources
-  (research), context (planner), security (security reviewer), and
+  (research), context (plan-optimizer), security (security reviewer), and
   rules (blind reviewer).
 
 ## Subagent prompt templates
@@ -260,14 +260,14 @@ Write the findings to decisions/PLAN-NNN-research.md with a citation
 for every claim. Do not write the plan.
 ```
 
-### Planner
+### Plan-optimizer
 
 ```
 <role>
-You are a planning reviewer for this project. You review specs and plans
-— not tasks, not code. Your job is to pressure-test the document as a
-blueprint. Read .ai-trust/.agents/agents/planner.md first for your full
-role definition, output format, and what you do NOT check.
+You are a plan optimizer for this project. You review plans only — not
+specs, not tasks, not code. Your job is to pressure-test the plan as an
+implementation blueprint. Read .ai-trust/.agents/agents/plan-optimizer.md
+first for your full role definition, output format, and what you do NOT check.
 </role>
 
 <context>
@@ -292,7 +292,7 @@ role definition, output format, and what you do NOT check.
    - Research completeness: are standards and vectors cited from
      primary sources?
    - Completion criteria: are they objectively verifiable?
-7. Return findings in the format specified by planner.md.
+7. Return findings in the format specified by plan-optimizer.md.
 </instructions>
 ```
 
@@ -367,12 +367,12 @@ Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers.
 
 ## Constraints
 
-- No plan is committed without passing the planner, security reviewer
+- No plan is committed without passing the plan-optimizer, security reviewer
   (when applicable), and blind reviewer.
 - No implementation starts until the plan is reviewed and committed.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds the spec is wrong (not the plan), stop and go back
   to the spec workflow.
-- The planner has context (a brief summary). The blind reviewer has
+- The plan-optimizer has context (a brief summary). The blind reviewer has
   none. The research agent writes findings only.
 - Reviewers are read-only. They report findings; the writer revises.

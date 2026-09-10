@@ -12,7 +12,7 @@
 project-context/
 ├── bin/cli.js                    # CLI entry point
 ├── src/
-│   ├── agents/                  # Custom subagent profiles (optimizer, blind-reviewer)
+│   ├── agents/                  # Custom subagent profiles (spec-optimizer, plan-optimizer, task-optimizer, blind-reviewer, test-agent)
 │   ├── commands/                # init, inspect, graph, overview, uuid, context, status, add
 │   ├── skills/                  # Source skill templates copied to .agents/skills/
 │   │   ├── AGENTS.md            # Shared instructions for generated skills
@@ -20,13 +20,15 @@ project-context/
 │   │   ├── approve-spec/
 │   │   ├── blind-reviewer/
 │   │   ├── context/
+│   │   ├── create-plan/
+│   │   ├── create-spec/
+│   │   ├── create-task/
 │   │   ├── implement/
 │   │   ├── inspect/
-│   │   ├── optimizer/
-│   │   ├── plan/
+│   │   ├── plan-optimizer/
 │   │   ├── review/
-│   │   ├── spec/
-│   │   ├── task-create/
+│   │   ├── spec-optimizer/
+│   │   ├── task-optimizer/
 │   │   └── uuid/
 │   ├── templates/               # Document templates (SPEC, PLAN, TASK, ADR, etc.)
 │   └── workflows/               # Workflow definitions (spec-creation, plan-creation, task-creation, task-implementation, code-review, overview)

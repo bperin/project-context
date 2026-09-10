@@ -81,9 +81,9 @@ regardless of which model runs the steps.
 
 ```mermaid
 graph LR
-    SPEC["**SPEC**<br/>adhd → research → write<br/>blind rounds 1-2 → planner round 3"]
-    PLAN["**PLAN**<br/>adhd → research → write<br/>blind rounds 1-2 → planner round 3"]
-    TASK["**TASK**<br/>adhd → write<br/>code-optimizer → blind"]
+    SPEC["**SPEC**<br/>adhd → research → write<br/>blind rounds 1-2 → spec-optimizer round 3"]
+    PLAN["**PLAN**<br/>adhd → research → write<br/>blind rounds 1-2 → plan-optimizer round 3"]
+    TASK["**TASK**<br/>adhd → write<br/>task-optimizer → blind"]
     IMPL["**IMPLEMENT**<br/>adhd → primary → secondary<br/>→ reviewer → tester"]
     REVIEW["**REVIEW**<br/>adhd → mechanical<br/>→ review subagent → PR"]
 
@@ -127,8 +127,9 @@ field in their definition files. Profiles are discovered from
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planner` | `gpt-5.6-sol-medium` | Spec/plan architecture review | Round 3 only |
-| `code-optimizer` | `glm-5.2-high` | Task implementation review | Task creation |
+| `spec-optimizer` | `gpt-5.6-sol-medium` | Spec architecture review | Round 3 only |
+| `plan-optimizer` | `glm-5.2-high` | Plan coverage and ordering review | Round 3 only |
+| `task-optimizer` | `glm-5.2-high` | Task implementation readiness review | Task creation |
 | `blind-reviewer` | `swe-1.7-medium` | Rules compliance, no context | Rounds 1-2, every workflow |
 | `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation |
 | research/security | `subagent_explore` (host default) | Research, security review | Background, cheap |
@@ -140,8 +141,9 @@ graph TD
     ORCH["**Orchestrator** (main agent)<br/>builds context packets, spawns subagents,<br/>applies findings, never writes code"]
 
     subgraph "Custom profiles (.devin/agents/)"
-        PLANNER["planner.md<br/>model: gpt-5.6-sol-medium<br/>read-only, with context"]
-        CODEOPT["code-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
+        SPECOPT["spec-optimizer.md<br/>model: gpt-5.6-sol-medium<br/>read-only, with context"]
+        PLANOPT["plan-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
+        TASKOPT["task-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         BLIND["blind-reviewer.md<br/>model: swe-1.7-medium<br/>read-only, no context"]
         TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
     end
@@ -224,8 +226,9 @@ target repository/
 │   ├── .agents/
 │   │   ├── AGENTS.md               # shared skill instructions (generated)
 │   │   ├── agents/                 # subagent profiles (generated)
-│   │   │   ├── planner.md
-│   │   │   ├── code-optimizer.md
+│   │   │   ├── spec-optimizer.md
+│   │   │   ├── plan-optimizer.md
+│   │   │   ├── task-optimizer.md
 │   │   │   ├── blind-reviewer.md
 │   │   │   └── test-agent.md
 │   │   └── skills/                 # workflow skills (generated)
@@ -238,8 +241,9 @@ target repository/
 │   └── architecture/              # architecture docs
 ├── .devin/
 │   └── agents/                     # host-discovered subagent profiles
-│       ├── planner.md
-│       ├── code-optimizer.md
+│       ├── spec-optimizer.md
+│       ├── plan-optimizer.md
+│       ├── task-optimizer.md
 │       ├── blind-reviewer.md
 │       └── test-agent.md
 └── tools/
@@ -292,8 +296,9 @@ project-context/
 ├── bin/cli.js                      # CLI entry point
 ├── src/
 │   ├── agents/                     # subagent profile source
-│   │   ├── planner.md              #   model: gpt-5.6-sol-medium
-│   │   ├── code-optimizer.md       #   model: glm-5.2-high
+│   │   ├── spec-optimizer.md       #   model: gpt-5.6-sol-medium
+│   │   ├── plan-optimizer.md       #   model: glm-5.2-high
+│   │   ├── task-optimizer.md       #   model: glm-5.2-high
 │   │   ├── blind-reviewer.md       #   model: swe-1.7-medium
 │   │   └── test-agent.md           #   model: swe-1.7-medium
 │   ├── commands/                   # CLI commands
