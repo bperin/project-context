@@ -17,7 +17,7 @@ conversation history.
 ```
 Orchestrator loads adhd skill (divergent ideation on implementation approach)
     → Orchestrator builds context packet for TASK-N
-    → Orchestrator dispatches implementer (foreground, write access, primary skill)
+    → Orchestrator dispatches implementer (foreground, write access, agent: implementer, model: gpt-5.6-sol-medium)
     → Implementer implements TASK-N (code + initial tests)
         → Orchestrator dispatches code-optimizer (background, read-only, Go skills)
             → Code-optimizer reports inefficiencies, OOM, concurrency, style
@@ -46,8 +46,11 @@ When all tests pass → commit → task done
 - If any agent calls back with findings, re-dispatches the implementer
   with specific guidance to address them.
 
-### Role 1: Implementer (subagent, foreground, write access)
+### Role 1: Implementer (subagent, foreground, write access, `agent: implementer`, model: `gpt-5.6-sol-medium`)
 
+- Pinned to `gpt-5.6-sol-medium` — NOT the orchestrator's
+  `gpt-5.6-sol-high`. This ensures the implementation work runs on a
+  different model than the orchestrator.
 - Receives context from the orchestrator via the context packet: the
   task's skills, parent plan, spec, modules, and components.
 - Loads the algorithm's **primary skill** from the project's algorithm
@@ -111,7 +114,8 @@ When all tests pass → commit → task done
    node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
    ```
 
-2. **Spawn the implementer** (foreground, write access). Give it:
+2. **Spawn the implementer** (foreground, write access, `agent:
+   implementer`, model: `gpt-5.6-sol-medium`). Give it:
    - The context packet file path
    - The task file path (for goal, files, symbols, constraints, acceptance
      criteria, algorithm ID)

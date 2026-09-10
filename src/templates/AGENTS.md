@@ -93,8 +93,10 @@ Follow the task-implementation workflow
 1. Load the `adhd` skill for divergent ideation on the implementation
    approach.
 2. Build a context packet for the task with the CLI.
-3. Dispatch the implementer (foreground, write access). It loads the
-   primary skill, writes code + initial tests, runs verification.
+3. Dispatch the implementer (foreground, write access, `agent:
+   implementer`, model: `gpt-5.6-sol-medium`). It loads the primary
+   skill, writes code + initial tests, runs verification. The
+   implementer is pinned to a different model than the orchestrator.
 4. Dispatch the code-optimizer (background, read-only). It loads the
    project's Go skills and checks for inefficiencies, OOM risks,
    concurrency bugs, error handling gaps, and style.

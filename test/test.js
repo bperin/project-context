@@ -44,6 +44,7 @@ async function runTests() {
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'task-optimizer.md')), 'task-optimizer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'reviewer.md')), 'reviewer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'code-optimizer.md')), 'code-optimizer agent profile missing');
+  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'implementer.md')), 'implementer agent profile missing');
   console.log('Testing graph...');
   await graphCommand({ target: targetDir, workspace: ws });
   assert(fs.existsSync(path.join(targetDir, ws, 'graph', 'nodes')), 'graph nodes missing');

@@ -43,10 +43,13 @@ Read the full workflow at `workflows/task-implementation.md` before starting. Fo
    node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
    ```
 
-3. **Dispatch the implementer** (foreground, write access). Give it the
-   context packet, task file, primary skill path, algorithm registry
-   (if applicable), and `AGENTS.md`. It loads the primary skill,
-   implements code + initial tests, and runs verification.
+3. **Dispatch the implementer** (foreground, write access, `agent:
+   implementer`, model: `gpt-5.6-sol-medium`). Give it the context
+   packet, task file, primary skill path, algorithm registry (if
+   applicable), and `AGENTS.md`. It loads the primary skill, implements
+   code + initial tests, and runs verification. The implementer is
+   pinned to `gpt-5.6-sol-medium` — not the orchestrator's
+   `gpt-5.6-sol-high`.
 
 4. **Reconcile implementer output.** If it reports issues it couldn't
    fix, re-dispatch it with specific guidance.

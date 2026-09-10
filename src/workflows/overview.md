@@ -57,7 +57,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     O["Orchestrator loads adhd"] --> CTX["Build context packet"]
-    CTX --> P["Implementer<br/>foreground, write access<br/>loads primary skill"]
+    CTX --> P["Implementer<br/>foreground, write access<br/>agent: implementer<br/>model: gpt-5.6-sol-medium"]
     P --> CODE["Implements code + initial tests"]
     CODE --> V1["build, vet, test, lint"]
     V1 --> CO["Code-optimizer<br/>background, read-only<br/>loads Go skills"]

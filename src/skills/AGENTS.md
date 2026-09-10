@@ -21,7 +21,7 @@ The directory structure is flat — no nesting:
 ├── overview.xlsx                    # Source of truth — all specs, plans, tasks
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (spec-optimizer, plan-optimizer, task-optimizer, reviewer, code-optimizer, test-agent)
+│   ├── agents/                      # Custom subagent profiles (implementer, spec-optimizer, plan-optimizer, task-optimizer, reviewer, code-optimizer, test-agent)
 │   └── skills/                      # Workflow + utility + skill wrappers
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── specs/SPEC-NNN.md               # Spec documents
@@ -152,14 +152,19 @@ skill invoke --skill <skill-name>
 
 ### Subagent profiles
 
-`spec-optimizer`, `plan-optimizer`, `task-optimizer`, `reviewer`, `code-optimizer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/spec-optimizer`, `/plan-optimizer`, `/task-optimizer`, `/reviewer`, `/code-optimizer`, `/test`) use `agent: spec-optimizer` / `agent: plan-optimizer` / `agent: task-optimizer` / `agent: reviewer` / `agent: code-optimizer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
+`implementer`, `spec-optimizer`, `plan-optimizer`, `task-optimizer`, `reviewer`, `code-optimizer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/implementer`, `/spec-optimizer`, `/plan-optimizer`, `/task-optimizer`, `/reviewer`, `/code-optimizer`, `/test`) use `agent: implementer` / `agent: spec-optimizer` / `agent: plan-optimizer` / `agent: task-optimizer` / `agent: reviewer` / `agent: code-optimizer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
 
+- **`implementer`** — writes code and initial tests for a task. Loads the primary skill, implements, runs verification. Write access, with context. Model: `gpt-5.6-sol-medium` (NOT the orchestrator's `gpt-5.6-sol-high`).
 - **`spec-optimizer`** — optimizes **specs** for problem fit, scope discipline, approach soundness, and coverage. Runs BEFORE the reviewer. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy).
 - **`plan-optimizer`** — optimizes **plans** for spec coverage, workstream ordering, approach soundness, and dependency edges. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high` (medium).
 - **`task-optimizer`** — optimizes **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high`.
 - **`reviewer`** — checks any document (spec, plan, task) for correctness, rule compliance, template compliance, and dependency compliance. Runs AFTER the optimizer. Read-only, with context. Model: `swe-1.7-medium`.
 - **`code-optimizer`** — optimizes implemented code for inefficiencies, OOM risks, concurrency bugs, error handling gaps, and style. Runs after the implementer, before the reviewer. Read-only, with context. Model: `glm-5.2-high`.
 - **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
+
+The orchestrator runs on `gpt-5.6-sol-high`. All subagents are pinned to
+different models via the `model:` field in their profile — none use the
+orchestrator's model.
 
 ### Language skill matrix
 
@@ -306,6 +311,7 @@ to check correctness.
 | `/inspect-project` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
+| `/implementer` | Subagent | Write code + initial tests (write access) |
 | `/spec-optimizer` | Subagent | Optimize a spec with context (read-only) |
 | `/plan-optimizer` | Subagent | Optimize a plan with context (read-only) |
 | `/task-optimizer` | Subagent | Optimize a task with context (read-only) |

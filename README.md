@@ -126,12 +126,17 @@ field in their definition files. Profiles are discovered from
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
+| `implementer` | `gpt-5.6-sol-medium` | Write code + initial tests | Task implementation |
 | `spec-optimizer` | `gpt-5.6-sol-medium` | Spec optimization (approach, scope) | Spec creation, before reviewer |
 | `plan-optimizer` | `glm-5.2-high` | Plan optimization (ordering, coverage) | Plan creation, before reviewer |
 | `task-optimizer` | `glm-5.2-high` | Task optimization (files, vectors, readiness) | Task creation, before reviewer |
 | `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After optimizer, all creation workflows |
 | `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
 | `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
+
+The orchestrator runs on `gpt-5.6-sol-high`. All subagents are pinned
+to different models via the `model:` field in their profile — none use
+the orchestrator's model.
 
 ## Subagent architecture
 
@@ -140,6 +145,7 @@ graph TD
     ORCH["**Orchestrator** (main agent)<br/>loads adhd, builds context packets,<br/>dispatches subagents, applies findings"]
 
     subgraph "Custom profiles (.devin/agents/)"
+        IMPL["implementer.md<br/>model: gpt-5.6-sol-medium<br/>write access, with context"]
         SPECOPT["spec-optimizer.md<br/>model: gpt-5.6-sol-medium<br/>read-only, with context"]
         PLANOPT["plan-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         TASKOPT["task-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
@@ -148,6 +154,7 @@ graph TD
         TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
     end
 
+    ORCH -->|"implementation"| IMPL
     ORCH -->|"spec creation"| SPECOPT
     ORCH -->|"plan creation"| PLANOPT
     ORCH -->|"task creation"| TASKOPT
@@ -228,6 +235,7 @@ target repository/
 │   │   │   ├── task-optimizer.md
 │   │   │   ├── reviewer.md
 │   │   │   ├── code-optimizer.md
+│   │   │   ├── implementer.md
 │   │   │   └── test-agent.md
 │   │   └── skills/                 # workflow skills (generated)
 │   ├── workflows/                  # workflow definitions (generated)
@@ -244,6 +252,7 @@ target repository/
 │       ├── task-optimizer.md
 │       ├── reviewer.md
 │       ├── code-optimizer.md
+│       ├── implementer.md
 │       └── test-agent.md
 └── tools/
     └── project-context             # bundled CLI (esbuild, self-contained)
@@ -300,6 +309,7 @@ project-context/
 │   │   ├── task-optimizer.md       #   model: glm-5.2-high
 │   │   ├── reviewer.md             #   model: swe-1.7-medium
 │   │   ├── code-optimizer.md       #   model: glm-5.2-high
+│   │   ├── implementer.md          #   model: gpt-5.6-sol-medium
 │   │   └── test-agent.md           #   model: swe-1.7-medium
 │   ├── commands/                   # CLI commands
 │   │   ├── init.js
