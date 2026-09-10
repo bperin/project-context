@@ -293,25 +293,22 @@ async function overviewCommand(options) {
 
   console.log(`Updating overview spreadsheet at ${aiDir}...`);
 
-  const stateDir = path.join(aiDir, 'context', 'state');
-  fs.mkdirSync(stateDir, { recursive: true });
-
-  // Get repo URL for commit hyperlinks
-  let repoUrl = '';
-  try {
-    repoUrl = require('child_process')
-      .execSync('git remote get-url origin', { cwd: targetDir, encoding: 'utf8' })
-      .trim();
-  } catch (e) {
-    // No git remote — skip hyperlinks
-  }
-
-  const xlsxPath = path.join(stateDir, 'overview.xlsx');
+  const xlsxPath = path.join(aiDir, 'overview.xlsx');
 
   // If no existing xlsx, error — the xlsx is the source of truth now
   if (!fs.existsSync(xlsxPath)) {
     console.error('overview.xlsx not found. The xlsx is the source of truth — create it first or restore from git.');
     process.exit(1);
+  }
+
+  // Get repo URL for commit hyperlinks
+  let repoUrl = '';
+  try {
+    repoUrl = require('child_process')
+      .execSync('git remote get-url origin', { cwd: targetDir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+      .trim();
+  } catch (e) {
+    // No git remote — skip hyperlinks
   }
 
   // Load existing workbook — preserve all sheets
@@ -323,7 +320,7 @@ async function overviewCommand(options) {
   let workflowCount = 0;
 
   // Update Workflows sheet from workflow markdown files (these still exist as .md)
-  const workflowsDir = path.join(aiDir, 'context', 'workflows');
+  const workflowsDir = path.join(aiDir, 'workflows');
   const workflows = parseWorkflows(workflowsDir);
   if (workflows.length > 0) {
     // Remove existing Workflows sheet if present
@@ -334,7 +331,7 @@ async function overviewCommand(options) {
       let link = '';
       if (repoUrl) {
         const m = repoUrl.match(/github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/);
-        if (m) link = `https://github.com/${m[1]}/blob/dev/${options.workspace}/context/workflows/${w.file}`;
+        if (m) link = `https://github.com/${m[1]}/blob/dev/${options.workspace}/workflows/${w.file}`;
       }
       return [w.file, w.title, w.trigger, link];
     });

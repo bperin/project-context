@@ -6,7 +6,7 @@ When a spec is written or substantially revised, before it's committed.
 
 ## Pattern
 
-Writer-critic-blind review. Three perspectives, escalating objectivity:
+Writer-optimizer-blind review. Three perspectives, escalating objectivity:
 
 ```
 Writer writes the spec (with full context — knows the goal, the user's intent)
@@ -16,9 +16,9 @@ If any reviewer finds issues → writer revises → re-review
 Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
-The writer has intent. The critic has context. The blind reviewer has
+The writer has intent. The optimizer has context. The blind reviewer has
 neither — only the rules and the mission. This catches gaps the writer
-rationalized away and biases the critic shares.
+rationalized away and biases the optimizer shares.
 
 ## Roles
 
@@ -60,24 +60,25 @@ rationalized away and biases the critic shares.
 2. **Write the spec.** Use `SPEC-NNN.template.md`. The spec describes
    WHAT and WHY, not HOW. Do not turn it into an implementation plan.
 
-3. **Spawn the critic** (foreground, `subagent_explore` profile). Give it:
+3. **Spawn the optimizer** (foreground, `subagent_explore` profile). Give it:
    - The spec file path
    - A 1-2 sentence context summary (what this spec is for, key user
      constraints)
    - `AGENTS.md` path
    - The architecture document path
-   - The critic checks:
+   - The optimizer checks:
      - **Problem fit**: does this spec solve the actual problem? Is
        the scope right — not too narrow, not too broad?
      - **Completeness**: does it cover everything the architecture asks
        for in this module? Are there missing behaviors?
-     - **Dependency compliance**: does it respect `auth → trust ← chain`?
+     - **Dependency compliance**: does it respect the project's
+       dependency rules (see AGENTS.md)?
      - **Testability**: is every desired behavior testable? Are success
        criteria objective (pass/fail, not subjective)?
      - **Scope discipline**: is the Out of Scope section honest? Are
        there features sneaking in that belong in a future spec?
 
-4. **Apply critic findings.** Revise the spec. If the critic found a
+4. **Apply optimizer findings.** Revise the spec. If the optimizer found a
    fundamental problem (wrong problem, wrong scope), stop and discuss
    with the user before rewriting.
 
@@ -86,16 +87,16 @@ rationalized away and biases the critic shares.
    - The spec file path
    - `AGENTS.md` path
    - The architecture document path
-   - `trust/algorithms.json` (for crypto specs — every algorithm must
-     be in the registry)
+   - The project's algorithm registry (if applicable — every algorithm
+     must be in the registry)
    - No context summary, no conversation history.
    - The blind reviewer checks:
-     - **Crypto/security rigor**: are algorithms correctly distinguished
-       (SHA-3 vs Keccak-256)? Are nonce management, canonicalization,
-       domain separation, and constant-time requirements present? Are
-       known attacks documented?
+     - **Technical rigor**: are algorithms and protocols correctly
+       distinguished? Are domain-specific requirements (canonicalization,
+       constant-time handling, nonce management, etc.) present where
+       relevant? Are known attacks or failure modes documented?
      - **Dependency compliance**: would any desired behavior require a
-       forbidden import?
+       forbidden import or violate the project's dependency rules?
      - **Completeness**: are there spec behaviors with no success
        criterion? Success criteria with no corresponding behavior?
      - **Internal consistency**: does the spec contradict itself? Do
@@ -119,26 +120,25 @@ A spec that:
 - States WHAT the system does and WHY, not HOW.
 - Lists every desired behavior as observable, testable statements.
 - Has success criteria that are objectively verifiable (a command to
-   run, a grep to check, a test to pass) — not subjective ("clean code",
-   "well-documented").
+  run, a grep to check, a test to pass) — not subjective ("clean code",
+  "well-documented").
 - Has an honest Out of Scope section that keeps scope creep out.
-- Respects the `auth → trust ← chain` dependency rule.
-- Names every algorithm by its ID in `trust/algorithms.json` (for crypto
-  specs) — no algorithm appears in the spec that isn't in the registry.
+- Respects the project's dependency rules (see AGENTS.md).
+- Names every algorithm by its ID in the project's algorithm registry
+  (if applicable) — no algorithm appears in the spec that isn't in the
+  registry.
 - Has constraints that align with the desired behaviors (no
   contradictions).
 - Has been stress-tested from three angles: intent (writer), context
-  (critic), and rules (blind reviewer).
+  (optimizer), and rules (blind reviewer).
 
 ## Subagent prompt templates
 
 ### Critic
 
 ```
-You are a spec critic for the trust platform — a reusable Go auth and
-crypto platform with three modules (trust, auth, chain) where
-auth → trust ← chain. Trust is the crypto core with zero deps on the
-other two. Read AGENTS.md for full project conventions and rules.
+You are a spec optimizer for this project. Read AGENTS.md for full
+project conventions and rules.
 
 Context: <1-2 sentence summary of what this spec is for>
 
@@ -149,7 +149,8 @@ Check:
 - Problem fit: does this spec solve the actual problem? Is the scope
   right?
 - Completeness: are there missing behaviors the architecture asks for?
-- Dependency compliance: does it respect auth → trust ← chain?
+- Dependency compliance: does it respect the project's dependency
+  rules (see AGENTS.md)?
 - Testability: is every desired behavior testable? Are success criteria
   objective?
 - Scope discipline: is Out of Scope honest? Any scope creep?
@@ -161,19 +162,20 @@ exact text. Be specific.
 ### Blind reviewer
 
 ```
-You are a spec reviewer for the trust platform — a reusable Go auth and
-crypto platform with three modules (trust, auth, chain) where
-auth → trust ← chain. Trust is the crypto core with zero deps on the
-other two. Read AGENTS.md for full project conventions and rules.
+You are a spec reviewer for this project. Read AGENTS.md for full
+project conventions and rules.
 
 Read the spec at <path>.
-Also read the architecture document at <path> and trust/algorithms.json.
+Also read the architecture document at <path>. If the project has an
+algorithm registry, read that too.
 
 Check:
-- Crypto/security rigor: algorithms correctly distinguished? Nonce
-  management, canonicalization, constant-time requirements present?
-  Known attacks documented?
-- Dependency compliance: would any behavior require a forbidden import?
+- Technical rigor: are algorithms and protocols correctly distinguished?
+  Are domain-specific requirements (canonicalization, constant-time
+  handling, nonce management, etc.) present where relevant? Known
+  attacks or failure modes documented?
+- Dependency compliance: would any behavior require a forbidden import
+  or violate the project's dependency rules?
 - Completeness: behaviors with no success criterion? Criteria with no
   behavior?
 - Internal consistency: does the spec contradict itself?
@@ -188,7 +190,7 @@ reference files.
 
 - The spec file (`specs/SPEC-NNN.md`)
 - The architecture document
-- `trust/algorithms.json` (for crypto specs)
+- The project's algorithm registry (if applicable)
 - `AGENTS.md` (project conventions and rules)
 - `SPEC-NNN.template.md` (for format reference)
 
@@ -199,11 +201,11 @@ reference files.
 
 ## Constraints
 
-- No spec is committed without passing both the critic and blind reviewer.
+- No spec is committed without passing both the optimizer and blind reviewer.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds a fundamental architecture problem, stop and
   discuss with the user before rewriting.
-- The critic has context (a brief summary). The blind reviewer has
+- The optimizer has context (a brief summary). The blind reviewer has
   none. This is intentional — the blind reviewer's lack of context is
   what makes it objective.
 - Reviewers are read-only. They report findings; the writer revises.

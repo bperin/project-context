@@ -1,15 +1,83 @@
 const fs = require('fs');
 const path = require('path');
-const graphCommand = require('./graph');
+const ExcelJS = require('exceljs');
 
-async function discoverProject(targetDir, aiDir) {
+// Sheet definitions: name -> header columns.
+const SHEET_DEFS = [
+  { name: 'Identity', headers: ['Field', 'Value'] },
+  { name: 'Specs', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
+  { name: 'Plans', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
+  { name: 'Tasks', headers: ['UUID', 'ID', 'Title', 'Status', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
+  { name: 'Modules', headers: ['Module', 'Path', 'Import', 'Purpose'] },
+  { name: 'Code Structure', headers: ['Domain', 'Path', 'Module', 'Responsibility'] },
+  { name: 'Components', headers: ['Component', 'Module', 'Layer', 'Status'] },
+  { name: 'Dependencies', headers: ['Dependency', 'Version', 'Module', 'Purpose'] },
+  { name: 'Data Ownership', headers: ['Data', 'Owner', 'Store', 'Ephemeral?'] },
+  { name: 'Realtime   Events   Channels', headers: ['Channel', 'Direction', 'Transport', 'Purpose'] },
+  { name: 'Deployment', headers: ['Unit', 'Type', 'Deploys to', 'Notes'] },
+  { name: 'Always-on (user-level)', headers: ['Skill', 'Path', 'Purpose'] },
+  { name: 'On-demand (project-local)', headers: ['Skill', 'Path', 'Trigger'] },
+  { name: 'On-demand (user-level)', headers: ['Skill', 'Path', 'Trigger'] },
+  { name: 'Skill Matrix', headers: ['Trigger', 'Primary Skills', 'Secondary Skills', 'Notes'] },
+  { name: 'Decisions', headers: ['ID', 'Title', 'Status', 'Date'] },
+  { name: 'Workflows', headers: ['File', 'Title', 'Trigger', 'Link'] },
+];
+
+async function createOverviewXlsx(xlsxPath, targetDir) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'project-context';
+  wb.created = new Date();
+
+  for (const def of SHEET_DEFS) {
+    const ws = wb.addWorksheet(def.name);
+    ws.columns = def.headers.map(h => ({ header: h, key: h.toLowerCase(), width: 20 }));
+    const headerRow = ws.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+    ws.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: def.headers.length },
+    };
+  }
+
+  // Seed sample rows so the agent can infer the structure.
+  const repoName = path.basename(targetDir);
+  const identity = wb.getWorksheet('Identity');
+  identity.addRow(['Project', repoName]);
+  identity.addRow(['Stack', 'JavaScript/Node']);
+  identity.addRow(['Repo', targetDir]);
+
+  const specs = wb.getWorksheet('Specs');
+  specs.addRow(['uuid-spec-001', 'SPEC-001', 'Example feature', 'committed', '0%', 'none', 'adhd', 'example-trigger', '']);
+
+  const plans = wb.getWorksheet('Plans');
+  plans.addRow(['uuid-plan-001', 'PLAN-001', 'Example plan', 'committed', '0%', 'SPEC-001', 'planning', 'example-trigger', '']);
+
+  const tasks = wb.getWorksheet('Tasks');
+  tasks.addRow(['uuid-task-001', 'TASK-001', 'Example task', 'committed', 'PLAN-001', 'implementation', 'example-trigger', '']);
+
+  const matrix = wb.getWorksheet('Skill Matrix');
+  matrix.addRow(['example-trigger', 'primary-skill', 'secondary-skill, tertiary-skill', 'Replace with your own triggers and skills']);
+
+  const alwaysOn = wb.getWorksheet('Always-on (user-level)');
+  alwaysOn.addRow(['base-skill', 'user-level', 'Loaded at session start']);
+
+  const onDemandProject = wb.getWorksheet('On-demand (project-local)');
+  onDemandProject.addRow(['project-skill', 'project-local', '']);
+
+  const onDemandUser = wb.getWorksheet('On-demand (user-level)');
+  onDemandUser.addRow(['user-skill', 'user-level', 'example-trigger']);
+
+  await wb.xlsx.writeFile(xlsxPath);
+}
+
+async function discoverProject(targetDir, wsDir) {
   console.log('Running project discovery...');
-  
-  // 1. Detect project name and details from package.json, go.mod, etc., or git remote
+
   let projectName = path.basename(path.resolve(targetDir));
   let language = 'unknown';
   let description = 'Project initialized with project-context';
-  let dependencies = [];
 
   const pkgJsonPath = path.join(targetDir, 'package.json');
   if (fs.existsSync(pkgJsonPath)) {
@@ -18,7 +86,6 @@ async function discoverProject(targetDir, aiDir) {
       if (pkg.name) projectName = pkg.name;
       if (pkg.description) description = pkg.description;
       language = 'node';
-      dependencies = Object.keys(pkg.dependencies || {});
     } catch (e) {}
   } else if (fs.existsSync(path.join(targetDir, 'go.mod'))) {
     language = 'go';
@@ -29,125 +96,182 @@ async function discoverProject(targetDir, aiDir) {
   }
 
   // Write identity/project.md
-  const identityDir = path.join(aiDir, 'context', 'identity');
+  const identityDir = path.join(wsDir, 'identity');
   fs.mkdirSync(identityDir, { recursive: true });
-  
-  const projectMd = `# Project Identity: ${projectName}
+  const projectMd = `# ${projectName}
 
-## Overview
-- **Name**: ${projectName}
 - **Description**: ${description}
 - **Primary Language**: ${language}
 - **Discovered At**: ${new Date().toISOString()}
-
-## Key Directories
-- Top-level directories inspected and mapped into graph nodes.
 `;
   fs.writeFileSync(path.join(identityDir, 'project.md'), projectMd);
 
-  // Run graph generation as part of discovery
-  await graphCommand({ target: targetDir, workspace: path.basename(aiDir) });
+  // Populate the Identity sheet
+  const xlsxPath = path.join(wsDir, 'overview.xlsx');
+  if (fs.existsSync(xlsxPath)) {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(xlsxPath);
+    const ws = wb.getWorksheet('Identity');
+    if (ws) {
+      ws.addRow(['Name', projectName]);
+      ws.addRow(['Description', description]);
+      ws.addRow(['Primary Language', language]);
+      ws.addRow(['Discovered At', new Date().toISOString()]);
+      await wb.xlsx.writeFile(xlsxPath);
+    }
+  }
+}
+
+// Marker prepended to generated markdown files so they are not edited by hand.
+const GENERATED_MD_HEADER = '<!-- GENERATED BY project-context init — DO NOT EDIT. Edit the source in project-context/src/ instead. -->\n\n';
+
+// copyWithHeader copies a file, prepending a generated-by marker for .md files.
+function copyWithHeader(srcPath, dstPath) {
+  const content = fs.readFileSync(srcPath, 'utf8');
+  const ext = path.extname(dstPath);
+  if (ext === '.md') {
+    fs.writeFileSync(dstPath, GENERATED_MD_HEADER + content);
+  } else {
+    fs.copyFileSync(srcPath, dstPath);
+  }
 }
 
 async function initCommand(options) {
   const targetDir = path.resolve(options.target);
-  const aiDir = path.join(targetDir, options.workspace);
 
-  console.log(`Initializing .ai workspace at ${aiDir}...`);
+  // Default workspace name is .{reponame}-manager
+  let workspace = options.workspace;
+  if (!workspace) {
+    const repoName = path.basename(targetDir);
+    workspace = `.${repoName}-manager`;
+  }
 
-  // Create full directory structure
+  const wsDir = path.join(targetDir, workspace);
+
+  console.log(`Initializing ${workspace} workspace at ${wsDir}...`);
+
+  // Flat directory structure — no nesting
   const dirs = [
-    aiDir,
-    path.join(aiDir, 'context', 'architecture'),
-    path.join(aiDir, 'context', 'decisions'),
-    path.join(aiDir, 'context', 'identity'),
-    path.join(aiDir, 'context', 'plans'),
-    path.join(aiDir, 'context', 'skills'),
-    path.join(aiDir, 'context', 'specs'),
-    path.join(aiDir, 'context', 'state'),
-    path.join(aiDir, 'context', 'tasks'),
-    path.join(aiDir, 'context', 'workflows'),
-    path.join(aiDir, 'graph', 'edges'),
-    path.join(aiDir, 'graph', 'nodes'),
-    path.join(aiDir, 'templates')
+    wsDir,
+    path.join(wsDir, '.agents', 'skills'),
+    path.join(wsDir, 'workflows'),
+    path.join(wsDir, 'specs'),
+    path.join(wsDir, 'plans'),
+    path.join(wsDir, 'tasks'),
+    path.join(wsDir, 'decisions'),
+    path.join(wsDir, 'architecture'),
+    path.join(wsDir, 'identity'),
+    path.join(wsDir, 'graph'),
   ];
 
   for (const d of dirs) {
     fs.mkdirSync(d, { recursive: true });
   }
 
-  const srcTemplates = path.join(__dirname, '..', 'templates');
+  // Copy AGENTS.md (workflow protocol)
+  const agentsTemplate = path.join(__dirname, '..', 'templates', 'AGENTS.md');
+  if (fs.existsSync(agentsTemplate)) {
+    copyWithHeader(agentsTemplate, path.join(wsDir, 'AGENTS.md'));
+  } else {
+    fs.writeFileSync(path.join(wsDir, 'AGENTS.md'), '# Agent Protocol\n');
+  }
+
+  // Copy workflow .md files
   const srcWorkflows = path.join(__dirname, '..', 'workflows');
-
-  // Copy templates into .ai/templates/
-  if (fs.existsSync(srcTemplates)) {
-    const templateFiles = fs.readdirSync(srcTemplates);
-    for (const f of templateFiles) {
-      const srcPath = path.join(srcTemplates, f);
-      if (fs.statSync(srcPath).isFile()) {
-        if (f === 'AGENTS.md') {
-          fs.copyFileSync(srcPath, path.join(aiDir, 'AGENTS.md'));
-        } else if (f === 'STATE.md') {
-          fs.copyFileSync(srcPath, path.join(aiDir, 'STATE.md'));
-        } else if (f === 'DECISIONS.md') {
-          fs.copyFileSync(srcPath, path.join(aiDir, 'DECISIONS.md'));
-        } else if (f === 'current.md') {
-          fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'state', 'current.md'));
-        } else if (f === 'overview.csv') {
-          fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'state', 'overview.csv'));
-        } else {
-          fs.copyFileSync(srcPath, path.join(aiDir, 'templates', f));
-          
-          // Also place templates in appropriate context subdirs as specified by architecture
-          if (f.includes('SPEC-')) {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'specs', f));
-          } else if (f.includes('PLAN-')) {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'plans', f));
-          } else if (f.includes('TASK-')) {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'tasks', f));
-          } else if (f.includes('ADR-')) {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'decisions', f));
-          } else if (f === 'architecture.template.md') {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'architecture', f));
-          } else if (f === 'identity.template.md') {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'identity', f));
-          } else if (f === 'state.template.md') {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'state', f));
-          } else if (f === 'skill.template.md' || f === 'skill.md') {
-            fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'skills', f));
-          }
-        }
-      }
-    }
-  }
-
-  // Copy workflows into .ai/context/workflows/
   if (fs.existsSync(srcWorkflows)) {
-    const wfFiles = fs.readdirSync(srcWorkflows);
-    for (const f of wfFiles) {
-      const srcPath = path.join(srcWorkflows, f);
-      if (fs.statSync(srcPath).isFile()) {
-        fs.copyFileSync(srcPath, path.join(aiDir, 'context', 'workflows', f));
+    for (const f of fs.readdirSync(srcWorkflows)) {
+      if (f.endsWith('.md') && !f.includes('template')) {
+        copyWithHeader(path.join(srcWorkflows, f), path.join(wsDir, 'workflows', f));
       }
     }
   }
 
-  // Ensure core root files exist if not copied via templates
-  if (!fs.existsSync(path.join(aiDir, 'AGENTS.md'))) {
-    fs.writeFileSync(path.join(aiDir, 'AGENTS.md'), '# AGENTS Protocol\n');
+  // Copy .agents/ skills + shared instructions
+  const srcSkills = path.join(__dirname, '..', 'skills');
+  const agentsDir = path.join(wsDir, '.agents');
+  if (fs.existsSync(srcSkills)) {
+    const agentsInstructions = path.join(srcSkills, 'AGENTS.md');
+    if (fs.existsSync(agentsInstructions)) {
+      copyWithHeader(agentsInstructions, path.join(agentsDir, 'AGENTS.md'));
+    }
+    const skillsDir = path.join(agentsDir, 'skills');
+    for (const skillName of fs.readdirSync(srcSkills)) {
+      if (skillName === 'AGENTS.md') continue;
+      const srcSkillDir = path.join(srcSkills, skillName);
+      if (!fs.statSync(srcSkillDir).isDirectory()) continue;
+      const dstSkillDir = path.join(skillsDir, skillName);
+      fs.mkdirSync(dstSkillDir, { recursive: true });
+      for (const f of fs.readdirSync(srcSkillDir)) {
+        copyWithHeader(path.join(srcSkillDir, f), path.join(dstSkillDir, f));
+      }
+    }
   }
-  if (!fs.existsSync(path.join(aiDir, 'STATE.md'))) {
-    fs.writeFileSync(path.join(aiDir, 'STATE.md'), '# State\n');
+
+  // Copy custom subagent profiles (.agents/agents/)
+  const srcAgents = path.join(__dirname, '..', 'agents');
+  if (fs.existsSync(srcAgents)) {
+    const agentsProfilesDir = path.join(agentsDir, 'agents');
+    fs.mkdirSync(agentsProfilesDir, { recursive: true });
+    for (const f of fs.readdirSync(srcAgents)) {
+      if (f.endsWith('.md')) {
+        copyWithHeader(path.join(srcAgents, f), path.join(agentsProfilesDir, f));
+      }
+    }
   }
-  if (!fs.existsSync(path.join(aiDir, 'DECISIONS.md'))) {
-    fs.writeFileSync(path.join(aiDir, 'DECISIONS.md'), '# Decisions\n');
+
+  // Create the starter overview.xlsx (source of truth)
+  const xlsxPath = path.join(wsDir, 'overview.xlsx');
+  if (!fs.existsSync(xlsxPath)) {
+    console.log('Creating starter overview.xlsx...');
+    await createOverviewXlsx(xlsxPath, targetDir);
   }
 
   if (options.discover) {
-    await discoverProject(targetDir, aiDir);
+    await discoverProject(targetDir, wsDir);
   }
 
-  console.log(`Successfully initialized .ai workspace at ${aiDir}`);
+  // Symlink .agents → workspace/.agents at project root (Devin discovers skills here)
+  const agentsLink = path.join(targetDir, '.agents');
+  if (!fs.existsSync(agentsLink)) {
+    fs.symlinkSync(path.join(workspace, '.agents'), agentsLink);
+    console.log(`Symlinked .agents → ${workspace}/.agents`);
+  }
+
+  // Generate .devin/hooks.v1.json for the task-done hook.
+  // The hook is xlsx-triggered and injects fresh-session instructions when a
+  // task transitions to done.
+  const devinDir = path.join(targetDir, '.devin');
+  fs.mkdirSync(devinDir, { recursive: true });
+  const hooksPath = path.join(devinDir, 'hooks.v1.json');
+  const hookScriptPath = path.join(__dirname, '..', '..', 'scripts', 'task-done-hook.js');
+  const hooks = {
+    PostToolUse: [
+      {
+        matcher: '^(write|edit|apply_patch)$',
+        hooks: [
+          {
+            type: 'command',
+            command: `node ${hookScriptPath} ${xlsxPath}`,
+            timeout: 15,
+          },
+        ],
+      },
+      {
+        matcher: '^exec$',
+        hooks: [
+          {
+            type: 'command',
+            command: `node ${hookScriptPath} ${xlsxPath}`,
+            timeout: 15,
+          },
+        ],
+      },
+    ],
+  };
+  fs.writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + '\n');
+  console.log(`Generated ${hooksPath}`);
+
+  console.log(`Successfully initialized ${workspace} workspace at ${wsDir}`);
 }
 
 module.exports = initCommand;
