@@ -1,10 +1,43 @@
 # Project Context
 
+[![npm version](https://img.shields.io/npm/v/@bperin/project-context-protocol.svg)](https://www.npmjs.com/package/@bperin/project-context-protocol)
+[![GitHub Package](https://img.shields.io/badge/GitHub%20Packages-%40bperin-blue)](https://github.com/bperin/project-context/pkgs/npm/project-context-protocol)
+[![CI](https://github.com/bperin/project-context/actions/workflows/release.yml/badge.svg)](https://github.com/bperin/project-context/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Git-backed project management and context protocol for AI coding
 agents. Project Context gives an existing codebase a durable,
 structured source of truth for specs, plans, tasks, architecture,
 decisions, and workflows — with review pipelines that pressure-test
 every document before it ships.
+
+## Install
+
+```bash
+# From npm
+npm install -g @bperin/project-context-protocol
+
+# From GitHub Packages
+npm install -g @bperin/project-context-protocol --registry=https://npm.pkg.github.com
+
+# Run without installing
+npx @bperin/project-context-protocol --help
+
+# Or download the self-contained bundle from the latest release
+# https://github.com/bperin/project-context/releases/latest
+```
+
+The bundled CLI (no `node_modules` needed) is also available as a
+build artifact from every CI run and as a release asset on every
+semantic-release tag.
+
+## Nightly builds
+
+A nightly CI run checks for new commits since the last release. If
+there are changes, it bundles the CLI and uploads it as a
+`project-context-nightly` artifact (7-day retention). Download from
+the [Actions tab](https://github.com/bperin/project-context/actions)
+— filter by the "Nightly Build" workflow.
 
 ## How it works
 
@@ -215,18 +248,42 @@ target repository/
 
 ## Bundled CLI
 
-The CLI is bundled with esbuild into a single self-contained file at
-`tools/project-context` in the target repository. This eliminates the
-need for `node_modules` or an external checkout:
+The CLI is bundled with esbuild into a single self-contained file.
+This eliminates the need for `node_modules` or an external checkout:
 
 ```bash
+npm run bundle
+# or
 npx esbuild bin/cli.js --bundle --platform=node --format=cjs \
-  --outfile=target/tools/project-context --keep-names
-chmod +x target/tools/project-context
+  --outfile=dist/project-context --keep-names
+chmod +x dist/project-context
 ```
 
-The GitHub Actions workflow (`.github/workflows/bundle.yml`) automates
-this on every push to `main`.
+Check the version:
+
+```bash
+node dist/project-context --version
+```
+
+The release workflow (`.github/workflows/release.yml`) automates
+bundling on every merge to `main`. The bundle is uploaded as a GitHub
+release asset and as a CI artifact. Target repos download it and
+place it in their `tools/` directory.
+
+## Versioning
+
+This project uses [semantic-release](https://semantic-release.gitbook.io/)
+with [conventional commits](https://www.conventionalcommits.org/).
+Version bumps are automatic based on commit messages:
+
+| Commit type | Version bump |
+|-------------|-------------|
+| `feat:` | minor |
+| `fix:`, `perf:` | patch |
+| `feat!:` or `BREAKING CHANGE:` | major |
+| `docs:`, `chore:`, `style:`, `test:`, `refactor:` | none |
+
+A `CHANGELOG.md` is generated automatically with each release.
 
 ## Source repository layout
 

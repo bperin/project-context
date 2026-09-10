@@ -1,15 +1,19 @@
 {
-  "name": "project-context-protocol",
+  "name": "@bperin/project-context-protocol",
   "version": "2.0.0",
-  "description": "Scaffold and manage .ai/ project context for AI agents — cross-IDE, graph-first",
+  "description": "Scaffold and manage project-context workspaces for AI agents — cross-IDE, graph-first, tiered review",
   "main": "bin/cli.js",
   "bin": {
     "project-context": "./bin/cli.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "node --test test/hook.test.js && node test/test.js && node test/stress-test.js && node test/agent-protocol.js",
     "start": "node bin/cli.js",
-    "sync-skills": "node scripts/sync-skills.js"
+    "sync-skills": "node scripts/sync-skills.js",
+    "bundle": "esbuild bin/cli.js --bundle --platform=node --format=cjs --outfile=dist/project-context --keep-names"
   },
   "keywords": [
     "ai",
@@ -19,10 +23,15 @@
     "project-management",
     "context",
     "graph",
-    "scaffold"
+    "scaffold",
+    "semantic-release"
   ],
   "author": "Autonomous Agent",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bperin/project-context.git"
+  },
   "dependencies": {
     "commander": "^12.1.0",
     "csv-stringify": "^6.8.3",

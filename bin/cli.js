@@ -3,6 +3,7 @@
 const { Command } = require('commander');
 const path = require('path');
 const fs = require('fs');
+const pkg = require('../package.json');
 const initCommand = require('../src/commands/init');
 const inspectCommand = require('../src/commands/inspect');
 const graphCommand = require('../src/commands/graph');
@@ -19,7 +20,7 @@ const program = new Command();
 program
   .name('project-context')
   .description('Scaffold and manage project-context-{repo} workspace for AI agents')
-  .version('2.0.0');
+  .version(pkg.version);
 
 // Auto-detect the workspace directory: look for .{reponame}-manager in the target.
 function resolveWorkspace(options) {
