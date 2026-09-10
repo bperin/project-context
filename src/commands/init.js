@@ -18,13 +18,18 @@ const SHEET_DEFS = [
   { name: 'Always-on (user-level)', headers: ['Skill', 'Path', 'Purpose'] },
   { name: 'On-demand (project-local)', headers: ['Skill', 'Path', 'Trigger'] },
   { name: 'On-demand (user-level)', headers: ['Skill', 'Path', 'Trigger'] },
-  { name: 'Skill Matrix', headers: ['Trigger', 'Primary Skills', 'Secondary Skills', 'Notes'] },
+  { name: 'Skill Matrix', headers: ['Trigger', 'Language', 'Primary Skills', 'Secondary Skills', 'Notes'] },
   { name: 'Decisions', headers: ['ID', 'Title', 'Status', 'Date'] },
   { name: 'Workflows', headers: ['File', 'Title', 'Trigger', 'Link'] },
 ];
 
 // Language skill presets. Each language maps to triggers, always-on,
 // project-local, user-level, and skill matrix rows.
+//
+// The skill matrix is a 2D lookup: (trigger, language) -> (primary, secondary).
+// The same trigger can map to different skills for different languages, and
+// any skill can appear on the y-axis. This makes the matrix a per-language
+// dispatch table rather than a flat list.
 const LANGUAGE_PRESETS = {
   node: {
     stack: 'JavaScript/Node',
@@ -36,11 +41,11 @@ const LANGUAGE_PRESETS = {
       ['js-ts-performance-readability', 'user-level', 'performance'],
     ],
     matrix: [
-      ['api-validation', 'typescript-unit-testing', 'typescript-code-review', 'REST API input validation, error handling'],
-      ['api-routing', 'typescript-code-review', 'js-ts-performance-readability', 'Express route wiring, controller patterns'],
-      ['testing', 'typescript-unit-testing', 'accelint-ts-performance', 'Test suite design, mocking, coverage'],
-      ['performance', 'accelint-ts-performance', 'js-ts-performance-readability', 'Hot path optimization, allocation reduction'],
-      ['security', 'typescript-security-review', 'typescript-code-review', 'XSS, injection, JWT/OAuth flaws, dependency CVEs'],
+      ['api-validation', 'JavaScript/Node', 'typescript-unit-testing', 'typescript-code-review', 'REST API input validation, error handling'],
+      ['api-routing', 'JavaScript/Node', 'typescript-code-review', 'js-ts-performance-readability', 'Express route wiring, controller patterns'],
+      ['testing', 'JavaScript/Node', 'typescript-unit-testing', 'accelint-ts-performance', 'Test suite design, mocking, coverage'],
+      ['performance', 'JavaScript/Node', 'accelint-ts-performance', 'js-ts-performance-readability', 'Hot path optimization, allocation reduction'],
+      ['security', 'JavaScript/Node', 'typescript-security-review', 'typescript-code-review', 'XSS, injection, JWT/OAuth flaws, dependency CVEs'],
     ],
   },
   go: {
@@ -52,7 +57,7 @@ const LANGUAGE_PRESETS = {
     ],
     projectLocal: [['golang-testing', 'user-level', 'Any task in this Go project']],
     userLevel: [
-      ['golang-security', 'user-level', 'crypto/auth'],
+      ['golang-security', 'user-level', 'crypto'],
       ['golang-code-style', 'user-level', 'code-review'],
       ['golang-error-handling', 'user-level', 'error-boundaries'],
       ['golang-concurrency', 'user-level', 'concurrency'],
@@ -61,12 +66,12 @@ const LANGUAGE_PRESETS = {
       ['go-code-review', 'user-level', 'pr-review'],
     ],
     matrix: [
-      ['crypto', 'golang-security', 'wycheproof', 'Cryptographic primitive implementation'],
-      ['concurrency', 'golang-concurrency', 'golang-performance', 'Goroutines, channels, mutexes, worker pools'],
-      ['error-boundaries', 'golang-error-handling', 'golang-code-style', 'Error wrapping, sentinels, slog logging'],
-      ['crypto-testing', 'wycheproof', 'golang-testing', 'Known attack vectors, test vectors'],
-      ['pr-review', 'go-code-review', 'golang-code-style', 'gofmt, go vet, golangci-lint, review checklist'],
-      ['performance', 'golang-performance', 'golang-code-style', 'Allocation, pooling, hot-path optimization'],
+      ['crypto', 'Go', 'golang-security', 'wycheproof', 'Cryptographic primitive implementation'],
+      ['concurrency', 'Go', 'golang-concurrency', 'golang-performance', 'Goroutines, channels, mutexes, worker pools'],
+      ['error-boundaries', 'Go', 'golang-error-handling', 'golang-code-style', 'Error wrapping, sentinels, slog logging'],
+      ['crypto-testing', 'Go', 'wycheproof', 'golang-testing', 'Known attack vectors, test vectors'],
+      ['pr-review', 'Go', 'go-code-review', 'golang-code-style', 'gofmt, go vet, golangci-lint, review checklist'],
+      ['performance', 'Go', 'golang-performance', 'golang-code-style', 'Allocation, pooling, hot-path optimization'],
     ],
   },
   rust: {
@@ -77,9 +82,9 @@ const LANGUAGE_PRESETS = {
       ['rust-performance', 'user-level', 'performance'],
     ],
     matrix: [
-      ['testing', 'rust-testing', 'rust-performance', 'Unit, integration, async, property-based, coverage'],
-      ['performance', 'rust-performance', 'rust-security', 'Latency, throughput, allocations, binary size'],
-      ['security', 'rust-security', 'rust-testing', 'cargo-audit, cargo-deny, RUSTSEC, safe FFI, fuzzing'],
+      ['testing', 'Rust', 'rust-testing', 'rust-performance', 'Unit, integration, async, property-based, coverage'],
+      ['performance', 'Rust', 'rust-performance', 'rust-security', 'Latency, throughput, allocations, binary size'],
+      ['security', 'Rust', 'rust-security', 'rust-testing', 'cargo-audit, cargo-deny, RUSTSEC, safe FFI, fuzzing'],
     ],
   },
   python: {
@@ -91,9 +96,9 @@ const LANGUAGE_PRESETS = {
       ['python-cybersecurity-tool-development', 'user-level', 'security'],
     ],
     matrix: [
-      ['testing', 'python-testing-patterns', 'python-code-style', 'pytest, fixtures, mocking, TDD'],
-      ['performance', 'python-performance-optimization', 'python-code-style', 'cProfile, memory profilers, bottlenecks'],
-      ['security', 'python-cybersecurity-tool-development', 'python-code-style', 'Secure coding, async scanning, structured testing'],
+      ['testing', 'Python', 'python-testing-patterns', 'python-code-style', 'pytest, fixtures, mocking, TDD'],
+      ['performance', 'Python', 'python-performance-optimization', 'python-code-style', 'cProfile, memory profilers, bottlenecks'],
+      ['security', 'Python', 'python-cybersecurity-tool-development', 'python-code-style', 'Secure coding, async scanning, structured testing'],
     ],
   },
   unknown: {
@@ -101,7 +106,7 @@ const LANGUAGE_PRESETS = {
     alwaysOn: [],
     projectLocal: [],
     userLevel: [],
-    matrix: [['example-trigger', 'primary-skill', 'secondary-skill', 'Replace with your own triggers and skills']],
+    matrix: [['example-trigger', 'any', 'primary-skill', 'secondary-skill', 'Replace with your own triggers and skills']],
   },
 };
 

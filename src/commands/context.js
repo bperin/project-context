@@ -52,14 +52,33 @@ async function readSkillList(wb, name, taskTriggers = []) {
   return skills;
 }
 
+// readProjectLanguage reads the Identity sheet and returns the primary
+// language / stack value. Falls back to 'any' if not found.
+async function readProjectLanguage(wb) {
+  const rows = await readSheet(wb, 'Identity');
+  for (const r of rows) {
+    const field = String(r.field || '').trim().toLowerCase();
+    if (field === 'primary language' || field === 'stack') {
+      const value = String(r.value || '').trim();
+      if (value) return value;
+    }
+  }
+  return 'any';
+}
+
 // readSkillMatrix reads the Skill Matrix sheet and returns a map of
-// trigger -> { primary: [...], secondary: [...] }.
-async function readSkillMatrix(wb) {
+// trigger -> { primary: [...], secondary: [...] }, filtered by language.
+// A row is included if its Language column is empty, 'any', or matches
+// the project's primary language.
+async function readSkillMatrix(wb, language = 'any') {
   const rows = await readSheet(wb, 'Skill Matrix');
   const matrix = {};
+  const langNorm = String(language || 'any').toLowerCase().trim();
   for (const r of rows) {
     const trigger = (r.trigger || '').trim();
     if (!trigger) continue;
+    const rowLang = String(r.language || 'any').toLowerCase().trim();
+    if (rowLang !== 'any' && rowLang !== langNorm) continue;
     matrix[trigger] = {
       primary: parseSkills(r['primary skills'] || r.primaryskills || ''),
       secondary: parseSkills(r['secondary skills'] || r.secondaryskills || ''),
@@ -115,8 +134,9 @@ async function buildPacket(xlsxPath, targetId) {
   const modules = await readSheet(wb, 'Modules');
   const components = await readSheet(wb, 'Components');
 
-  // Project-level skill layers and trigger-to-skill matrix
-  const skillMatrix = await readSkillMatrix(wb);
+  // Project-level skill layers and trigger-to-skill matrix (filtered by language)
+  const projectLanguage = await readProjectLanguage(wb);
+  const skillMatrix = await readSkillMatrix(wb, projectLanguage);
 
   // Determine type by ID prefix
   let type, row, parent, children, grandparent;

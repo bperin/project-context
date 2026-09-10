@@ -71,6 +71,15 @@ async function runTests() {
   tasks.spliceRows(2, tasks.rowCount);
   tasks.addRow(['uuid-002', 'TASK-001', 'Test Task', 'committed', 'PLAN-001', '', 'ed25519', 'hash123']);
 
+  const identity = wb3.getWorksheet('Identity');
+  for (let r = 2; r <= identity.rowCount; r++) {
+    const row = identity.getRow(r);
+    const field = String(row.getCell(1).value || '').trim().toLowerCase();
+    if (field === 'primary language' || field === 'stack') {
+      row.getCell(2).value = 'Go';
+    }
+  }
+
   // Clear seeded skill rows and populate test layers
   const alwaysOn = wb3.getWorksheet('Always-on (user-level)');
   alwaysOn.spliceRows(2, alwaysOn.rowCount);
@@ -84,7 +93,7 @@ async function runTests() {
   onDemandUser.addRow(['ed25519-user', '', 'ed25519']);
   const matrix = wb3.getWorksheet('Skill Matrix');
   matrix.spliceRows(2, matrix.rowCount);
-  matrix.addRow(['ed25519', 'ed25519-skill', 'wycheproof, crypto', 'Ed25519 implementation']);
+  matrix.addRow(['ed25519', 'Go', 'ed25519-skill', 'wycheproof, crypto', 'Ed25519 implementation']);
 
   await wb3.xlsx.writeFile(path.join(targetDir, ws, 'overview.xlsx'));
 
