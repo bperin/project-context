@@ -68,7 +68,7 @@ async function runTests() {
   plans.addRow(['uuid-plan', 'PLAN-001', 'Test Plan', 'committed', '0%', 'SPEC-001', 'go-crypto', 'crypto', '']);
   const tasks = wb3.getWorksheet('Tasks');
   tasks.spliceRows(2, tasks.rowCount);
-  tasks.addRow(['uuid-002', 'TASK-001', 'Test Task', 'committed', 'PLAN-001', '', 'ed25519', 'hash123']);
+  tasks.addRow(['uuid-002', 'TASK-001', 'Test Task', 'committed', 'PLAN-001', '', '', 'ed25519', '']);
 
   const identity = wb3.getWorksheet('Identity');
   for (let r = 2; r <= identity.rowCount; r++) {
