@@ -116,7 +116,7 @@ The control plane is the set of rules the orchestrator follows to decide **when 
 | `/create-task` | user or model | When an approved plan needs tasks, or a task needs revision |
 | `/implement` | user or model | When a committed task's status is set to `in_progress` |
 | `/review` | user or model | When all tasks in a plan are `done` and a PR is ready |
-| `/inspect` | user or model | Anytime the agent needs a current view of the xlsx |
+| `/inspect-project` | user or model | Anytime the agent needs a current view of the xlsx |
 | `/context` | model | During orchestration to build a packet for a subagent |
 | `/uuid` | model | Whenever a new spec/plan/task needs a UUID |
 | `/optimizer` | model only | Spawned by `/create-spec`, `/create-plan`, or `/create-task` during review rounds |

@@ -1,6 +1,6 @@
 ---
-name: inspect
-description: "Read overview.xlsx and print specs, plans, and tasks with status and progress"
+name: inspect-project
+description: "Read overview.xlsx and print a nice view of specs, plans, and tasks"
 triggers:
   - user
   - model

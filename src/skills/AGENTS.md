@@ -243,7 +243,7 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 | `/review` | Orchestrator | Run code-review workflow |
 | `/approve-spec` | Orchestrator | Approve a committed spec and start `/create-plan` |
 | `/approve-plan` | Orchestrator | Approve a committed plan and start `/create-task` for each task |
-| `/inspect` | Utility | Read xlsx, print status |
+| `/inspect-project` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
 | `/optimizer` | Subagent | Review with context (read-only) |

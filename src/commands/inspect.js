@@ -52,28 +52,44 @@ async function inspectCommand(options) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(xlsxPath);
 
-  const sheets = [
-    { label: 'SPEC', name: 'Specs' },
-    { label: 'PLAN', name: 'Plans' },
-    { label: 'TASK', name: 'Tasks' },
-  ];
-
-  for (const { label, name } of sheets) {
+  const sheetLabels = {
+    Specs: 'SPEC',
+    Plans: 'PLAN',
+    Tasks: 'TASK',
+  };
+  const allRows = [];
+  for (const [name, label] of Object.entries(sheetLabels)) {
     const rows = await readSheet(wb, name);
-    console.log(`=== ${label}s (${rows.length}) ===`);
-    if (rows.length === 0) {
-      console.log('  (none)\n');
-      continue;
-    }
     for (const row of rows) {
-      const id = row.id || '?';
-      const title = row.title || id;
-      const status = row.status || 'unknown';
-      const progress = row.progress || '—';
-      console.log(`  ${id}  [${status}]  ${title}`);
-      if (progress && progress !== '—') {
-        console.log(`    Progress: ${progress}`);
+      allRows.push({ ...row, _type: label });
+    }
+  }
+
+  if (allRows.length === 0) {
+    console.log('  (no specs, plans, or tasks)\n');
+  } else {
+    // Compute column widths
+    const cols = ['Type', 'ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Skills', 'Triggers'];
+    const keys = ['_type', 'id', 'title', 'status', 'progress', 'dependencies', 'skills', 'triggers'];
+    const widths = cols.map(c => c.length);
+    for (const row of allRows) {
+      for (let i = 0; i < keys.length; i++) {
+        const val = String(row[keys[i]] || '—');
+        widths[i] = Math.max(widths[i], val.length);
       }
+    }
+
+    // Print table header
+    console.log('  ' + cols.map((c, i) => c.padEnd(widths[i])).join('  '));
+    console.log('  ' + cols.map((_, i) => '─'.repeat(widths[i])).join('  '));
+
+    // Print rows
+    for (const row of allRows) {
+      const line = cols.map((_, i) => {
+        const val = String(row[keys[i]] || '—');
+        return val.padEnd(widths[i]);
+      }).join('  ');
+      console.log('  ' + line);
     }
     console.log('');
   }
@@ -84,9 +100,7 @@ async function inspectCommand(options) {
   const tasks = await readSheet(wb, 'Tasks');
   const doneTasks = tasks.filter(t => String(t.status || '').toLowerCase() === 'done').length;
   console.log('--- Summary ---');
-  console.log(`  Specs: ${specs.length}`);
-  console.log(`  Plans: ${plans.length}`);
-  console.log(`  Tasks: ${tasks.length} (${doneTasks} done)`);
+  console.log(`  Specs: ${specs.length}  |  Plans: ${plans.length}  |  Tasks: ${tasks.length} (${doneTasks} done)`);
 }
 
 module.exports = inspectCommand;
