@@ -81,11 +81,11 @@ regardless of which model runs the steps.
 
 ```mermaid
 graph LR
-    SPEC["**SPEC**<br/>adhd → research → write<br/>blind rounds 1-2 → spec-optimizer round 3"]
-    PLAN["**PLAN**<br/>adhd → research → write<br/>blind rounds 1-2 → plan-optimizer round 3"]
-    TASK["**TASK**<br/>adhd → write<br/>task-optimizer → blind"]
-    IMPL["**IMPLEMENT**<br/>adhd → primary → secondary<br/>→ reviewer → tester"]
-    REVIEW["**REVIEW**<br/>adhd → mechanical<br/>→ review subagent → PR"]
+    SPEC["**SPEC**<br/>adhd → research → write<br/>→ reviewer"]
+    PLAN["**PLAN**<br/>adhd → research → write<br/>→ reviewer"]
+    TASK["**TASK**<br/>adhd → write<br/>→ reviewer"]
+    IMPL["**IMPLEMENT**<br/>adhd → implementer<br/>→ reviewer → tester"]
+    REVIEW["**REVIEW**<br/>adhd → mechanical<br/>→ reviewer → PR"]
 
     SPEC -->|approve| PLAN
     PLAN -->|approve| TASK
@@ -94,30 +94,26 @@ graph LR
     REVIEW -->|squash merge| DONE["**DONE**<br/>tag + record in xlsx"]
 ```
 
-## Tiered review (credit-efficient)
+## Orchestrator-reviewer pattern
 
-Spec and plan creation use a tiered review pattern: cheap models catch
-structural issues first, then a heavy model fires once for deep
-architecture review.
+Every workflow starts with the `adhd` skill for divergent ideation,
+loaded by the orchestrator (the big brain with full context). The
+orchestrator writes the document, then dispatches a reviewer subagent
+(with context) to review it.
 
 ```mermaid
 graph TD
-    WRITE["**Writer** (orchestrator)<br/>loads adhd, writes document"]
-    BLIND1["**Round 1-2: Blind reviewer**<br/>swe-1.7-medium (cheap)<br/>structural / template / rule checks"]
-    SEC["**Security reviewer** (parallel)<br/>subagent_explore (cheap)<br/>only if crypto/auth work"]
-    PLANNER["**Round 3: Planner**<br/>gpt-5.6-sol-medium (heavy)<br/>adhd loaded<br/>architecture / coverage / problem fit"]
+    WRITE["**Orchestrator** (main agent)<br/>loads adhd, writes document"]
+    REVIEW["**Reviewer** (subagent, with context)<br/>checks architecture, coverage, problem fit"]
     COMMIT["**Commit**"]
 
-    WRITE --> BLIND1
-    WRITE --> SEC
-    BLIND1 -->|"MUST-FIX? revise, re-run"| BLIND1
-    BLIND1 -->|"rounds 1-2 pass"| PLANNER
-    SEC -->|"findings applied"| PLANNER
-    PLANNER -->|"pass (NITs only)"| COMMIT
-    PLANNER -->|"MUST-FIX? escalate"| USER["**Escalate to user**"]
+    WRITE --> REVIEW
+    REVIEW -->|"MUST-FIX? revise, re-run"| REVIEW
+    REVIEW -->|"pass (NITs only)"| COMMIT
+    REVIEW -->|"MUST-FIX? escalate"| USER["**Escalate to user**"]
 ```
 
-This cuts heavy-model calls from 6 per spec+plan pair to 1.
+Max 3 review rounds, then escalate to the user.
 
 ## Model rotation
 
@@ -127,36 +123,28 @@ field in their definition files. Profiles are discovered from
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `spec-optimizer` | `gpt-5.6-sol-medium` | Spec architecture review | Round 3 only |
-| `plan-optimizer` | `glm-5.2-high` | Plan coverage and ordering review | Round 3 only |
+| `spec-optimizer` | `gpt-5.6-sol-medium` | Spec architecture review | Spec creation |
+| `plan-optimizer` | `glm-5.2-high` | Plan coverage and ordering review | Plan creation |
 | `task-optimizer` | `glm-5.2-high` | Task implementation readiness review | Task creation |
-| `blind-reviewer` | `swe-1.7-medium` | Rules compliance, no context | Rounds 1-2, every workflow |
 | `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation |
-| research/security | `subagent_explore` (host default) | Research, security review | Background, cheap |
 
 ## Subagent architecture
 
 ```mermaid
 graph TD
-    ORCH["**Orchestrator** (main agent)<br/>builds context packets, spawns subagents,<br/>applies findings, never writes code"]
+    ORCH["**Orchestrator** (main agent)<br/>loads adhd, builds context packets,<br/>dispatches subagents, applies findings"]
 
     subgraph "Custom profiles (.devin/agents/)"
         SPECOPT["spec-optimizer.md<br/>model: gpt-5.6-sol-medium<br/>read-only, with context"]
         PLANOPT["plan-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         TASKOPT["task-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
-        BLIND["blind-reviewer.md<br/>model: swe-1.7-medium<br/>read-only, no context"]
         TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
     end
 
-    subgraph "Built-in profiles"
-        EXPLORE["subagent_explore<br/>host default model<br/>read-only + web search"]
-    end
-
-    ORCH -->|"spec/plan round 3"| PLANNER
-    ORCH -->|"task creation"| CODEOPT
-    ORCH -->|"rounds 1-2, all workflows"| BLIND
+    ORCH -->|"spec creation"| SPECOPT
+    ORCH -->|"plan creation"| PLANOPT
+    ORCH -->|"task creation"| TASKOPT
     ORCH -->|"after implementation"| TEST
-    ORCH -->|"research, security review"| EXPLORE
 ```
 
 Subagents receive context packets (not conversation history) built by
@@ -229,7 +217,6 @@ target repository/
 │   │   │   ├── spec-optimizer.md
 │   │   │   ├── plan-optimizer.md
 │   │   │   ├── task-optimizer.md
-│   │   │   ├── blind-reviewer.md
 │   │   │   └── test-agent.md
 │   │   └── skills/                 # workflow skills (generated)
 │   ├── workflows/                  # workflow definitions (generated)
@@ -244,7 +231,6 @@ target repository/
 │       ├── spec-optimizer.md
 │       ├── plan-optimizer.md
 │       ├── task-optimizer.md
-│       ├── blind-reviewer.md
 │       └── test-agent.md
 └── tools/
     └── project-context             # bundled CLI (esbuild, self-contained)
@@ -299,7 +285,6 @@ project-context/
 │   │   ├── spec-optimizer.md       #   model: gpt-5.6-sol-medium
 │   │   ├── plan-optimizer.md       #   model: glm-5.2-high
 │   │   ├── task-optimizer.md       #   model: glm-5.2-high
-│   │   ├── blind-reviewer.md       #   model: swe-1.7-medium
 │   │   └── test-agent.md           #   model: swe-1.7-medium
 │   ├── commands/                   # CLI commands
 │   │   ├── init.js

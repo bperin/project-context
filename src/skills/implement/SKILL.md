@@ -1,6 +1,6 @@
 ---
 name: implement
-description: "Run the task-implementation workflow — primary implements, secondary fixes, code reviewer checks, testing agent writes tests"
+description: "Run the task-implementation workflow — implementer writes code, reviewer checks, testing agent writes tests"
 argument-hint: "<TASK-NNN>"
 triggers:
   - user
@@ -34,36 +34,48 @@ Read the full workflow at `workflows/task-implementation.md` before starting. Fo
 
 ## Steps
 
-1. **Build a context packet** for the task:
+1. **Load the `adhd` skill** for divergent ideation on the
+   implementation approach. Explore alternatives before dispatching the
+   implementer.
+
+2. **Build a context packet** for the task:
    ```bash
    node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
    ```
 
-2. **Load the task's skill layers.** Read the context packet to find which skills apply. Load `alwaysOn` skills first, then the `primarySkills` for your primary lens:
-   ```
-   skill invoke --skill <skill-name>
-   ```
-   Note `secondarySkills` and `userLocal` skills for the secondary implementer in step 5.
+3. **Dispatch the implementer** (foreground, write access). Give it the
+   context packet, task file, primary skill path, algorithm registry
+   (if applicable), and `AGENTS.md`. It loads the primary skill,
+   implements code + initial tests, and runs verification.
 
-3. **Implement code + initial tests.** Write the code and initial tests (known-answer vectors + round-trip where applicable).
+4. **Reconcile implementer output.** If it reports issues it couldn't
+   fix, re-dispatch it with specific guidance.
 
-4. **Run build, vet, test, lint.** Use the project's commands (see AGENTS.md or package.json).
+5. **Dispatch the reviewer** (background, read-only, code-review skill).
+   Give it `AGENTS.md`, the algorithm registry (if applicable), task
+   file, and the diff. It checks the code against project rules.
 
-5. **Spawn secondary implementer** (foreground, write access, different skill lens). Have it load `secondarySkills` and `userLocal` skills from the context packet. It reviews and fixes issues directly.
+6. **Apply reviewer findings.** Append MUST-FIX and SHOULD-FIX findings
+   to the task's `## Review Findings` table with reviewer `reviewer`
+   and the current date. Re-dispatch the implementer to fix MUST-FIX
+   issues. Re-run verification. Mark resolved findings as `resolved`
+   in the table.
 
-6. **Spawn code reviewer** (background, read-only, code-review skill). It checks against project rules.
+7. **Dispatch the testing agent** (background, write access) via
+   `/test TASK-NNN`. It writes the full test suite.
 
-7. **Apply code review findings.** Append MUST-FIX and SHOULD-FIX findings to the task's `## Review Findings` table with reviewer `code-reviewer` and the current date. Fix MUST-FIX issues. Re-run verification. Mark resolved findings as `resolved` in the table.
+8. **Run all tests.** Fix failures until all pass (use the test-failure
+   workflow for structured triage).
 
-8. **Spawn testing agent** (background, write access) via `/test TASK-NNN`. It writes the full test suite.
+9. **Commit.** Humanize the commit message (use `content-humanizer`
+   skill if available). Cite the governing standard in the body if
+   applicable.
 
-9. **Run all tests.** Fix failures until all pass.
-
-10. **Commit.** Humanize the commit message (use `content-humanizer` skill if available). Cite the governing standard in the body if applicable.
-
-11. **Update the task status via the CLI.** Do not edit `overview.xlsx` directly. Run:
+10. **Update the task status via the CLI.** Do not edit `overview.xlsx`
+    directly. Run:
     ```bash
     node /Users/brian/code/project-context/bin/cli.js status TASK-NNN done -t .
     ```
 
-12. **Report.** Summarize what was implemented, what tests pass, and what the commit is.
+11. **Report.** Summarize what was implemented, what tests pass, and
+    what the commit is.

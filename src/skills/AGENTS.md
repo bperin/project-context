@@ -146,8 +146,9 @@ skill invoke --skill <skill-name>
   ideation. Attached skills are listed in the document but not loaded
   during creation — they load during implementation.
 - **Task implementation**: the implementer loads `alwaysOn` skills first,
-  then the `primarySkills` for the primary implementer. The secondary
-  implementer loads `secondarySkills` plus any `userLocal` skills.
+  then the `primarySkills` for its primary lens. The testing agent loads
+  `secondarySkills` plus any `userLocal` skills when writing the full
+  test suite.
 
 ### Subagent profiles
 
