@@ -33,7 +33,8 @@ async function upgradeCommand(options) {
   const srcSkills = path.join(srcRoot, 'skills');
   const srcAgents = path.join(srcRoot, 'agents');
   const srcTemplates = path.join(srcRoot, 'templates');
-  const bundledSkills = path.join(__dirname, '..', '..', 'skills');
+  // Language skills are vendored by the target repo's Makefile, not by
+  // upgrade. See the comment below the bundled-skills block.
 
   // Ensure directories exist
   const dirs = [
@@ -120,18 +121,12 @@ async function upgradeCommand(options) {
     console.log(`Copied subagent profiles to ${devinAgentsDir}`);
   }
 
-  // Copy bundled language skills from skills/ (at package root), unless
-  // --no-bundled-skills is set. These are language-specific skills that
-  // ship with project-context and are not part of src/skills.
-  if (options.bundledSkills !== false && fs.existsSync(bundledSkills)) {
-    for (const skillName of fs.readdirSync(bundledSkills)) {
-      const srcSkillDir = path.join(bundledSkills, skillName);
-      if (!fs.statSync(srcSkillDir).isDirectory()) continue;
-      const dstSkillDir = path.join(skillsDir, skillName);
-      fs.rmSync(dstSkillDir, { recursive: true, force: true });
-      fs.cpSync(srcSkillDir, dstSkillDir, { recursive: true });
-    }
-  }
+  // Language skills are NOT copied by upgrade. The target repo's
+  // Makefile (or equivalent) vendors language-specific skills from
+  // ~/.agents/skills/ via `make skills`. Upgrade only manages workflow
+  // skills (src/skills/) and subagent profiles (src/agents/). Copying
+  // all bundled language skills here pollutes the target workspace
+  // with irrelevant skills (e.g. Rust skills in a Go repo).
 
   // Upgrade xlsx: add missing sheets/headers, seed empty Skills/Matrix/Workflows
   const language = detectLanguage(targetDir);
