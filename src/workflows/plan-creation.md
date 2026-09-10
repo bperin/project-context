@@ -7,11 +7,14 @@ plan is committed.
 
 ## Pattern
 
-Writer-code-optimizer-blind review. Same three-pass pattern as the spec workflow:
+Writer-research-planner-security-blind review. Same five-pass pattern
+as the spec workflow:
 
 ```
 Writer writes the plan (with full context — knows the spec, the user's goals)
-    → Critic reviews (with context — can challenge the approach, skill choices)
+    → Research agent gathers primary sources (standards, vectors, attack sources)
+    → Planner reviews (with context — challenges approach, coverage, ordering)
+    → Security reviewer checks crypto/auth workstreams (if any)
     → Blind reviewer reviews (no context — judges against AGENTS.md + the spec)
 If any reviewer finds issues → writer revises → re-review
 Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
@@ -40,21 +43,44 @@ A plan that leaves these vague forces the implementer to guess.
   citation.
 - Revises after each review round.
 
-### Role 2: Critic (subagent, read-only, with context)
+### Role 2: Research agent (background, read-only)
 
-- Sees the plan file, the source spec, the project's algorithm
-  registry (if applicable), and a brief context summary from the
-  writer.
+- Spawned with `mattpocock/skills@research` (or equivalent).
+- Investigates each workstream's standards, algorithms, and attack
+  surfaces against **primary sources** — official specs, RFCs, NIST
+  publications, source code — not secondary write-ups.
+- Writes findings to `decisions/PLAN-NNN-research.md` with a citation
+  for every claim.
+- Does not write the plan. The writer consumes the research file.
+
+### Role 3: Planner (subagent, read-only, with context)
+
+- Sees the plan file, the source spec, the research findings, the
+  project's algorithm registry (if applicable), and a brief context
+  summary from the writer.
 - Reviews with knowledge of intent — can challenge whether the plan
-  is the right approach to implement the spec.
+  is the right approach to implement the spec, whether workstreams are
+  ordered correctly, and whether scope matches the spec.
 - Reports findings. Does not fix — the writer revises.
 
-### Role 3: Blind reviewer (subagent, read-only, no context)
+### Role 4: Security reviewer (subagent or skill, read-only)
+
+- Only runs when the plan touches crypto, auth, or security primitives.
+- Loads the project's security skills (`golang-security`,
+  `wycheproof`, `ethereum`, etc.) per the algorithm-to-skill matrix in
+  AGENTS.md.
+- Checks that every algorithm is in the registry, that skills are
+  listed and installed, that test vectors are specific, and that
+  negative tests are present.
+- Reports findings. Does not fix — the writer revises.
+
+### Role 5: Blind reviewer (subagent, read-only, no context)
 
 - Sees only the plan file, the source spec, `AGENTS.md`,
   the project's algorithm registry (if applicable), and the
   architecture document.
-- No conversation context, no user messages, no writer rationale.
+- No conversation context, no user messages, no writer rationale, no
+  research file.
 - Judges the plan against the spec and the rules, not the intent.
 - Reports findings. Does not fix — the writer revises.
 
@@ -70,7 +96,14 @@ A plan that leaves these vague forces the implementer to guess.
    a spec desired behavior. Flag any spec behavior with no corresponding
    workstream, and any workstream with no corresponding spec behavior.
 
-3. **Write the plan.** Use `PLAN-NNN.template.md`. For each workstream:
+3. **Spawn the research agent** (background, `mattpocock/skills@research`).
+   Give it the workstream topics, the algorithms/standards each touches,
+   and ask for primary-source citations for: governing standards, exact
+   test vector sources, and known attack vectors. Save the output to
+   `decisions/PLAN-NNN-research.md`. Continue to step 4 while it runs;
+   consume its findings before step 5.
+
+4. **Write the plan.** Use `PLAN-NNN.template.md`. For each workstream:
    - List the algorithm IDs from the project's algorithm registry
      (if applicable).
    - List the primary and secondary skills (from the algorithm's `skill`
@@ -80,41 +113,66 @@ A plan that leaves these vague forces the implementer to guess.
      workstream starts.
    - Name specific test vectors from the governing standard (not "known
      test vector" — cite the exact source: RFC number, section, test
-     case ID).
+     case ID) pulled from the research file.
    - List negative tests (wrong key, tampered input, etc.).
    - List external packages to add and the project's standard library
      packages used.
    - Call out actual file paths to create/modify.
 
-4. **Spawn the code-optimizer** (foreground, `subagent_explore` profile). Give it:
+5. **Spawn the planner** (foreground, `planner` profile). Give it:
    - The plan file path
    - The source spec path
+   - The research findings file path
    - The project's algorithm registry path (if applicable)
    - `AGENTS.md` path
    - A 1-2 sentence context summary (what this plan covers, key user
      priorities)
-   - The code-optimizer checks:
+   - The planner checks:
      - **Spec coverage**: does every spec desired behavior have a
        workstream? Does every workstream trace to a spec behavior?
      - **Approach soundness**: is this the right way to implement the
        spec? Are there simpler approaches the writer dismissed?
-     - **Skill alignment**: are the primary/secondary skills correct
-       per the algorithm registry? Are they installed?
-     - **Dependency ordering**: are workstreams ordered so no
-       workstream depends on a later one?
+     - **Workstream ordering**: are workstreams ordered so no
+       workstream depends on a later one? Are dependency edges explicit?
      - **Scope vs. spec**: is the plan trying to do more than the spec
-       asks? Less?
+       asks? Less? Is the Out of Scope section honest?
+     - **Research completeness**: are standards and vectors cited from
+       primary sources, not vague references?
+     - **Completion criteria**: is every criterion objectively
+       verifiable (a command to run, a grep to check, a test to pass)?
 
-5. **Apply code-optimizer findings.** Revise the plan.
+6. **Apply planner findings.** Revise the plan.
 
-6. **Spawn the blind reviewer** (foreground, `subagent_explore`
+7. **Spawn the security reviewer** (foreground, `planner` or
+   `code-optimizer` profile with security skills loaded) **only if the
+   plan touches crypto, auth, or security primitives**. Give it:
+   - The plan file path
+   - The research findings file path
+   - The project's algorithm registry path (if applicable)
+   - `AGENTS.md` path (for the algorithm-to-skill matrix)
+   - The security reviewer checks:
+     - **Algorithm registry**: is every algorithm in the plan present
+       in the registry?
+     - **Skill gating**: are primary and secondary skills listed for
+       each algorithm? Are they installed?
+     - **Test vectors**: every algorithm names a specific test vector
+       from its governing standard. "Known test vector" is not specific
+       enough.
+     - **Negative tests**: every algorithm has at least one negative
+       test.
+     - **Dependency compliance**: would any workstream require a
+       forbidden import?
+
+8. **Apply security reviewer findings.** Revise the plan.
+
+9. **Spawn the blind reviewer** (foreground, `blind-reviewer`
    profile). Give it:
    - The plan file path
    - The source spec path
    - The project's algorithm registry path (if applicable)
    - `AGENTS.md` path
    - The architecture document path
-   - No context summary, no conversation history.
+   - No context summary, no conversation history, no research file.
    - The blind reviewer checks:
      - **Algorithm-to-skill matrix**: for every workstream implementing
        an algorithm, is the algorithm ID in the algorithm registry? Is
@@ -133,15 +191,15 @@ A plan that leaves these vague forces the implementer to guess.
      - **Spec constraints**: does the plan violate any constraint from
        the spec or AGENTS.md?
 
-7. **Apply blind reviewer findings.** Revise the plan.
+10. **Apply blind reviewer findings.** Revise the plan.
 
-8. **Round counter.** This is round 1. If either reviewer found
-   MUST-FIX or SHOULD-FIX issues, go back to step 4 (re-spawn both
-   reviewers on the revised plan). Max 3 rounds. If still unresolved
-   after round 3, escalate to the user.
+11. **Round counter.** This is round 1. If any reviewer found
+    MUST-FIX or SHOULD-FIX issues, go back to step 5 (re-spawn planner,
+    security, and blind reviewer on the revised plan). Max 3 rounds. If
+    still unresolved after round 3, escalate to the user.
 
-9. **Commit.** When both reviewers pass, commit the plan with a
-   message summarizing what the review changed.
+12. **Commit.** When all reviewers pass, commit the plan with a
+    message summarizing what the review changed.
 
 ## Expected output
 
@@ -163,33 +221,81 @@ A plan that:
 - Has workstreams ordered so no workstream depends on a later one.
 - Respects the project's dependency rules (see AGENTS.md).
 - Lists external packages to add and standard library packages used.
-- Has been stress-tested from three angles: intent (writer), context
-  (code-optimizer), and rules (blind reviewer).
+- Has an honest Out of Scope section.
+- Has been stress-tested from five angles: intent (writer), sources
+  (research), context (planner), security (security reviewer), and
+  rules (blind reviewer).
 
 ## Subagent prompt templates
 
-### Critic
+### Research agent
 
 ```
-You are a plan code-optimizer for this project. Read AGENTS.md for project
+Research the standards, algorithms, and attack surfaces for PLAN-NNN
+(<topic>). Investigate against primary sources only — official specs,
+RFCs, NIST publications, source code — not secondary write-ups.
+
+For each workstream's algorithm or standard, cite:
+- The governing standard (RFC number, section, or NIST publication)
+- The canonical test vector source (specific test case ID, not "known
+  vector")
+- Known attack vectors or failure modes (with source)
+
+Write the findings to decisions/PLAN-NNN-research.md with a citation
+for every claim. Do not write the plan.
+```
+
+### Planner
+
+```
+You are a plan planner for this project. Read AGENTS.md for project
 conventions, skill-gated implementation rules, and testing rules.
 
 Context: <1-2 sentence summary of what this plan covers>
 
 Read the plan at <path>.
-Also read the source spec at <path> and the project's algorithm
-registry (if applicable).
+Also read the source spec at <path>, the research findings at <path>,
+and the project's algorithm registry (if applicable).
 
 Check:
 - Spec coverage: does every spec behavior have a workstream? Any
   orphans?
 - Approach soundness: is this the right way to implement the spec?
-- Skill alignment: are primary/secondary skills correct per the
-  algorithm registry? Are they installed?
-- Dependency ordering: are workstreams correctly ordered?
-- Scope: is the plan doing more or less than the spec asks?
+- Workstream ordering: are workstreams correctly ordered? Are
+  dependency edges explicit?
+- Scope: is the plan doing more or less than the spec asks? Is Out of
+  Scope honest?
+- Research completeness: are standards and vectors cited from primary
+  sources?
+- Completion criteria: are they objectively verifiable?
 
-Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers.
+Return findings as MUST-FIX, SHOULD-FIX, OPTIMIZE, NIT. Cite line
+numbers and exact text.
+```
+
+### Security reviewer
+
+```
+You are a security reviewer for this plan. Read AGENTS.md for the
+algorithm-to-skill matrix and dependency rules.
+
+Read the plan at <path>.
+Also read the research findings at <path> and the project's algorithm
+registry at <path> (if applicable).
+
+Check:
+- Algorithm registry: is every algorithm in the plan present in the
+  registry?
+- Skill gating: are primary and secondary skills listed for each
+  algorithm? Are they installed?
+- Test vectors: are they specific (named source, not "known test
+  vector")?
+- Negative tests: does every algorithm have at least one?
+- Dependency compliance: would any workstream require a forbidden
+  import?
+
+Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
+exact text.
 ```
 
 ### Blind reviewer
@@ -224,19 +330,22 @@ Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers.
 - `AGENTS.md`
 - The architecture document
 - `PLAN-NNN.template.md` (for format reference)
+- The research findings file (`decisions/PLAN-NNN-research.md`)
 
 ## Outputs
 
 - A reviewed, revised plan ready to commit
+- A research findings file with primary-source citations
 - A summary of what the review changed (in the commit message)
 
 ## Constraints
 
-- No plan is committed without passing both the code-optimizer and blind reviewer.
+- No plan is committed without passing the planner, security reviewer
+  (when applicable), and blind reviewer.
 - No implementation starts until the plan is reviewed and committed.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds the spec is wrong (not the plan), stop and go back
   to the spec workflow.
-- The code-optimizer has context (a brief summary). The blind reviewer has
-  none.
+- The planner has context (a brief summary). The blind reviewer has
+  none. The research agent writes findings only.
 - Reviewers are read-only. They report findings; the writer revises.

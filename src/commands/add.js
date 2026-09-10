@@ -145,6 +145,7 @@ async function addCommand(options) {
     id: finalID,
     title,
     status: status || 'draft',
+    parent: options.parent || '',
     dependencies: dependencies || '',
     skills: skills || '',
     triggers: triggers || '',

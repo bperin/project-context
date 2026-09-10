@@ -11,6 +11,7 @@ const uuidCommand = require('../src/commands/uuid');
 const contextCommand = require('../src/commands/context');
 const setStatusCommand = require('../src/commands/set-status');
 const addCommand = require('../src/commands/add');
+const syncCommand = require('../src/commands/sync');
 const upgradeCommand = require('../src/commands/upgrade');
 
 const program = new Command();
@@ -55,6 +56,10 @@ program
   .description('Refresh an existing project-context workspace: skills, workflows, AGENTS.md, hooks, and xlsx structure (preserves project data)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
+  .option('--source <dir>', 'Asset source root (defaults to this package\'s src/)')
+  .option('--no-symlink', 'Do not create the .agents symlink at the target root')
+  .option('--no-hooks', 'Do not regenerate .devin/hooks.v1.json')
+  .option('--no-bundled-skills', 'Do not copy bundled language skills from the package root')
   .action(async (options) => {
     try {
       options.workspace = resolveWorkspace(options);
@@ -146,7 +151,8 @@ program
   .requiredOption('--title <title>', 'Title')
   .option('--id <id>', 'Override the auto-assigned ID (e.g. SPEC-001)')
   .option('--status <status>', 'Initial status (default: draft)')
-  .option('--dependencies <deps>', 'Comma-separated parent IDs')
+  .option('--parent <id>', 'Parent ID (SPEC-NNN for plans, PLAN-NNN for tasks)')
+  .option('--dependencies <deps>', 'Comma-separated dependency IDs')
   .option('--skills <skills>', 'Comma-separated skill names')
   .option('--triggers <triggers>', 'Comma-separated trigger names (resolved via Skill Matrix)')
   .option('--commit <hash>', 'Commit hash')
@@ -174,6 +180,21 @@ program
       options.id = id;
       options.status = status;
       await setStatusCommand(options);
+    } catch (err) {
+      console.error('Error:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('sync')
+  .description('Recompute plan/spec Status and Progress bottom-up from child rows (uses the Parent column)')
+  .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
+  .option('-t, --target <path>', 'Target project directory', '.')
+  .action(async (options) => {
+    try {
+      options.workspace = resolveWorkspace(options);
+      await syncCommand(options);
     } catch (err) {
       console.error('Error:', err.message);
       process.exit(1);

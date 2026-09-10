@@ -6,19 +6,24 @@ When a spec is written or substantially revised, before it's committed.
 
 ## Pattern
 
-Writer-code-optimizer-blind review. Three perspectives, escalating objectivity:
+Writer-research-planner-security-blind review. Five perspectives,
+escalating objectivity:
 
 ```
 Writer writes the spec (with full context — knows the goal, the user's intent)
-    → Critic reviews (with context — can challenge scope, push back on decisions)
+    → Research agent gathers primary sources (standards, attack vectors, test vectors)
+    → Planner reviews (with context — challenges scope, coverage, requirements)
+    → Security reviewer checks crypto/auth workstreams (if any)
     → Blind reviewer reviews (no context — judges only against AGENTS.md + architecture)
 If any reviewer finds issues → writer revises → re-review
 Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
-The writer has intent. The code-optimizer has context. The blind reviewer has
-neither — only the rules and the mission. This catches gaps the writer
-rationalized away and biases the code-optimizer shares.
+The writer has intent. The research agent has primary sources. The
+planner has context. The security reviewer has the algorithm-to-skill
+matrix. The blind reviewer has neither context nor sources — only the
+rules and the mission. This catches gaps the writer rationalized away,
+biases the planner shares, and sources the writer never checked.
 
 ## Roles
 
@@ -34,19 +39,42 @@ rationalized away and biases the code-optimizer shares.
 - Writes the spec from the `SPEC-NNN.template.md` template.
 - Revises after each review round.
 
-### Role 2: Critic (subagent, read-only, with context)
+### Role 2: Research agent (background, read-only)
+
+- Spawned with `mattpocock/skills@research` (or equivalent).
+- Investigates each standard, algorithm, and attack surface the spec
+  touches against **primary sources** — official specs, RFCs, NIST
+  publications, source code — not secondary write-ups.
+- Writes findings to a single Markdown file (e.g.
+  `decisions/SPEC-NNN-research.md`) with a citation for every claim.
+- Does not write the spec. The writer consumes the research file.
+
+### Role 3: Planner (subagent, read-only, with context)
 
 - Sees the spec file **and** a brief context summary from the writer
   (1-2 sentences: what this spec is for, what constraints the user
-  emphasized).
+  emphasized) **and** the research findings file.
 - Reviews with knowledge of intent — can challenge whether the spec
-  solves the right problem, not just whether it's well-formed.
+  solves the right problem, whether requirements coverage is complete,
+  and whether scope is honest.
 - Reports findings. Does not fix — the writer revises.
 
-### Role 3: Blind reviewer (subagent, read-only, no context)
+### Role 4: Security reviewer (subagent or skill, read-only)
+
+- Only runs when the spec touches crypto, auth, or security primitives.
+- Loads the project's security skills (`golang-security`,
+  `wycheproof`, `ethereum`, etc.) per the algorithm-to-skill matrix in
+  AGENTS.md.
+- Checks that every algorithm is in the registry, that known attack
+  vectors are documented, and that the required skills are listed and
+  installed.
+- Reports findings. Does not fix — the writer revises.
+
+### Role 5: Blind reviewer (subagent, read-only, no context)
 
 - Sees only the spec file, `AGENTS.md`, and the architecture document.
-- No conversation context, no user messages, no writer rationale.
+- No conversation context, no user messages, no writer rationale, no
+  research file.
 - Judges the spec against the mission and rules, not the intent.
 - Reports findings. Does not fix — the writer revises.
 
@@ -57,16 +85,28 @@ rationalized away and biases the code-optimizer shares.
    score and prune, then write the spec from the survivors. Do not
    lock onto the first approach before alternatives are considered.
 
-2. **Write the spec.** Use `SPEC-NNN.template.md`. The spec describes
-   WHAT and WHY, not HOW. Do not turn it into an implementation plan.
+2. **Spawn the research agent** (background, `mattpocock/skills@research`).
+   Give it the spec topic, the algorithms/standards the spec will touch,
+   and ask for primary-source citations for: governing standards, known
+   test vector sources, and known attack vectors. Save the output to
+   `decisions/SPEC-NNN-research.md`. Continue to step 3 while it runs;
+   consume its findings before step 4.
 
-3. **Spawn the code-optimizer** (foreground, `subagent_explore` profile). Give it:
+3. **Write the spec.** Use `SPEC-NNN.template.md`. The spec describes
+   WHAT and WHY, not HOW. Do not turn it into an implementation plan.
+   Pull exact standard citations and attack references from the research
+   file — do not invent them.
+
+4. **Spawn the planner** (foreground, `planner` profile). Give it:
    - The spec file path
+   - The research findings file path
    - A 1-2 sentence context summary (what this spec is for, key user
      constraints)
    - `AGENTS.md` path
    - The architecture document path
-   - The code-optimizer checks:
+   - The planner checks:
+     - **Requirements coverage**: does every desired behavior map to a
+       measurable success criterion? Any orphans in either direction?
      - **Problem fit**: does this spec solve the actual problem? Is
        the scope right — not too narrow, not too broad?
      - **Completeness**: does it cover everything the architecture asks
@@ -77,19 +117,39 @@ rationalized away and biases the code-optimizer shares.
        criteria objective (pass/fail, not subjective)?
      - **Scope discipline**: is the Out of Scope section honest? Are
        there features sneaking in that belong in a future spec?
+     - **Research completeness**: are standards and attack sources
+       cited from primary sources, not vague references?
 
-4. **Apply code-optimizer findings.** Revise the spec. If the code-optimizer found a
+5. **Apply planner findings.** Revise the spec. If the planner found a
    fundamental problem (wrong problem, wrong scope), stop and discuss
    with the user before rewriting.
 
-5. **Spawn the blind reviewer** (foreground, `subagent_explore`
+6. **Spawn the security reviewer** (foreground, `planner` or
+   `code-optimizer` profile with security skills loaded) **only if the
+   spec touches crypto, auth, or security primitives**. Give it:
+   - The spec file path
+   - `AGENTS.md` path (for the algorithm-to-skill matrix)
+   - The project's algorithm registry path (if applicable)
+   - The security reviewer checks:
+     - **Algorithm registry**: is every algorithm in the spec present
+       in `trust/algorithms.json` (or the project's registry)?
+     - **Skill gating**: are the primary and secondary skills for each
+       algorithm listed? Are they installed?
+     - **Attack surface**: are known attacks and failure modes
+       documented (from the research file)?
+     - **Dependency compliance**: would any behavior require a
+       forbidden import?
+
+7. **Apply security reviewer findings.** Revise the spec.
+
+8. **Spawn the blind reviewer** (foreground, `blind-reviewer`
    profile). Give it:
    - The spec file path
    - `AGENTS.md` path
    - The architecture document path
    - The project's algorithm registry (if applicable — every algorithm
      must be in the registry)
-   - No context summary, no conversation history.
+   - No context summary, no conversation history, no research file.
    - The blind reviewer checks:
      - **Technical rigor**: are algorithms and protocols correctly
        distinguished? Are domain-specific requirements (canonicalization,
@@ -103,15 +163,16 @@ rationalized away and biases the code-optimizer shares.
        the constraints align with the desired behaviors?
      - **Rule compliance**: does the spec respect AGENTS.md conventions?
 
-6. **Apply blind reviewer findings.** Revise the spec.
+9. **Apply blind reviewer findings.** Revise the spec.
 
-7. **Round counter.** This is round 1. If either reviewer found MUST-FIX
-   or SHOULD-FIX issues, go back to step 3 (re-spawn both reviewers on
-   the revised spec). Max 3 rounds. If still unresolved after round 3,
-   escalate to the user with a summary of the disagreement.
+10. **Round counter.** This is round 1. If any reviewer found MUST-FIX
+    or SHOULD-FIX issues, go back to step 4 (re-spawn planner, security,
+    and blind reviewer on the revised spec). Max 3 rounds. If still
+    unresolved after round 3, escalate to the user with a summary of
+    the disagreement.
 
-8. **Commit.** When both reviewers pass (only NITs or clean), commit the
-   spec with a message summarizing what the review changed.
+11. **Commit.** When all reviewers pass (only NITs or clean), commit the
+    spec with a message summarizing what the review changed.
 
 ## Expected output
 
@@ -127,25 +188,48 @@ A spec that:
 - Names every algorithm by its ID in the project's algorithm registry
   (if applicable) — no algorithm appears in the spec that isn't in the
   registry.
+- Cites standards and attack sources from primary sources (not "known
+  test vector").
 - Has constraints that align with the desired behaviors (no
   contradictions).
-- Has been stress-tested from three angles: intent (writer), context
-  (code-optimizer), and rules (blind reviewer).
+- Has been stress-tested from five angles: intent (writer), sources
+  (research), context (planner), security (security reviewer), and
+  rules (blind reviewer).
 
 ## Subagent prompt templates
 
-### Critic
+### Research agent
 
 ```
-You are a spec code-optimizer for this project. Read AGENTS.md for full
+Research the standards, algorithms, and attack surfaces for SPEC-NNN
+(<topic>). Investigate against primary sources only — official specs,
+RFCs, NIST publications, source code — not secondary write-ups.
+
+For each standard or algorithm, cite:
+- The governing standard (RFC number, section, or NIST publication)
+- The canonical test vector source (specific test case ID, not "known
+  vector")
+- Known attack vectors or failure modes (with source)
+
+Write the findings to decisions/SPEC-NNN-research.md with a citation
+for every claim. Do not write the spec.
+```
+
+### Planner
+
+```
+You are a spec planner for this project. Read AGENTS.md for full
 project conventions and rules.
 
 Context: <1-2 sentence summary of what this spec is for>
 
 Read the spec at <path>.
-Also read the architecture document at <path>.
+Also read the research findings at <path> and the architecture document
+at <path>.
 
 Check:
+- Requirements coverage: every desired behavior maps to a success
+  criterion? Any orphans?
 - Problem fit: does this spec solve the actual problem? Is the scope
   right?
 - Completeness: are there missing behaviors the architecture asks for?
@@ -154,9 +238,32 @@ Check:
 - Testability: is every desired behavior testable? Are success criteria
   objective?
 - Scope discipline: is Out of Scope honest? Any scope creep?
+- Research completeness: are standards and attack sources cited from
+  primary sources?
+
+Return findings as MUST-FIX, SHOULD-FIX, OPTIMIZE, NIT. Cite line
+numbers and exact text. Be specific.
+```
+
+### Security reviewer
+
+```
+You are a security reviewer for this spec. Read AGENTS.md for the
+algorithm-to-skill matrix and dependency rules.
+
+Read the spec at <path>.
+Also read the project's algorithm registry at <path> (if applicable).
+
+Check:
+- Algorithm registry: is every algorithm in the spec present in the
+  registry?
+- Skill gating: are primary and secondary skills listed for each
+  algorithm? Are they installed?
+- Attack surface: are known attacks and failure modes documented?
+- Dependency compliance: would any behavior require a forbidden import?
 
 Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
-exact text. Be specific.
+exact text.
 ```
 
 ### Blind reviewer
@@ -193,19 +300,23 @@ reference files.
 - The project's algorithm registry (if applicable)
 - `AGENTS.md` (project conventions and rules)
 - `SPEC-NNN.template.md` (for format reference)
+- The research findings file (`decisions/SPEC-NNN-research.md`)
 
 ## Outputs
 
 - A reviewed, revised spec ready to commit
+- A research findings file with primary-source citations
 - A summary of what the review changed (in the commit message)
 
 ## Constraints
 
-- No spec is committed without passing both the code-optimizer and blind reviewer.
+- No spec is committed without passing the planner, security reviewer
+  (when applicable), and blind reviewer.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - If a review finds a fundamental architecture problem, stop and
   discuss with the user before rewriting.
-- The code-optimizer has context (a brief summary). The blind reviewer has
+- The planner has context (a brief summary). The blind reviewer has
   none. This is intentional — the blind reviewer's lack of context is
   what makes it objective.
+- The research agent writes findings only. It does not write the spec.
 - Reviewers are read-only. They report findings; the writer revises.
