@@ -1,7 +1,7 @@
 ---
 name: blind-reviewer
 description: "Blind reviewer — read-only, no context. Judges specs/plans/tasks against AGENTS.md and rules only. No conversation history."
-model: sonnet
+model: swe-1.7-medium
 allowed-tools:
   - read
   - grep

@@ -210,12 +210,12 @@ Research the standards, algorithms, and attack surfaces for SPEC-NNN
 (<topic>). Investigate against primary sources only — official specs,
 RFCs, NIST publications, source code — not secondary write-ups.
 
-For each standard or algorithm, cite:
-- The governing standard (RFC number, section, or NIST publication)
-- The canonical test vector source (specific test case ID, not "known
-  vector")
-- Known attack vectors or failure modes (with source)
+For each standard or algorithm, cite ONLY:
+- The governing standard (RFC number + section, or NIST/W3C publication)
+- The canonical test vector source (specific test case ID or suite)
+- The top 2-3 known attack vectors or failure modes (with source)
 
+Keep it tight. One paragraph per topic. No exhaustive enumeration.
 Write the findings to decisions/SPEC-NNN-research.md with a citation
 for every claim. Do not write the spec.
 ```

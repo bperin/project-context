@@ -1,7 +1,7 @@
 ---
 name: code-optimizer
 description: "Code and task optimizer — read-only, with context. Reviews tasks for problem fit, file paths, algorithm IDs, test vectors, and scope. Not used for specs or plans — use the planner for those."
-model: sonnet
+model: glm-5.2-high
 allowed-tools:
   - read
   - grep

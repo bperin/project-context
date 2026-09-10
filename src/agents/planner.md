@@ -1,7 +1,7 @@
 ---
 name: planner
 description: "Planning reviewer — read-only, with context. Reviews specs and plans for coverage, scope, requirements traceability, dependency ordering, and research completeness. Not a code reviewer."
-model: sonnet
+model: glm-5.2-high
 allowed-tools:
   - read
   - grep
