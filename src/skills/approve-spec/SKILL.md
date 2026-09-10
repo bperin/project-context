@@ -26,22 +26,22 @@ You are approving a committed spec and starting the next workflow.
 
 ## Steps
 
-1. **Verify the spec exists and is committed.** Use `inspect` or read the xlsx. If it is not `committed`, stop and tell the user to run `/spec SPEC-NNN` first.
+1. **Verify the spec exists and is committed.** Use `inspect` or read the xlsx. If it is not `committed`, stop and tell the user to run `/create-spec SPEC-NNN` first.
 
 2. **Update the spec status via the CLI.** Do not edit `overview.xlsx` directly:
    ```bash
    node /Users/brian/code/project-context/bin/cli.js status SPEC-NNN approved -t .
    ```
 
-3. **Build a context packet** for the spec (to pass to `/plan`):
+3. **Build a context packet** for the spec (to pass to `/plan-create`):
    ```bash
    node /Users/brian/code/project-context/bin/cli.js context SPEC-NNN -t . -o .context-packet.json
    ```
 
-4. **Start the plan-creation workflow.** Invoke `/plan SPEC-NNN`:
+4. **Start the plan-creation workflow.** Invoke `/create-plan SPEC-NNN`:
    ```
-   skill invoke --skill plan
+   skill invoke --skill create-plan
    ```
-   Then pass `SPEC-NNN` as the argument to the plan skill.
+   Then pass `SPEC-NNN` as the argument to the create-plan skill.
 
 5. **Report.** Confirm the spec is approved and the plan workflow has started.

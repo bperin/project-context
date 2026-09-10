@@ -1,6 +1,6 @@
 ---
-name: plan
-description: "Run the plan-creation workflow — write plan from spec, optimizer + blind review, max 3 rounds"
+name: create-plan
+description: "Run the plan-creation workflow — divergent ideation (adhd skill), write plan, optimizer + blind review, max 3 rounds"
 argument-hint: "<PLAN-NNN> from <SPEC-NNN>"
 triggers:
   - user
@@ -16,6 +16,7 @@ allowed-tools:
   - read_subagent
   - skill
   - todo_write
+  - ask_user_question
 permissions:
   allow:
     - Read(**)
@@ -139,11 +140,18 @@ SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
 
 10. **Resolve findings.** After each round, update the `Resolution` column for findings that were fixed in that round. Keep all rows for traceability.
 
-10. **Round counter.** Max 3 rounds. Escalate to user if unresolved.
+11. **Round counter.** Max 3 rounds. Escalate to user if unresolved.
 
-11. **Register the plan via the CLI.** Do not edit `overview.xlsx` directly. Run:
+12. **Refine or accept.** Use `ask_user_question` to present the plan and ask:
+
+    - Question: "Does the plan look right?"
+    - Options: `Accept` (register the plan and finish), `Refine` (describe what to change)
+    - If the user chooses `Refine`, capture their feedback in `custom_text` and go back to step 4 (rewrite the plan).
+    - If the user chooses `Accept`, continue to step 13.
+
+13. **Register the plan via the CLI.** Do not edit `overview.xlsx` directly. Run:
     ```bash
     node /Users/brian/code/project-context/bin/cli.js add --type plan --title "<title>" --status committed --dependencies "<SPEC-NNN>" --skills "<comma-separated>" --triggers "<comma-separated>" -t .
     ```
 
-12. **Report.** Summarize workstreams, tasks, and skills per workstream.
+14. **Report.** Summarize workstreams, tasks, and skills per workstream.

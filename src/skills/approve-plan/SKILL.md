@@ -26,7 +26,7 @@ You are approving a committed plan and starting task-creation.
 
 ## Steps
 
-1. **Verify the plan exists and is committed.** Use `inspect` or read the xlsx. If it is not `committed`, stop and tell the user to run `/plan PLAN-NNN` first.
+1. **Verify the plan exists and is committed.** Use `inspect` or read the xlsx. If it is not `committed`, stop and tell the user to run `/create-plan PLAN-NNN` first.
 
 2. **Read the plan markdown** at `plans/PLAN-NNN.md` and collect the task IDs listed in the workstreams (e.g. `TASK-001`, `TASK-002`).
 
@@ -35,9 +35,9 @@ You are approving a committed plan and starting task-creation.
    node /Users/brian/code/project-context/bin/cli.js status PLAN-NNN approved -t .
    ```
 
-4. **Start each task-creation workflow.** For every task ID in the plan, invoke `/task-create <TASK-NNN> from <PLAN-NNN>`:
+4. **Start each task-creation workflow.** For every task ID in the plan, invoke `/create-task <TASK-NNN> from <PLAN-NNN>`:
    ```
-   skill invoke --skill task-create
+   skill invoke --skill create-task
    ```
    Then pass each `TASK-NNN from PLAN-NNN` as the argument.
 

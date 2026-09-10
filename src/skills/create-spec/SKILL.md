@@ -1,5 +1,5 @@
 ---
-name: spec
+name: create-spec
 description: "Run the spec-creation workflow — divergent ideation (adhd skill), write spec, optimizer + blind review, max 3 rounds"
 argument-hint: "<SPEC-NNN title>"
 triggers:
@@ -16,6 +16,7 @@ allowed-tools:
   - read_subagent
   - skill
   - todo_write
+  - ask_user_question
 permissions:
   allow:
     - Read(**)
@@ -115,12 +116,19 @@ Creating a new spec (SPEC-NNN) using the writer-optimizer-blind review pattern.
 
 9. **Resolve findings.** After each round, update the `Resolution` column for findings that were fixed in that round. Keep all rows for traceability.
 
-9. **Round counter.** This is round 1. If either reviewer found MUST-FIX or SHOULD-FIX issues, go back to step 5 (re-spawn both reviewers on the revised spec). Max 3 rounds. If still unresolved after round 3, escalate to the user with a summary of the disagreement.
+10. **Round counter.** This is round 1. If either reviewer found MUST-FIX or SHOULD-FIX issues, go back to step 5 (re-spawn both reviewers on the revised spec). Max 3 rounds. If still unresolved after round 3, escalate to the user with a summary of the disagreement.
 
-10. **Register the spec via the CLI.** Do not edit `overview.xlsx` directly. Run:
+11. **Refine or accept.** Use `ask_user_question` to present the spec and ask:
+
+    - Question: "Does the spec look right?"
+    - Options: `Accept` (register the spec and finish), `Refine` (describe what to change)
+    - If the user chooses `Refine`, capture their feedback in `custom_text` and go back to step 3 (rewrite the spec).
+    - If the user chooses `Accept`, continue to step 12.
+
+12. **Register the spec via the CLI.** Do not edit `overview.xlsx` directly. Run:
     ```bash
     node /Users/brian/code/project-context/bin/cli.js add --type spec --title "<title>" --status committed --skills "<comma-separated>" --triggers "<comma-separated>" -t .
     ```
     The CLI auto-assigns the ID and UUID. Use the returned ID for the spec filename.
 
-11. **Report.** Summarize what the review changed and what the spec covers.
+13. **Report.** Summarize what the review changed and what the spec covers.

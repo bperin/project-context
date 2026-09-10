@@ -140,9 +140,9 @@ run in the foreground or background — the orchestrator decides.
 | `user` | Invokable by the user via `/skill-name` |
 | `model` | Invokable by the model (orchestrator) autonomously |
 
-Orchestrator skills (spec, plan, task-create, implement, review,
-approve-spec, approve-plan) use both triggers. Utility skills (inspect,
-context, uuid) use both. Subagent wrapper skills (optimizer,
+Orchestrator skills (spec-create, plan-create, task-create, implement,
+review, approve-spec, approve-plan) use both triggers. Utility skills
+(inspect, context, uuid) use both. Subagent wrapper skills (optimizer,
 blind-reviewer) use `model` only — they are spawned by orchestrators, not
 invoked directly by users.
 
@@ -205,15 +205,15 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-SPEC → spec-creation workflow (writer-optimizer-blind, max 3 rounds)
+SPEC → `/create-spec` workflow (writer-optimizer-blind, max 3 rounds)
   ↓
-PLAN → plan-creation workflow (writer-optimizer-blind, max 3 rounds)
+PLAN → `/create-plan` workflow (writer-optimizer-blind, max 3 rounds)
   ↓
-TASK → task-creation workflow (writer-optimizer-blind, max 3 rounds)
+TASK → `/create-task` workflow (writer-optimizer-blind, max 3 rounds)
   ↓
-IMPLEMENT → task-implementation workflow (primary → secondary → reviewer → tester)
+IMPLEMENT → `/implement` workflow (primary → secondary → reviewer → tester)
   ↓
-REVIEW → code-review workflow (mechanical → review subagent → apply → PR)
+REVIEW → `/review` workflow (mechanical → review subagent → apply → PR)
 ```
 
 ## Writer-optimizer-blind pattern
@@ -236,13 +236,13 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 
 | Skill | Type | Purpose |
 |-------|------|---------|
-| `/spec` | Orchestrator | Run spec-creation workflow |
-| `/plan` | Orchestrator | Run plan-creation workflow |
-| `/task-create` | Orchestrator | Run task-creation workflow |
+| `/create-spec` | Orchestrator | Run spec-creation workflow |
+| `/create-plan` | Orchestrator | Run plan-creation workflow |
+| `/create-task` | Orchestrator | Run task-creation workflow |
 | `/implement` | Orchestrator | Run task-implementation workflow |
 | `/review` | Orchestrator | Run code-review workflow |
-| `/approve-spec` | Orchestrator | Approve a committed spec and start `/plan` |
-| `/approve-plan` | Orchestrator | Approve a committed plan and start `/task-create` for each task |
+| `/approve-spec` | Orchestrator | Approve a committed spec and start `/create-plan` |
+| `/approve-plan` | Orchestrator | Approve a committed plan and start `/create-task` for each task |
 | `/inspect` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
@@ -258,7 +258,7 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 4. **Subagents get context packets, not conversation history.** Build
    a packet with `/context <ID>` and feed it to the subagent.
 5. **Never block.** If something fails, report the error and continue.
-6. **Never modify generated files.** If you need a template, copy the structure from the sample `overview.xlsx` and the relevant skill (`/spec`, `/plan`, `/task-create`), not by editing the xlsx.
+6. **Never modify generated files.** If you need a template, copy the structure from the sample `overview.xlsx` and the relevant skill (`/create-spec`, `/create-plan`, `/create-task`), not by editing the xlsx.
 7. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
    `project-context uuid <ID>`.
 8. **Update the xlsx through the CLI.** Never edit `overview.xlsx`

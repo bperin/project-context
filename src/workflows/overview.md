@@ -113,14 +113,14 @@ The control plane is the set of rules the orchestrator follows to decide **when 
 | `/approve-spec` | user or model | After a spec is committed and ready for planning |
 | `/plan` | user or model | When an approved spec needs a plan, or a plan needs revision |
 | `/approve-plan` | user or model | After a plan is committed and ready for task creation |
-| `/task-create` | user or model | When an approved plan needs tasks, or a task needs revision |
+| `/create-task` | user or model | When an approved plan needs tasks, or a task needs revision |
 | `/implement` | user or model | When a committed task's status is set to `in_progress` |
 | `/review` | user or model | When all tasks in a plan are `done` and a PR is ready |
 | `/inspect` | user or model | Anytime the agent needs a current view of the xlsx |
 | `/context` | model | During orchestration to build a packet for a subagent |
 | `/uuid` | model | Whenever a new spec/plan/task needs a UUID |
-| `/optimizer` | model only | Spawned by `/spec`, `/plan`, or `/task-create` during review rounds |
-| `/blind-reviewer` | model only | Spawned by `/spec`, `/plan`, or `/task-create` during review rounds |
+| `/optimizer` | model only | Spawned by `/create-spec`, `/create-plan`, or `/create-task` during review rounds |
+| `/blind-reviewer` | model only | Spawned by `/create-spec`, `/create-plan`, or `/create-task` during review rounds |
 
 ### State transitions
 
@@ -175,8 +175,8 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
 
 ### Exit and hand-off rules
 
-1. A `/spec` workflow exits when the spec is committed. It does not auto-start planning. Use `/approve-spec SPEC-NNN` to approve the spec and start `/plan`.
-2. A `/plan` workflow exits when the plan is committed. Use `/approve-plan PLAN-NNN` to approve the plan and start `/task-create` for each task.
-3. A `/task-create` workflow exits when all tasks for a plan are committed. It hands off to `/implement` when a task moves to `in_progress`.
+1. A `/create-spec` workflow exits when the spec is committed. It does not auto-start planning. Use `/approve-spec SPEC-NNN` to approve the spec and start `/create-plan`.
+2. A `/create-plan` workflow exits when the plan is committed. Use `/approve-plan PLAN-NNN` to approve the plan and start `/create-task` for each task.
+3. A `/create-task` workflow exits when all tasks for a plan are committed. It hands off to `/implement` when a task moves to `in_progress`.
 4. An `/implement` workflow exits when the task is `done`. It triggers the hook that may spawn the next session.
 5. A `/review` workflow exits when the PR is merged or the user aborts.

@@ -1,5 +1,5 @@
 ---
-name: task-create
+name: create-task
 description: "Run the task-creation workflow — write task from plan, optimizer + blind review, max 3 rounds"
 argument-hint: "<TASK-NNN> from <PLAN-NNN>"
 triggers:
