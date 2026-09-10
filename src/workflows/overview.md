@@ -74,7 +74,8 @@ flowchart TD
     TAC -->|pass| COM["Commit"]
     COM --> DONE["Task done"]
 
-    CR -.->|orchestrator moves to next task<br/>while review runs| NEXT["Start TASK-N+1"]
+    CR -.->|orchestrator starts TASK-N+1<br/>while review runs| NEXT["Implementer for TASK-N+1"]
+    TA -.->|orchestrator starts TASK-N+2<br/>while tests run| NEXT2["Implementer for TASK-N+2"]
 
     style O fill:#C6EFCE,stroke:#006100
     style P fill:#C6EFCE,stroke:#006100
@@ -84,6 +85,7 @@ flowchart TD
     style TF fill:#FFC7CE,stroke:#9C0006
     style DONE fill:#C6EFCE,stroke:#006100
     style NEXT fill:#E2EFDA,stroke:#006100
+    style NEXT2 fill:#E2EFDA,stroke:#006100
 ```
 
 ## PR Review
@@ -159,12 +161,16 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
    and reports findings. The orchestrator revises.
 2. **The reviewer runs after the optimizer.** It is read-only and
    reports findings. The orchestrator revises.
-3. **Code-optimizer and reviewer can overlap with the implementer.**
-   They run in the background while the orchestrator moves on to the
-   next task.
-4. **Testing agent runs after review passes.** It can run in the
+3. **Within a task, agents run sequentially.** Implementer →
+   code-optimizer → reviewer → testing agent. Each step depends on the
+   previous one's output.
+4. **Across tasks, the orchestrator runs up to 2 parallel lanes.**
+   While task N's reviewer or testing agent runs in the background,
+   the orchestrator starts task N+1's implementer in the foreground.
+   Max 2 lanes — never 3 tasks in flight at once.
+5. **Testing agent runs after review passes.** It can run in the
    background; the orchestrator monitors.
-5. **No nested subagents by default.** The optimizers and reviewer do
+6. **No nested subagents by default.** The optimizers and reviewer do
    not spawn their own subagents. Custom profiles can set `max-nesting`
    if needed, but the default workflow does not use nested subagents.
 

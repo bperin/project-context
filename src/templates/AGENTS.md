@@ -100,8 +100,8 @@ Follow the task-implementation workflow
 4. Dispatch the code-optimizer (background, read-only). It loads the
    project's Go skills and checks for inefficiencies, OOM risks,
    concurrency bugs, error handling gaps, and style.
-5. Dispatch the reviewer (background, read-only). It checks the code
-   against project rules.
+5. Dispatch the reviewer (background, read-only). It loads the
+   code-review skill and checks the code against project rules.
 6. When review passes, dispatch the testing agent (background, write
    access). It writes the full test suite — verbose, comprehensive,
    with known vectors, negative tests, boundary tests, fuzz, and
@@ -121,3 +121,10 @@ packets, dispatches implementers, code-optimizers, reviewers, and
 testers, collects results, and decides next steps. If code needs
 fixing, re-dispatch the implementer. If tests need fixing, re-dispatch
 the testing agent.
+
+**Parallel across tasks (max 2 lanes).** While TASK-N's reviewer or
+testing agent runs in the background, the orchestrator starts
+TASK-N+1's implementer in the foreground. Never more than 2 tasks in
+flight at once. If TASK-N's review finds MUST-FIX issues, pause
+TASK-N+1's implementer, re-dispatch TASK-N's implementer with findings,
+then resume.

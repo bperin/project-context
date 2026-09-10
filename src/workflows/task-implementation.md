@@ -19,14 +19,19 @@ Orchestrator loads adhd skill (divergent ideation on implementation approach)
     → Orchestrator builds context packet for TASK-N
     → Orchestrator dispatches implementer (foreground, write access, agent: implementer, model: gpt-5.6-sol-medium)
     → Implementer implements TASK-N (code + initial tests)
-        → Orchestrator dispatches code-optimizer (background, read-only, Go skills)
-            → Code-optimizer reports inefficiencies, OOM, concurrency, style
-        → Orchestrator dispatches reviewer (background, read-only, reviewer profile)
-            → Reviewer reports correctness, rule compliance findings
-If optimizer or reviewer calls back → orchestrator re-dispatches implementer with findings
-When review passes → orchestrator dispatches testing agent (background, write access, testing skill)
-If tests fail → test-failure workflow (triage, fix, re-run, max 3 rounds, escalate)
-When all tests pass → commit → task done
+    → Orchestrator dispatches code-optimizer (background, read-only, Go skills)
+        → Code-optimizer reports inefficiencies, OOM, concurrency, style
+    → Orchestrator dispatches reviewer (background, read-only, code-review skill)
+        → Reviewer reports correctness, rule compliance findings
+    If optimizer or reviewer calls back → orchestrator re-dispatches implementer with findings
+    When review passes → orchestrator dispatches testing agent (background, write access, testing skill)
+    If tests fail → test-failure workflow (triage, fix, re-run, max 3 rounds, escalate)
+    When all tests pass → commit → task done
+
+Parallel across tasks (max 2 lanes):
+    While TASK-N's reviewer/test-agent runs in background
+        → Orchestrator starts TASK-N+1's implementer in foreground
+    Never more than 2 tasks in flight at once
 ```
 
 ## Roles

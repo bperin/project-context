@@ -56,12 +56,13 @@ Read the full workflow at `workflows/task-implementation.md` before starting. Fo
 
 5. **Dispatch the code-optimizer** (background, read-only). Give it
    `AGENTS.md`, the task file, the source files, and the diff. It loads
-   the project's Go skills sequentially and checks for inefficiencies,
-   OOM risks, concurrency bugs, error handling gaps, and style.
+   the project's Go skills and checks for inefficiencies, OOM risks,
+   concurrency bugs, error handling gaps, and style.
 
 6. **Dispatch the reviewer** (background, read-only). Give it
    `AGENTS.md`, the algorithm registry (if applicable), task file, and
-   the diff. It checks the code against project rules.
+   the diff. It loads the code-review skill and checks the code against
+   project rules.
 
 7. **Apply findings.** Append MUST-FIX and SHOULD-FIX findings to the
    task's `## Review Findings` table with the reviewer name and current
@@ -88,3 +89,11 @@ Read the full workflow at `workflows/task-implementation.md` before starting. Fo
 
 12. **Report.** Summarize what was implemented, what tests pass, and
     what the commit is.
+
+## Parallel across tasks (max 2 lanes)
+
+While TASK-N's reviewer or testing agent runs in the background, start
+TASK-N+1's implementer in the foreground. Never more than 2 tasks in
+flight at once. If TASK-N's review finds MUST-FIX issues, pause
+TASK-N+1's implementer, re-dispatch TASK-N's implementer with findings,
+then resume.
