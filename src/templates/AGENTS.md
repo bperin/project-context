@@ -93,23 +93,29 @@ Follow the task-implementation workflow
 1. Load the `adhd` skill for divergent ideation on the implementation
    approach.
 2. Build a context packet for the task with the CLI.
-3. Spawn implementer (foreground, write access). It loads the primary
-   skill, writes code + initial tests, runs verification.
-4. Spawn reviewer (background, read-only). It checks the code against
-   project rules.
-5. When review passes, spawn testing agent (background, write
-   access). It writes the full test suite.
-6. If tests fail → run the test-failure workflow
+3. Dispatch the implementer (foreground, write access). It loads the
+   primary skill, writes code + initial tests, runs verification.
+4. Dispatch the code-optimizer (background, read-only). It loads the
+   project's Go skills and checks for inefficiencies, OOM risks,
+   concurrency bugs, error handling gaps, and style.
+5. Dispatch the reviewer (background, read-only). It checks the code
+   against project rules.
+6. When review passes, dispatch the testing agent (background, write
+   access). It writes the full test suite — verbose, comprehensive,
+   with known vectors, negative tests, boundary tests, fuzz, and
+   examples per the root AGENTS.md testing rules.
+7. If tests fail → run the test-failure workflow
    (`workflows/test-failure.md`). Triage each failure (code bug, test
-   bug, design issue), re-spawn the relevant subagent to fix, re-run
-   the full suite. Max 3 rounds, then escalate to the user.
-7. When all tests pass, commit.
-8. Update the task's Status to `done` via the CLI:
+   bug, design issue), re-dispatch the relevant subagent to fix,
+   re-run the full suite. Max 3 rounds, then escalate to the user.
+8. When all tests pass, commit.
+9. Update the task's Status to `done` via the CLI:
    ```bash
    node /Users/brian/code/project-context/bin/cli.js status TASK-NNN done -t .
    ```
 
 **The orchestrator coordinates.** It loads `adhd`, builds context
-packets, dispatches implementers, reviewers, and testers, collects
-results, and decides next steps. If code needs fixing, re-spawn the
-implementer. If tests need fixing, re-spawn the testing agent.
+packets, dispatches implementers, code-optimizers, reviewers, and
+testers, collects results, and decides next steps. If code needs
+fixing, re-dispatch the implementer. If tests need fixing, re-dispatch
+the testing agent.

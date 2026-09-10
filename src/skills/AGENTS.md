@@ -21,7 +21,7 @@ The directory structure is flat — no nesting:
 ├── overview.xlsx                    # Source of truth — all specs, plans, tasks
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (spec-optimizer, plan-optimizer, task-optimizer)
+│   ├── agents/                      # Custom subagent profiles (spec-optimizer, plan-optimizer, task-optimizer, reviewer, code-optimizer, test-agent)
 │   └── skills/                      # Workflow + utility + skill wrappers
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── specs/SPEC-NNN.md               # Spec documents
@@ -152,16 +152,18 @@ skill invoke --skill <skill-name>
 
 ### Subagent profiles
 
-`spec-optimizer`, `plan-optimizer`, `task-optimizer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/spec-optimizer`, `/plan-optimizer`, `/task-optimizer`, `/test`) use `agent: spec-optimizer` / `agent: plan-optimizer` / `agent: task-optimizer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
+`spec-optimizer`, `plan-optimizer`, `task-optimizer`, `reviewer`, `code-optimizer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/spec-optimizer`, `/plan-optimizer`, `/task-optimizer`, `/reviewer`, `/code-optimizer`, `/test`) use `agent: spec-optimizer` / `agent: plan-optimizer` / `agent: task-optimizer` / `agent: reviewer` / `agent: code-optimizer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
 
-- **`spec-optimizer`** — reviews **specs** for problem fit, desired behaviors, success criteria, scope, testability, and research completeness. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy).
-- **`plan-optimizer`** — reviews **plans** for spec coverage, workstream ordering, dependency edges, completion criteria, and algorithm/skill mapping. Read-only, with context. Model: `glm-5.2-high` (medium).
-- **`task-optimizer`** — reviews **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Read-only, with context. Not used for specs or plans. Model: `glm-5.2-high`.
+- **`spec-optimizer`** — optimizes **specs** for problem fit, scope discipline, approach soundness, and coverage. Runs BEFORE the reviewer. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy).
+- **`plan-optimizer`** — optimizes **plans** for spec coverage, workstream ordering, approach soundness, and dependency edges. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high` (medium).
+- **`task-optimizer`** — optimizes **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high`.
+- **`reviewer`** — checks any document (spec, plan, task) for correctness, rule compliance, template compliance, and dependency compliance. Runs AFTER the optimizer. Read-only, with context. Model: `swe-1.7-medium`.
+- **`code-optimizer`** — optimizes implemented code for inefficiencies, OOM risks, concurrency bugs, error handling gaps, and style. Runs after the implementer, before the reviewer. Read-only, with context. Model: `glm-5.2-high`.
 - **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
 
 ### Language skill matrix
 
-When a task is code-heavy, the `test-agent` and `task-optimizer` load language-specific skills based on the repo's manifests:
+When a task is code-heavy, the `test-agent`, `code-optimizer`, and `task-optimizer` load language-specific skills based on the repo's manifests:
 
 | Language | Detected by | Primary skill | Secondary skills |
 |---|---|---|---|
@@ -170,7 +172,7 @@ When a task is code-heavy, the `test-agent` and `task-optimizer` load language-s
 | Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-performance-optimization`, `python-cybersecurity-tool-development`, `python-code-style` |
 | Rust | `Cargo.toml` | `rust-testing` | `rust-performance`, `rust-security` |
 
-For `task-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance`. For `test-agent`, the primary is the testing skill listed above.
+For `task-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance`. For `code-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance` (same lens, applied to implemented code). For `test-agent`, the primary is the testing skill listed above.
 
 If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing. The orchestrator can install it later with `npx skills add <owner/repo@skill> -g -y`.
 
@@ -184,7 +186,7 @@ If a language skill is not installed, the subagent uses general knowledge and re
 Orchestrator skills (spec-create, plan-create, task-create, implement,
 review, approve-spec, approve-plan) use both triggers. Utility skills
 (inspect, context, uuid) use both. Subagent wrapper skills (spec-optimizer,
-plan-optimizer, task-optimizer) use `model` only — they are spawned by orchestrators, not
+plan-optimizer, task-optimizer, reviewer, code-optimizer) use `model` only — they are spawned by orchestrators, not
 invoked directly by users.
 
 ## CLI commands
@@ -247,39 +249,47 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-SPEC → `/create-spec` workflow (adhd → research → write → reviewer, max 3 rounds)
+SPEC → `/create-spec` workflow (adhd → research → write → optimize → review, max 3 rounds)
   ↓
-PLAN → `/create-plan` workflow (adhd → research → write → reviewer, max 3 rounds)
+PLAN → `/create-plan` workflow (adhd → research → write → optimize → review, max 3 rounds)
   ↓
-TASK → `/create-task` workflow (adhd → write → reviewer, max 3 rounds)
+TASK → `/create-task` workflow (adhd → write → optimize → review, max 3 rounds)
   ↓
-IMPLEMENT → `/implement` workflow (adhd → implementer → reviewer → tester)
+IMPLEMENT → `/implement` workflow (adhd → implementer → code-optimizer → reviewer → tester)
   ↓
 REVIEW → `/review` workflow (adhd → mechanical → reviewer → apply → PR)
 ```
 
-## Orchestrator-reviewer pattern
+## Orchestrator-optimizer-reviewer pattern
 
 Every workflow starts with the `adhd` skill for divergent ideation,
 loaded by the orchestrator (the big brain with full context). The
-orchestrator writes the document, then dispatches a reviewer subagent
-(with context) to review it.
+orchestrator writes the document, then dispatches an optimizer subagent
+(with context) to tighten it, then a reviewer subagent (with context)
+to check correctness.
 
 ### Spec and plan creation
 
 1. **Orchestrator** — loads `adhd`, dispatches research subagent, writes
    the document.
-2. **Reviewer** (spec-optimizer or plan-optimizer, with context) —
-   reviews for problem fit, coverage, scope, and architecture. Reports
+2. **Optimizer** (spec-optimizer or plan-optimizer, with context) —
+   optimizes for problem fit, approach soundness, scope discipline, and
+   coverage. Reports findings. Does not fix.
+3. **Reviewer** (reviewer, with context) — checks correctness, rule
+   compliance, template compliance, dependency compliance. Reports
    findings. Does not fix.
-3. The orchestrator revises. Max 3 rounds, then escalate.
+4. The orchestrator revises. Max 3 rounds, then escalate.
 
 ### Task creation
 
 1. **Orchestrator** — loads `adhd` + primary skill, writes the task file.
-2. **Reviewer** (task-optimizer, with context) — checks file paths,
-   algorithm IDs, test vectors, and scope. Reports findings. Does not fix.
-3. The orchestrator revises. Max 3 rounds, then escalate.
+2. **Optimizer** (task-optimizer, with context) — optimizes for file
+   paths, algorithm IDs, test vectors, and scope. Reports findings.
+   Does not fix.
+3. **Reviewer** (reviewer, with context) — checks correctness, rule
+   compliance, template compliance, dependency compliance. Reports
+   findings. Does not fix.
+4. The orchestrator revises. Max 3 rounds, then escalate.
 
 ## Skills in this project
 
@@ -296,9 +306,11 @@ orchestrator writes the document, then dispatches a reviewer subagent
 | `/inspect-project` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
-| `/spec-optimizer` | Subagent | Review a spec with context (read-only) |
-| `/plan-optimizer` | Subagent | Review a plan with context (read-only) |
-| `/task-optimizer` | Subagent | Review a task with context (read-only) |
+| `/spec-optimizer` | Subagent | Optimize a spec with context (read-only) |
+| `/plan-optimizer` | Subagent | Optimize a plan with context (read-only) |
+| `/task-optimizer` | Subagent | Optimize a task with context (read-only) |
+| `/reviewer` | Subagent | Check correctness, rule compliance (read-only) |
+| `/code-optimizer` | Subagent | Optimize implemented code (read-only) |
 | `/test-agent` | Subagent | Write the full test suite (write access) |
 
 ## Rules for all skills
@@ -319,7 +331,8 @@ orchestrator writes the document, then dispatches a reviewer subagent
    generation, column order, and duplicate detection.
 9. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-10. **Reviewers suggest, the writer revises.** Subagents are
-    read-only. They report findings. The orchestrator applies fixes.
+10. **Optimizers and reviewers suggest, the writer revises.** Subagents
+    are read-only. They report findings. The orchestrator applies fixes.
     Use `spec-optimizer` for specs, `plan-optimizer` for plans,
-    `task-optimizer` for tasks.
+    `task-optimizer` for tasks, then `reviewer` for correctness checks.
+    Use `code-optimizer` for implemented code before the reviewer.

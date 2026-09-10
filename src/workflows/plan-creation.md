@@ -7,18 +7,20 @@ plan is committed.
 
 ## Pattern
 
-Writer-research-optimizer review. Same pattern as the spec workflow.
+Writer-research-optimizer-review. Same pattern as the spec workflow.
 The orchestrator is the big brain — it has full context, loads `adhd`
 for divergent ideation, dispatches a research subagent for primary
-sources, then a reviewer subagent for review.
+sources, then an optimizer subagent to tighten the plan, then a
+reviewer subagent to check correctness.
 
 ```
 Orchestrator loads adhd (divergent ideation on the implementation design space)
     → Orchestrator dispatches research subagent (background, primary sources)
     → Orchestrator writes the plan (with full context)
-    → Orchestrator dispatches reviewer subagent (plan-optimizer, with context)
-    → Reviewer reports findings
-    → Orchestrator fixes
+    → Orchestrator dispatches optimizer subagent (plan-optimizer, with context)
+    → Orchestrator applies optimizer findings
+    → Orchestrator dispatches reviewer subagent (reviewer, with context)
+    → Orchestrator applies reviewer findings
     → Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
@@ -56,15 +58,26 @@ A plan that leaves these vague forces the implementer to guess.
   for every claim.
 - Does not write the plan. The orchestrator consumes the research file.
 
-### Role 3: Reviewer (plan-optimizer subagent, read-only, with context)
+### Role 3: Optimizer (plan-optimizer subagent, read-only, with context)
 
 - Sees the plan file, the source spec, the research findings, the
   project's algorithm registry (if applicable), and a brief context
   summary from the orchestrator.
-- Reviews with knowledge of intent — can challenge whether the plan
+- Optimizes with knowledge of intent — challenges whether the plan
   is the right approach to implement the spec, whether workstreams are
-  ordered correctly, and whether scope matches the spec.
+  ordered correctly, and whether scope matches the spec. Trims scope
+  creep.
 - Reports findings. Does not fix — the orchestrator revises.
+- Runs BEFORE the reviewer.
+
+### Role 4: Reviewer (reviewer subagent, read-only, with context)
+
+- Sees the plan file, the source spec, the research findings, the
+  algorithm registry, `AGENTS.md`, and a brief context summary.
+- Checks correctness, rule compliance, template compliance, dependency
+  compliance, and internal consistency.
+- Reports findings. Does not fix — the orchestrator revises.
+- Runs AFTER the optimizer.
 
 ## Steps
 
@@ -102,11 +115,11 @@ A plan that leaves these vague forces the implementer to guess.
      packages used.
    - Call out actual file paths to create/modify.
 
-5. **Dispatch the reviewer** (foreground, `plan-optimizer` profile —
+5. **Dispatch the optimizer** (foreground, `plan-optimizer` profile —
    medium model with `adhd` loaded). Load the `adhd` skill first — use
    it to explore alternative implementation approaches and challenge
-   the plan's architecture from divergent angles before reviewing. Give
-   it:
+   the plan's architecture from divergent angles before optimizing.
+   Give it:
    - The plan file path
    - The source spec path
    - The research findings file path
@@ -114,19 +127,15 @@ A plan that leaves these vague forces the implementer to guess.
    - `AGENTS.md` path
    - A 1-2 sentence context summary (what this plan covers, key user
      priorities)
-   - The reviewer checks:
-     - **Algorithm-to-skill matrix**: for every workstream implementing
-       an algorithm, is the algorithm ID in the algorithm registry? Is
-       the primary skill listed? Is it installed? Are secondary skills
-       listed where applicable?
-     - **Spec coverage**: does every spec desired behavior have a
-       workstream? Does every workstream trace to a spec behavior?
+   - The optimizer checks:
      - **Approach soundness**: is this the right way to implement the
        spec? Are there simpler approaches the writer dismissed?
+     - **Spec coverage**: does every spec desired behavior have a
+       workstream? Does every workstream trace to a spec behavior?
      - **Workstream ordering**: are workstreams ordered so no
        workstream depends on a later one? Are dependency edges explicit?
      - **Scope vs. spec**: is the plan trying to do more than the spec
-       asks? Less? Is the Out of Scope section honest?
+       asks? Less? Is the Out of Scope section honest? Trim scope creep.
      - **Test vectors**: every algorithm must name a specific test
        vector from its governing standard. "Known test vector" is not
        specific enough.
@@ -134,23 +143,45 @@ A plan that leaves these vague forces the implementer to guess.
        negative test.
      - **Completion criteria**: every criterion must be objectively
        verifiable (a command to run, a grep to check, a test to pass).
-     - **Dependency compliance**: does the plan respect the project's
-       dependency rules (see AGENTS.md)? Would any workstream require a
-       forbidden import?
      - **Research completeness**: are standards and vectors cited from
        primary sources, not vague references?
 
-6. **Apply reviewer findings.** Revise the plan. If the reviewer found
-   a fundamental problem (wrong architecture, wrong workstream order),
-   stop and discuss with the user before rewriting.
+6. **Apply optimizer findings.** Revise the plan. If the optimizer
+   found a fundamental problem (wrong architecture, wrong workstream
+   order), stop and discuss with the user before rewriting.
 
-7. **Round counter.** If the reviewer found MUST-FIX or SHOULD-FIX
-   issues, go back to step 5 (re-dispatch the reviewer on the revised
-   plan). Max 3 rounds. If still no agreement after round 3, escalate
-   to the user with a summary of the disagreement.
+7. **Dispatch the reviewer** (foreground, `reviewer` profile — cheap
+   model). Give it:
+   - The plan file path
+   - The source spec path
+   - The research findings file path
+   - The project's algorithm registry path (if applicable)
+   - `AGENTS.md` path
+   - A 1-2 sentence context summary
+   - The reviewer checks:
+     - **Algorithm-to-skill matrix**: for every workstream implementing
+       an algorithm, is the algorithm ID in the algorithm registry? Is
+       the primary skill listed? Is it installed? Are secondary skills
+       listed where applicable?
+     - **Correctness**: are cited standards real? Are algorithm IDs in
+       the registry?
+     - **Dependency compliance**: does the plan respect the project's
+       dependency rules (see AGENTS.md)? Would any workstream require a
+       forbidden import?
+     - **Rule compliance**: does the plan respect AGENTS.md conventions?
+     - **Template compliance**: are all required sections present?
+     - **Internal consistency**: does the plan contradict itself?
 
-8. **Commit.** When the reviewer passes, commit the plan with a
-   message summarizing what the review changed.
+8. **Apply reviewer findings.** Revise the plan.
+
+9. **Round counter.** If the optimizer or reviewer found MUST-FIX or
+   SHOULD-FIX issues, go back to step 5 (re-dispatch the optimizer on
+   the revised plan, then the reviewer). Max 3 rounds. If still no
+   agreement after round 3, escalate to the user with a summary of the
+   disagreement.
+
+10. **Commit.** When both the optimizer and reviewer pass, commit the
+    plan with a message summarizing what the review changed.
 
 ## Expected output
 

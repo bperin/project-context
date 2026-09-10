@@ -81,10 +81,10 @@ regardless of which model runs the steps.
 
 ```mermaid
 graph LR
-    SPEC["**SPEC**<br/>adhd → research → write<br/>→ reviewer"]
-    PLAN["**PLAN**<br/>adhd → research → write<br/>→ reviewer"]
-    TASK["**TASK**<br/>adhd → write<br/>→ reviewer"]
-    IMPL["**IMPLEMENT**<br/>adhd → implementer<br/>→ reviewer → tester"]
+    SPEC["**SPEC**<br/>adhd → research → write<br/>→ optimize → review"]
+    PLAN["**PLAN**<br/>adhd → research → write<br/>→ optimize → review"]
+    TASK["**TASK**<br/>adhd → write<br/>→ optimize → review"]
+    IMPL["**IMPLEMENT**<br/>adhd → implementer<br/>→ code-optimizer → reviewer → tester"]
     REVIEW["**REVIEW**<br/>adhd → mechanical<br/>→ reviewer → PR"]
 
     SPEC -->|approve| PLAN
@@ -94,26 +94,29 @@ graph LR
     REVIEW -->|squash merge| DONE["**DONE**<br/>tag + record in xlsx"]
 ```
 
-## Orchestrator-reviewer pattern
+## Orchestrator-optimizer-reviewer pattern
 
 Every workflow starts with the `adhd` skill for divergent ideation,
 loaded by the orchestrator (the big brain with full context). The
-orchestrator writes the document, then dispatches a reviewer subagent
-(with context) to review it.
+orchestrator writes the document, then dispatches an optimizer subagent
+(with context) to tighten it, then a reviewer subagent (with context)
+to check correctness.
 
 ```mermaid
 graph TD
     WRITE["**Orchestrator** (main agent)<br/>loads adhd, writes document"]
-    REVIEW["**Reviewer** (subagent, with context)<br/>checks architecture, coverage, problem fit"]
+    OPT["**Optimizer** (subagent, with context)<br/>tightens scope, challenges approach,<br/>checks coverage"]
+    REVIEW["**Reviewer** (subagent, with context)<br/>checks correctness, rule compliance,<br/>template compliance, dependencies"]
     COMMIT["**Commit**"]
 
-    WRITE --> REVIEW
+    WRITE --> OPT
+    OPT --> REVIEW
     REVIEW -->|"MUST-FIX? revise, re-run"| REVIEW
     REVIEW -->|"pass (NITs only)"| COMMIT
     REVIEW -->|"MUST-FIX? escalate"| USER["**Escalate to user**"]
 ```
 
-Max 3 review rounds, then escalate to the user.
+Max 3 rounds, then escalate to the user.
 
 ## Model rotation
 
@@ -123,10 +126,12 @@ field in their definition files. Profiles are discovered from
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `spec-optimizer` | `gpt-5.6-sol-medium` | Spec architecture review | Spec creation |
-| `plan-optimizer` | `glm-5.2-high` | Plan coverage and ordering review | Plan creation |
-| `task-optimizer` | `glm-5.2-high` | Task implementation readiness review | Task creation |
-| `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation |
+| `spec-optimizer` | `gpt-5.6-sol-medium` | Spec optimization (approach, scope) | Spec creation, before reviewer |
+| `plan-optimizer` | `glm-5.2-high` | Plan optimization (ordering, coverage) | Plan creation, before reviewer |
+| `task-optimizer` | `glm-5.2-high` | Task optimization (files, vectors, readiness) | Task creation, before reviewer |
+| `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After optimizer, all creation workflows |
+| `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
+| `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
 
 ## Subagent architecture
 
@@ -138,13 +143,17 @@ graph TD
         SPECOPT["spec-optimizer.md<br/>model: gpt-5.6-sol-medium<br/>read-only, with context"]
         PLANOPT["plan-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         TASKOPT["task-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
+        REV["reviewer.md<br/>model: swe-1.7-medium<br/>read-only, with context"]
+        CODEOPT["code-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
     end
 
     ORCH -->|"spec creation"| SPECOPT
     ORCH -->|"plan creation"| PLANOPT
     ORCH -->|"task creation"| TASKOPT
-    ORCH -->|"after implementation"| TEST
+    ORCH -->|"after optimizer"| REV
+    ORCH -->|"after implementer"| CODEOPT
+    ORCH -->|"after review"| TEST
 ```
 
 Subagents receive context packets (not conversation history) built by
@@ -217,6 +226,8 @@ target repository/
 │   │   │   ├── spec-optimizer.md
 │   │   │   ├── plan-optimizer.md
 │   │   │   ├── task-optimizer.md
+│   │   │   ├── reviewer.md
+│   │   │   ├── code-optimizer.md
 │   │   │   └── test-agent.md
 │   │   └── skills/                 # workflow skills (generated)
 │   ├── workflows/                  # workflow definitions (generated)
@@ -231,6 +242,8 @@ target repository/
 │       ├── spec-optimizer.md
 │       ├── plan-optimizer.md
 │       ├── task-optimizer.md
+│       ├── reviewer.md
+│       ├── code-optimizer.md
 │       └── test-agent.md
 └── tools/
     └── project-context             # bundled CLI (esbuild, self-contained)
@@ -285,6 +298,8 @@ project-context/
 │   │   ├── spec-optimizer.md       #   model: gpt-5.6-sol-medium
 │   │   ├── plan-optimizer.md       #   model: glm-5.2-high
 │   │   ├── task-optimizer.md       #   model: glm-5.2-high
+│   │   ├── reviewer.md             #   model: swe-1.7-medium
+│   │   ├── code-optimizer.md       #   model: glm-5.2-high
 │   │   └── test-agent.md           #   model: swe-1.7-medium
 │   ├── commands/                   # CLI commands
 │   │   ├── init.js

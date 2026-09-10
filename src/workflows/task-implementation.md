@@ -19,9 +19,11 @@ Orchestrator loads adhd skill (divergent ideation on implementation approach)
     → Orchestrator builds context packet for TASK-N
     → Orchestrator dispatches implementer (foreground, write access, primary skill)
     → Implementer implements TASK-N (code + initial tests)
-        → Orchestrator dispatches reviewer (background, read-only, code-review skill)
-            → Reviewer reports findings
-If reviewer calls back → orchestrator re-dispatches implementer with findings
+        → Orchestrator dispatches code-optimizer (background, read-only, Go skills)
+            → Code-optimizer reports inefficiencies, OOM, concurrency, style
+        → Orchestrator dispatches reviewer (background, read-only, reviewer profile)
+            → Reviewer reports correctness, rule compliance findings
+If optimizer or reviewer calls back → orchestrator re-dispatches implementer with findings
 When review passes → orchestrator dispatches testing agent (background, write access, testing skill)
 If tests fail → test-failure workflow (triage, fix, re-run, max 3 rounds, escalate)
 When all tests pass → commit → task done
@@ -39,8 +41,8 @@ When all tests pass → commit → task done
   packet carries the task's skills, parent plan, spec, modules, and
   components so the subagent has what it needs without conversation
   history.
-- Dispatches the implementer, reviewer, and testing agent. Moves to the
-  next task while background agents work.
+- Dispatches the implementer, code-optimizer, reviewer, and testing
+  agent. Moves to the next task while background agents work.
 - If any agent calls back with findings, re-dispatches the implementer
   with specific guidance to address them.
 
@@ -55,21 +57,37 @@ When all tests pass → commit → task done
   test suite is written by the testing agent after review.
 - Runs verification: the project's build, vet, test, and lint commands.
 - Reports what was implemented and any issues found.
-- If re-dispatched with review findings, fixes them directly.
+- If re-dispatched with optimizer or reviewer findings, fixes them
+  directly.
 
-### Role 2: Reviewer (subagent, background, read-only)
+### Role 2: Code-optimizer (subagent, background, read-only)
+
+- Receives `AGENTS.md`, the task file, the source files, and the diff
+  from the orchestrator.
+- Loads the project's Go skills sequentially (go-systems-programmer,
+  golang-code-style, golang-concurrency, golang-error-handling,
+  golang-performance, go-memory-oom-guard if applicable).
+- Optimizes the **code** for inefficiencies, OOM risks, concurrency
+  bugs, error handling gaps, and style violations. Does not check
+  correctness or rule compliance — that is the reviewer's job.
+- Reports findings as MUST-FIX / SHOULD-FIX / NIT. Does not fix — the
+  implementer fixes.
+- Runs in background while the orchestrator moves to the next task.
+
+### Role 3: Reviewer (subagent, background, read-only)
 
 - Receives `AGENTS.md`, the project's algorithm registry (if
   applicable), the task file, and the diff from the orchestrator.
 - Loads the project's code-review skill.
 - Judges the **code** against project rules (documentation, security,
-  architecture, style). Does not review tests — the full test suite
-  hasn't been written yet.
+  architecture, correctness, rule compliance). Does not review tests —
+  the full test suite hasn't been written yet.
 - Reports findings as MUST-FIX / SHOULD-FIX / NIT. Does not fix — the
   implementer fixes.
-- Runs in background while the orchestrator moves to the next task.
+- Runs in background after the code-optimizer, while the orchestrator
+  moves to the next task.
 
-### Role 3: Testing agent (subagent, background, write access)
+### Role 4: Testing agent (subagent, background, write access)
 
 - Receives the source files under test, the task file, `AGENTS.md`
   (testing rules), the project's algorithm registry (if applicable),
@@ -115,16 +133,22 @@ When all tests pass → commit → task done
    couldn't fix, dispatch it again with specific guidance. Do not fix
    code yourself — re-dispatch the subagent.
 
-4. **Spawn the reviewer** (background, read-only). Give it:
+4. **Spawn the code-optimizer** (background, read-only). Give it:
+   `AGENTS.md`, the task file, the source files, and the diff. It
+   loads the project's Go skills sequentially and checks the code for
+   inefficiencies, OOM risks, concurrency bugs, error handling gaps,
+   and style violations (see Code-optimizer checks below).
+
+5. **Spawn the reviewer** (background, read-only). Give it:
    `AGENTS.md`, the project's algorithm registry (if applicable), task
    file, and the diff. It checks the code against project rules (see
    Reviewer checks below).
 
-5. **Move to the next task.** If the reviewer calls back with
-   findings, re-dispatch the implementer with the findings. Do not fix
-   code yourself.
+6. **Move to the next task.** If the code-optimizer or reviewer calls
+   back with findings, re-dispatch the implementer with the findings.
+   Do not fix code yourself.
 
-6. **When review passes → dispatch the testing agent** (background,
+7. **When review passes → dispatch the testing agent** (background,
    write access). Give it:
    - The source file path(s) under test
    - The task file path (for acceptance criteria and algorithm ID)
@@ -136,26 +160,45 @@ When all tests pass → commit → task done
      rules — see Testing tiers below)
    The testing agent writes the full test suite and runs verification.
 
-7. **Reconcile testing agent output.** If the testing agent reports a
+8. **Reconcile testing agent output.** If the testing agent reports a
    code bug (a test fails against the approved code), re-dispatch the
    implementer to fix the code — the review missed it. If it
    reports test design questions, answer them. Do not fix code or tests
    yourself — re-dispatch the relevant subagent.
 
-8. **If tests fail → run the test-failure workflow**
+9. **If tests fail → run the test-failure workflow**
    (`workflows/test-failure.md`). Do not free-form "go back and fix."
    The test-failure workflow is a structured triage loop: classify
    each failure (code bug, test bug, design issue), fix, re-run the
    full suite, max 3 rounds, escalate to the user if unresolved.
 
-9. **Task done.** When the testing agent passes and all tests pass,
-   humanize the commit message with the `content-humanizer` skill,
-   cite the relevant standard in the commit body, commit, and update
-   task status to `done`.
+10. **Task done.** When the testing agent passes and all tests pass,
+    humanize the commit message with the `content-humanizer` skill,
+    cite the relevant standard in the commit body, commit, and update
+    task status to `done`.
+
+## Code-optimizer checks
+
+The code-optimizer (role 2) checks the **code** for optimization
+opportunities, not correctness:
+
+- **Inefficiencies**: allocation hot paths, unnecessary copies, slice
+  pre-allocation missing, string/[]byte conversions in loops.
+- **OOM risks**: key material lifetime, memory leaks in long-running
+  processes, unbounded buffers, missing pooling where it matters.
+- **Concurrency**: goroutine leaks, race conditions, mutex scope,
+  channel ownership, context cancellation. Shared state (nonce stores,
+  session caches, key registries) is safe under the race detector.
+- **Error handling**: sentinel errors checked with `errors.Is`,
+  wrapping with `%w` at boundaries, no swallowed errors, meaningful
+  error messages.
+- **Style**: idiomatic Go, naming, package layout, receiver
+  consistency, exported vs unexported, explicit wiring, stdlib-first,
+  consumer-side interfaces, boring main.
 
 ## Reviewer checks
 
-The reviewer (role 2) checks the **code**, not the tests:
+The reviewer (role 3) checks the **code**, not the tests:
 
 - **Documentation**: every exported declaration has a comment citing
   its standard. Citation matches the algorithm's standard citation in
@@ -302,6 +345,40 @@ Report what you implemented and any issues found. You have write
 access — write code and test files directly.
 ```
 
+### Code-optimizer
+
+```
+You are a code optimizer for this project. Read AGENTS.md for full
+conventions, documentation rules, testing rules, security
+requirements, and the project's dependency rules.
+
+Read the task file at <path> for acceptance criteria.
+Read the source files at <paths>.
+Here is the diff:
+
+<diff>
+
+Load the project's Go skills sequentially and check the code through
+each lens:
+- go-systems-programmer: explicit wiring, stdlib-first, consumer-side
+  interfaces, boring main. No DI framework.
+- golang-code-style: idiomatic Go, naming, package layout, receiver
+  consistency.
+- golang-concurrency: goroutine leaks, race conditions, mutex scope,
+  channel ownership, context cancellation.
+- golang-error-handling: sentinel errors, errors.Is, wrapping with %w,
+  no swallowed errors.
+- golang-performance: allocation hot paths, pooling, unnecessary copies,
+  slice pre-allocation, string/[]byte conversions in loops.
+- go-memory-oom-guard (if applicable): key material lifetime, memory
+  leaks, unbounded buffers.
+
+Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite file and line.
+Focus on inefficiencies, OOM risks, concurrency bugs, error handling
+gaps, and style. Do not check correctness or rule compliance — that is
+the reviewer's job.
+```
+
 ### Reviewer
 
 ```
@@ -380,6 +457,8 @@ primary to address.
 - `AGENTS.md` (project conventions, documentation rules, testing rules,
   security requirements)
 - The primary skill (loaded by the implementer before implementing)
+- The project's Go skills (loaded by the code-optimizer before
+  optimizing)
 - The project's code-review skill (loaded by the reviewer)
 - The project's testing skill (loaded by the testing agent)
 - The algorithm's secondary testing skill (loaded by the testing agent
@@ -398,11 +477,12 @@ primary to address.
 ## Constraints
 
 - **The orchestrator coordinates.** It loads `adhd`, builds context
-  packets, dispatches implementers, reviewers, and testers, collects
-  results, and decides next steps. If code needs fixing, re-dispatch
-  the implementer. If tests need fixing, re-dispatch the testing agent.
-  If review is needed, dispatch the reviewer. The orchestrator is a
-  coordinator, not a worker.
+  packets, dispatches implementers, code-optimizers, reviewers, and
+  testers, collects results, and decides next steps. If code needs
+  fixing, re-dispatch the implementer. If tests need fixing,
+  re-dispatch the testing agent. If optimization is needed, dispatch
+  the code-optimizer. If review is needed, dispatch the reviewer. The
+  orchestrator is a coordinator, not a worker.
 - No `math/rand`. Only `crypto/rand`.
 - No `==` or `bytes.Equal` on security-sensitive values.
 - No private key `String()` or `Format()` methods.

@@ -10,31 +10,34 @@ implementation.
 
 ## Pattern
 
-Writer-optimizer review. Same pattern as spec and plan creation. The
+Writer-optimizer-review. Same pattern as spec and plan creation. The
 orchestrator is the big brain — it has full context, loads `adhd` for
-divergent ideation, writes the task file, then dispatches a reviewer
-subagent for review.
+divergent ideation, writes the task file, then dispatches an optimizer
+subagent to tighten the task, then a reviewer subagent to check
+correctness.
 
 ```
 Orchestrator loads primary skill + adhd (divergent ideation on the task design space)
     → Orchestrator writes the task file (with full context)
-    → Orchestrator dispatches reviewer subagent (task-optimizer, with context)
-    → Reviewer reports findings
-    → Orchestrator fixes
+    → Orchestrator dispatches optimizer subagent (task-optimizer, with context)
+    → Orchestrator applies optimizer findings
+    → Orchestrator dispatches reviewer subagent (reviewer, with context)
+    → Orchestrator applies reviewer findings
     → Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
 The task file is the implementation contract — it tells the implementer
 exactly what to build. A vague task file forces the implementer to
-guess. The review catches that before code is written.
+guess. The optimizer keeps it tight and on track; the reviewer catches
+correctness and rule issues before code is written.
 
 ## Context packets
 
-The reviewer receives a structured context packet — only what it needs,
-no more. This keeps context lean and ensures the reviewer has the right
-information for its role.
+The optimizer and reviewer each receive a structured context packet —
+only what they need, no more. This keeps context lean and ensures each
+role has the right information for its job.
 
-### Reviewer context packet
+### Optimizer and reviewer context packet
 
 - The task file path
 - The parent plan path
@@ -60,16 +63,27 @@ information for its role.
   hidden flaws (wrong API cited, missing constraint, skill guidance
   not reflected).
 - Writes the task file following the `TASK-NNN.template.md`.
-- Dispatches the reviewer subagent.
-- Revises the task file after each review round.
+- Dispatches the optimizer and reviewer subagents.
+- Revises the task file after each round.
 
-### Role 2: Reviewer (task-optimizer subagent, read-only, with context)
+### Role 2: Optimizer (task-optimizer subagent, read-only, with context)
 
 - Sees the task file **and** a brief context summary from the
   orchestrator (1-2 sentences: what this task covers, key constraints).
-- Reviews with knowledge of intent — can challenge whether the task
-  spec correctly implements the plan's workstream.
+- Optimizes with knowledge of intent — challenges whether the task
+  spec is the right way to implement the plan's workstream, trims scope
+  creep, checks approach soundness.
 - Reports findings. Does not fix — the orchestrator revises.
+- Runs BEFORE the reviewer.
+
+### Role 3: Reviewer (reviewer subagent, read-only, with context)
+
+- Sees the task file, the parent plan, the algorithm registry, `AGENTS.md`,
+  and a brief context summary.
+- Checks correctness, rule compliance, template compliance, dependency
+  compliance, and internal consistency.
+- Reports findings. Does not fix — the orchestrator revises.
+- Runs AFTER the optimizer.
 
 ## Steps
 
@@ -86,8 +100,11 @@ information for its role.
 3. **Write the task file.** Use `TASK-NNN.template.md`. Follow the
    skill's guidance for the Required Change and Constraints.
 
-4. **Dispatch the reviewer** (foreground, `task-optimizer` profile).
-   Give it the reviewer context packet. The reviewer checks:
+4. **Dispatch the optimizer** (foreground, `task-optimizer` profile).
+   Give it the context packet. The optimizer checks:
+   - **Approach soundness**: is this the right way to implement the
+     plan's workstream? Are there simpler approaches the writer
+     dismissed?
    - **Plan alignment**: does this task implement the plan's
      workstream? Are all workstream deliverables covered?
    - **Technical accuracy**: does the Required Change match what the
@@ -95,14 +112,22 @@ information for its role.
      skill's guidance reflected in the constraints? (e.g., if the
      skill says "this algorithm hashes internally, do not pre-hash,"
      the task must not pre-hash.)
+   - **Scope vs. plan**: is the task trying to do more or less than
+     the plan's workstream asks? Trim scope creep.
+   - **Optimization opportunities**: are there simpler approaches,
+     better abstractions, or clearer ways to express the same intent?
+
+5. **Apply optimizer findings.** Revise the task file.
+
+6. **Dispatch the reviewer** (foreground, `reviewer` profile). Give
+   it the context packet. The reviewer checks:
+   - **Correctness**: are cited standards real? Are algorithm IDs in
+     the registry? Are the cited APIs real?
    - **Skill alignment**: is the primary skill in the task's Algorithm
      block the same one listed in the project's algorithm registry for
      that algorithm ID? Are the secondary skills correct? Does the
      task instruct consulting a skill that doesn't actually cover
-     the needed guidance (e.g., a skill for one language applied to a
-     library written in another)?
-   - **Scope vs. plan**: is the task trying to do more or less than
-     the plan's workstream asks?
+     the needed guidance?
    - **Standards consistency**: does the standard citation in the
      task match the algorithm's standard citation in the project's
      algorithm registry? Does the standard cited match the plan's
@@ -116,17 +141,21 @@ information for its role.
    - **Rule compliance**: does the task respect AGENTS.md constraints
      — no interface inflation, no skipped tests, documentation on
      all exports, the project's dependency rules (see AGENTS.md)?
+   - **Dependency compliance**: would any task require a forbidden
+     import? Does it respect the project's dependency rules?
+   - **Internal consistency**: does the task contradict itself?
 
-5. **Apply reviewer findings.** Revise the task file.
+7. **Apply reviewer findings.** Revise the task file.
 
-6. **Round counter.** This is round 1. If the reviewer found
-   MUST-FIX or SHOULD-FIX issues, go back to step 4 (re-dispatch the
-   reviewer on the revised task file). Max 3 rounds. If still
-   unresolved after round 3, escalate to the user with a summary of
-   the disagreement.
+8. **Round counter.** This is round 1. If the optimizer or reviewer
+   found MUST-FIX or SHOULD-FIX issues, go back to step 4 (re-dispatch
+   the optimizer on the revised task file, then the reviewer). Max 3
+   rounds. If still unresolved after round 3, escalate to the user
+   with a summary of the disagreement.
 
-7. **Commit.** When the reviewer passes (only NITs or clean), commit
-   the task file. The task is now ready for the implement workflow.
+9. **Commit.** When both the optimizer and reviewer pass (only NITs
+   or clean), commit the task file. The task is now ready for the
+   implement workflow.
 
 ## Expected output
 

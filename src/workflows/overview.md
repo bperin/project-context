@@ -6,11 +6,11 @@
 
 ```mermaid
 flowchart TD
-    SPEC["SPEC written"] --> SPECW["spec-creation workflow<br/>orchestrator + adhd - research - reviewer<br/>max 3 rounds"]
+    SPEC["SPEC written"] --> SPECW["spec-creation workflow<br/>orchestrator + adhd - research - optimizer - reviewer<br/>max 3 rounds"]
     SPECW -->|committed| PLAN["PLAN written"]
-    PLAN --> PLANW["plan-creation workflow<br/>orchestrator + adhd - research - reviewer<br/>max 3 rounds"]
+    PLAN --> PLANW["plan-creation workflow<br/>orchestrator + adhd - research - optimizer - reviewer<br/>max 3 rounds"]
     PLANW -->|committed| TASK["TASK written"]
-    TASK --> TASKW["task-creation workflow<br/>orchestrator + adhd - reviewer<br/>max 3 rounds"]
+    TASK --> TASKW["task-creation workflow<br/>orchestrator + adhd - optimizer - reviewer<br/>max 3 rounds"]
     TASKW -->|committed| IMPL["task-implementation workflow"]
     IMPL -->|tests fail| TF["test-failure workflow<br/>triage - fix - re-run<br/>max 3 rounds"]
     TF -->|fixed| IMPL
@@ -38,8 +38,9 @@ flowchart TD
 flowchart TD
     START["Orchestrator loads adhd + primary skill"] --> R1["Round 1"]
     R1 --> WRITER["Orchestrator writes draft"]
-    WRITER --> OPT["Reviewer reviews<br/>read-only, has context<br/>can challenge approach"]
-    OPT --> CHECK{"Issues found?"}
+    WRITER --> OPT["Optimizer optimizes<br/>read-only, has context<br/>tightens scope, challenges approach"]
+    OPT --> REV["Reviewer checks<br/>read-only, has context<br/>correctness, rule compliance"]
+    REV --> CHECK{"Issues found?"}
     CHECK -->|no| DONE["Committed"]
     CHECK -->|yes| ROUND{"Round < 3?"}
     ROUND -->|yes| WRITER
@@ -48,6 +49,7 @@ flowchart TD
     style DONE fill:#C6EFCE,stroke:#006100
     style ESCALATE fill:#FFC7CE,stroke:#9C0006
     style OPT fill:#BDD7EE,stroke:#1F4E79
+    style REV fill:#D9D9D9,stroke:#595959
 ```
 
 ## Task Implementation (assembly line)
@@ -58,7 +60,8 @@ flowchart TD
     CTX --> P["Implementer<br/>foreground, write access<br/>loads primary skill"]
     P --> CODE["Implements code + initial tests"]
     CODE --> V1["build, vet, test, lint"]
-    V1 --> CR["Reviewer<br/>background, read-only<br/>loads code-review skill"]
+    V1 --> CO["Code-optimizer<br/>background, read-only<br/>loads Go skills"]
+    CO --> CR["Reviewer<br/>background, read-only<br/>loads code-review skill"]
     CR --> CRC{"Findings?"}
     CRC -->|MUST-FIX| BACK1["Implementer fixes"]
     BACK1 --> V2["build, vet, test, lint"]
@@ -75,6 +78,7 @@ flowchart TD
 
     style O fill:#C6EFCE,stroke:#006100
     style P fill:#C6EFCE,stroke:#006100
+    style CO fill:#BDD7EE,stroke:#1F4E79
     style CR fill:#D9D9D9,stroke:#595959
     style TA fill:#FFEB9C,stroke:#9C5700
     style TF fill:#FFC7CE,stroke:#9C0006
@@ -124,9 +128,11 @@ The control plane is the set of rules the orchestrator follows to decide **when 
 | `/inspect-project` | user or model | Anytime the agent needs a current view of the xlsx |
 | `/context` | model | During orchestration to build a packet for a subagent |
 | `/uuid` | model | Whenever a new spec/plan/task needs a UUID |
-| `/spec-optimizer` | model only | Spawned by `/create-spec` during review |
-| `/plan-optimizer` | model only | Spawned by `/create-plan` during review |
-| `/task-optimizer` | model only | Spawned by `/create-task` during review rounds |
+| `/spec-optimizer` | model only | Spawned by `/create-spec` during optimization |
+| `/plan-optimizer` | model only | Spawned by `/create-plan` during optimization |
+| `/task-optimizer` | model only | Spawned by `/create-task` during optimization |
+| `/reviewer` | model only | Spawned by creation workflows after optimization |
+| `/code-optimizer` | model only | Spawned by `/implement` after implementer, before reviewer |
 
 ### State transitions
 
@@ -149,10 +155,18 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
 
 ### Concurrency rules
 
-1. **The reviewer runs after the orchestrator writes.** It is read-only and reports findings. The orchestrator revises.
-2. **Reviewer and implementer can overlap.** The reviewer runs in the background while the orchestrator moves on to the next task.
-3. **Testing agent runs after review passes.** It can run in the background; the orchestrator monitors.
-4. **No nested subagents by default.** The optimizers do not spawn their own subagents. Custom profiles can set `max-nesting` if needed, but the default workflow does not use nested subagents.
+1. **The optimizer runs after the orchestrator writes.** It is read-only
+   and reports findings. The orchestrator revises.
+2. **The reviewer runs after the optimizer.** It is read-only and
+   reports findings. The orchestrator revises.
+3. **Code-optimizer and reviewer can overlap with the implementer.**
+   They run in the background while the orchestrator moves on to the
+   next task.
+4. **Testing agent runs after review passes.** It can run in the
+   background; the orchestrator monitors.
+5. **No nested subagents by default.** The optimizers and reviewer do
+   not spawn their own subagents. Custom profiles can set `max-nesting`
+   if needed, but the default workflow does not use nested subagents.
 
 ### Escalation rules
 
