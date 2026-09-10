@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // PostToolUse hook: when a task is marked "done" in overview.xlsx, inject
-// context into the current session telling it to start fresh on the next
-// task (per the session-spawning protocol in AGENTS.md) and rename the
-// session to the completed task's title.
+// context into the current session telling it what to do next — the next
+// unblocked task in the current plan, the next plan in the spec, or that
+// the spec is complete and to check for another spec.
 //
 // Usage (wired from .devin/hooks.v1.json):
 //   node task-done-hook.js <path-to-overview.xlsx>
@@ -85,39 +85,47 @@ function toolTouchedXlsx(event, xlsxPath) {
   return false;
 }
 
-// readDoneTasks parses the Tasks sheet and returns an array of
-// { id, title, status } for every row whose Status is a done variant.
-async function readDoneTasks(xlsxPath) {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(xlsxPath);
-  const ws = wb.getWorksheet('Tasks');
-  if (!ws) return [];
-
-  // Map header names to column indices (1-based in exceljs).
+// parseHeaderMap reads row 1 and returns { lowercased-header-name: col-index }
+function parseHeaderMap(ws) {
   const headerMap = {};
   const headerRow = ws.getRow(1);
   headerRow.eachCell((cell, col) => {
     const name = String(cell.value || '').trim().toLowerCase();
     headerMap[name] = col;
   });
-  const idCol = headerMap['id'];
-  const titleCol = headerMap['title'];
-  const statusCol = headerMap['status'];
-  if (!idCol || !titleCol || !statusCol) return [];
+  return headerMap;
+}
 
-  const done = [];
+// readSheetRows reads all data rows from a worksheet, returning an array of
+// objects keyed by lowercased header names.
+function readSheetRows(ws) {
+  if (!ws) return [];
+  const headerMap = parseHeaderMap(ws);
+  const rows = [];
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
-    const id = row.getCell(idCol).value;
-    const title = row.getCell(titleCol).value;
-    const status = row.getCell(statusCol).value;
-    if (!id) continue;
-    const statusStr = String(status || '').trim().toLowerCase();
-    if (DONE_STATUSES.has(statusStr)) {
-      done.push({ id: String(id), title: String(title || id) });
+    const obj = {};
+    for (const [name, col] of Object.entries(headerMap)) {
+      obj[name] = row.getCell(col).value;
     }
+    // Skip fully empty rows.
+    if (Object.values(obj).every((v) => v === null || v === undefined || v === '')) {
+      continue;
+    }
+    rows.push(obj);
   }
-  return done;
+  return rows;
+}
+
+// readWorkbook reads the xlsx and returns { tasks, plans, specs } arrays.
+async function readWorkbook(xlsxPath) {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(xlsxPath);
+  return {
+    tasks: readSheetRows(wb.getWorksheet('Tasks')),
+    plans: readSheetRows(wb.getWorksheet('Plans')),
+    specs: readSheetRows(wb.getWorksheet('Specs')),
+  };
 }
 
 function loadSnapshot(snapshotPath) {
@@ -136,22 +144,116 @@ function saveSnapshot(snapshotPath, ids) {
   }
 }
 
-function buildContext(newlyDone) {
+// isDone returns true if a status string is a done variant.
+function isDone(status) {
+  return DONE_STATUSES.has(String(status || '').trim().toLowerCase());
+}
+
+// computeNextAction determines what the agent should do after a task is
+// marked done. Returns a string instruction injected into the session.
+//
+// Logic:
+//   1. Find the plan the completed task belongs to.
+//   2. Check if all tasks in that plan are done.
+//      - If not → next action is the next non-done task in the same plan.
+//      - If yes → the plan is complete. Find the spec the plan belongs to.
+//   3. Check if there's another non-done plan in the same spec.
+//      - If yes → next action is to start the next plan (create tasks if
+//        none exist, or implement the first task).
+//      - If no → the spec is complete. Check for another non-done spec.
+//   4. If there's another non-done spec → next action is to plan it.
+//   5. If all specs are done → project is complete.
+function computeNextAction(newlyDone, tasks, plans, specs) {
   const lines = newlyDone.map((t) => `  - ${t.id} - ${t.title}`);
-  const titles = newlyDone.map((t) => t.title);
-  const primaryTitle = titles[0];
+  const primaryTitle = newlyDone[0].title;
+
+  // Find the plan the first newly-done task belongs to.
+  const planId = String(newlyDone[0].dependencies || '').trim();
+  const plan = plans.find((p) => String(p.id || '').trim() === planId);
+
+  // Tasks in the same plan.
+  const planTasks = tasks.filter(
+    (t) => String(t.dependencies || '').trim() === planId
+  );
+  const incompleteTasks = planTasks.filter((t) => !isDone(t.status));
+
+  if (incompleteTasks.length > 0) {
+    const next = incompleteTasks[0];
+    return {
+      title: primaryTitle,
+      summary: lines.join('\n'),
+      action: `Next task in ${planId}: ${next.id} - ${next.title}. Start fresh, read AGENTS.md and overview.xlsx, then implement ${next.id}.`,
+    };
+  }
+
+  // All tasks in the plan are done → plan is complete.
+  // Find the spec the plan belongs to.
+  const specId = plan ? String(plan.dependencies || '').trim() : '';
+  const specPlans = plans.filter(
+    (p) => String(p.dependencies || '').trim() === specId
+  );
+  // A plan is "incomplete" if its status is not done AND it's not the plan
+  // that just completed (all its tasks are done even though its status field
+  // may still say "committed").
+  const incompletePlans = specPlans.filter((p) => {
+    if (String(p.id || '').trim() === planId) return false; // skip the just-completed plan
+    if (isDone(p.status)) return false;
+    return true;
+  });
+
+  if (incompletePlans.length > 0) {
+    const nextPlan = incompletePlans[0];
+    return {
+      title: primaryTitle,
+      summary: lines.join('\n'),
+      action: `Plan ${planId} is complete (all tasks done). Next plan in ${specId}: ${nextPlan.id} - ${nextPlan.title}. Start fresh, read AGENTS.md and overview.xlsx, then create tasks for ${nextPlan.id} (if none exist) or implement its first task.`,
+    };
+  }
+
+  // All plans in the spec are done → spec is complete.
+  // Check for another non-done spec.
+  // A spec is "incomplete" if its status is not done AND it's not the spec
+  // that just completed (all its plans are done even though its status field
+  // may still say "committed").
+  const incompleteSpecs = specs.filter((s) => {
+    if (String(s.id || '').trim() === specId) return false; // skip the just-completed spec
+    if (isDone(s.status)) return false;
+    return true;
+  });
+
+  if (incompleteSpecs.length > 0) {
+    const nextSpec = incompleteSpecs[0];
+    return {
+      title: primaryTitle,
+      summary: lines.join('\n'),
+      action: `Spec ${specId} is complete (all plans done). Next spec: ${nextSpec.id} - ${nextSpec.title}. Start fresh, read AGENTS.md and overview.xlsx, then create a plan for ${nextSpec.id}.`,
+    };
+  }
+
+  // Everything is done.
+  return {
+    title: primaryTitle,
+    summary: lines.join('\n'),
+    action: `All specs, plans, and tasks are complete. The project is done. Commit any remaining work and open a PR if applicable.`,
+  };
+}
+
+function buildContext(newlyDone, tasks, plans, specs) {
+  const result = computeNextAction(newlyDone, tasks, plans, specs);
   return [
     '[task-done-hook] A task was just marked done in overview.xlsx:',
     '',
-    lines.join('\n'),
+    result.summary,
     '',
     'Session-spawning protocol (AGENTS.md): when a task is marked done, start',
     'fresh. Re-read AGENTS.md and overview.xlsx now to load current context',
     'without relying on conversation history. The task(s) above are complete',
-    '- do not revisit them. Identify the next unblocked task and begin.',
+    '- do not revisit them.',
+    '',
+    `Next action: ${result.action}`,
     '',
     `Rename this session to the completed task title for tracking`,
-    `(e.g. /title ${primaryTitle}).`,
+    `(e.g. /title ${result.title}).`,
   ].join('\n');
 }
 
@@ -190,15 +292,16 @@ async function main() {
     '.task-done-snapshot.json'
   );
 
-  let done;
+  let workbook;
   try {
-    done = await readDoneTasks(xlsxPath);
+    workbook = await readWorkbook(xlsxPath);
   } catch {
     // Parse failure — never block the agent.
     process.exit(0);
   }
 
-  const currentIds = new Set(done.map((t) => t.id));
+  const done = workbook.tasks.filter((t) => isDone(t.status));
+  const currentIds = new Set(done.map((t) => String(t.id)));
   const prev = loadSnapshot(snapshotPath);
 
   if (prev === null) {
@@ -208,7 +311,7 @@ async function main() {
     process.exit(0);
   }
 
-  const newlyDone = done.filter((t) => !prev.has(t.id));
+  const newlyDone = done.filter((t) => !prev.has(String(t.id)));
   // Update the snapshot to the current done set regardless.
   saveSnapshot(snapshotPath, currentIds);
 
@@ -219,11 +322,25 @@ async function main() {
   const output = {
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext: buildContext(newlyDone),
+      additionalContext: buildContext(newlyDone, workbook.tasks, workbook.plans, workbook.specs),
     },
   };
   process.stdout.write(JSON.stringify(output));
   process.exit(0);
 }
 
-main().catch(() => process.exit(0));
+// Export internals for testing.
+module.exports = {
+  toolTouchedXlsx,
+  readSheetRows,
+  readWorkbook,
+  isDone,
+  computeNextAction,
+  buildContext,
+  DONE_STATUSES,
+};
+
+// Only run main when invoked directly, not when required for testing.
+if (require.main === module) {
+  main().catch(() => process.exit(0));
+}

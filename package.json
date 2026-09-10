@@ -7,7 +7,7 @@
     "project-context": "./bin/cli.js"
   },
   "scripts": {
-    "test": "node test/test.js && node test/stress-test.js && node test/agent-protocol.js",
+    "test": "node --test test/hook.test.js && node test/test.js && node test/stress-test.js && node test/agent-protocol.js",
     "start": "node bin/cli.js"
   },
   "keywords": [
