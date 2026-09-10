@@ -277,14 +277,25 @@ async function initCommand(options) {
   }
 
   // Copy .agents/ skills + shared instructions
+  // Workflow skills come from src/skills/ (implement, review, create-spec, etc.)
+  // Language skills come from skills/ at the package root (golang-testing,
+  // typescript-unit-testing, wycheproof, etc.) — bundled so project-context
+  // works without ~/.agents/skills/ on the target machine.
   const srcSkills = path.join(__dirname, '..', 'skills');
+  const bundledSkills = path.join(__dirname, '..', '..', 'skills');
   const agentsDir = path.join(wsDir, '.agents');
+  const skillsDir = path.join(agentsDir, 'skills');
+
+  // Copy shared AGENTS.md from src/skills/
   if (fs.existsSync(srcSkills)) {
     const agentsInstructions = path.join(srcSkills, 'AGENTS.md');
     if (fs.existsSync(agentsInstructions)) {
       copyWithHeader(agentsInstructions, path.join(agentsDir, 'AGENTS.md'));
     }
-    const skillsDir = path.join(agentsDir, 'skills');
+  }
+
+  // Copy workflow skills from src/skills/
+  if (fs.existsSync(srcSkills)) {
     for (const skillName of fs.readdirSync(srcSkills)) {
       if (skillName === 'AGENTS.md') continue;
       const srcSkillDir = path.join(srcSkills, skillName);
@@ -294,6 +305,17 @@ async function initCommand(options) {
       for (const f of fs.readdirSync(srcSkillDir)) {
         copyWithHeader(path.join(srcSkillDir, f), path.join(dstSkillDir, f));
       }
+    }
+  }
+
+  // Copy bundled language skills from skills/ (at package root)
+  // These have subdirectories (references/, evals/, etc.) so use recursive copy.
+  if (fs.existsSync(bundledSkills)) {
+    for (const skillName of fs.readdirSync(bundledSkills)) {
+      const srcSkillDir = path.join(bundledSkills, skillName);
+      if (!fs.statSync(srcSkillDir).isDirectory()) continue;
+      const dstSkillDir = path.join(skillsDir, skillName);
+      fs.cpSync(srcSkillDir, dstSkillDir, { recursive: true });
     }
   }
 
