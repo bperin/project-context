@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly at 04:00 UTC — publishes a nightly build if there are
+    # new commits since the last release, even if no conventional
+    # commit triggered a release.
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install semantic-release
+        run: |
+          npm install --save-dev \
+            semantic-release \
+            @semantic-release/changelog \
+            @semantic-release/git \
+            @semantic-release/github \
+            @semantic-release/npm
+
+      - name: Run tests
+        run: npm test
+
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+
+      - name: Bundle CLI
+        run: |
+          npx esbuild bin/cli.js \
+            --bundle \
+            --platform=node \
+            --format=cjs \
+            --outfile=dist/project-context \
+            --keep-names
+          chmod +x dist/project-context
+
+      - name: Verify bundle version
+        run: node dist/project-context --version
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-context-bundle
+          path: dist/project-context
+          retention-days: 30
+
+      - name: Publish to GitHub Packages
+        run: |
+          npm config set //npm.pkg.github.com/:_authToken ${{ secrets.GITHUB_TOKEN }}
+          npm publish --registry=https://npm.pkg.github.com
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  nightly:
+    name: Nightly Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install and bundle
+        run: |
+          npm install
+          npx esbuild bin/cli.js \
+            --bundle \
+            --platform=node \
+            --format=cjs \
+            --outfile=dist/project-context \
+            --keep-names
+          chmod +x dist/project-context
+
+      - name: Tag nightly
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NIGHTLY_TAG="nightly-v${VERSION}-$(date -u +%Y%m%d)"
+          git tag "$NIGHTLY_TAG" 2>/dev/null || true
+          git push origin "$NIGHTLY_TAG" 2>/dev/null || true
+
+      - name: Upload nightly artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-context-nightly
+          path: dist/project-context
+          retention-days: 7

@@ -151,7 +151,12 @@ skill invoke --skill <skill-name>
 
 ### Subagent profiles
 
-`code-optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/code-optimizer`, `/blind-reviewer`, `/test`) use `agent: code-optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
+`planner`, `code-optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/planner`, `/code-optimizer`, `/blind-reviewer`, `/test`) use `agent: planner` / `agent: code-optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
+
+- **`planner`** — reviews **specs and plans** for coverage, scope, requirements traceability, workstream ordering, and research completeness. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy — fires only on round 3).
+- **`code-optimizer`** — reviews **tasks** for problem fit, file paths, algorithm IDs, and test vectors. Read-only, with context. Not used for specs or plans. Model: `glm-5.2-high`.
+- **`blind-reviewer`** — reviews any document against rules only, no context. Read-only. Model: `swe-1.7-medium` (cheap — handles rounds 1-2).
+- **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
 
 ### Language skill matrix
 
@@ -241,29 +246,44 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-SPEC → `/create-spec` workflow (writer-code-optimizer-blind, max 3 rounds)
+SPEC → `/create-spec` workflow (adhd → research → write → blind rounds 1-2 → planner round 3)
   ↓
-PLAN → `/create-plan` workflow (writer-code-optimizer-blind, max 3 rounds)
+PLAN → `/create-plan` workflow (adhd → research → write → blind rounds 1-2 → planner round 3)
   ↓
-TASK → `/create-task` workflow (writer-code-optimizer-blind, max 3 rounds)
+TASK → `/create-task` workflow (adhd → write → code-optimizer → blind)
   ↓
-IMPLEMENT → `/implement` workflow (primary → secondary → reviewer → tester)
+IMPLEMENT → `/implement` workflow (adhd → primary → secondary → reviewer → tester)
   ↓
-REVIEW → `/review` workflow (mechanical → review subagent → apply → PR)
+REVIEW → `/review` workflow (adhd → mechanical → review subagent → apply → PR)
 ```
 
-## Writer-code-optimizer-blind pattern
+## Tiered review pattern
 
-Every creation workflow (spec, plan, task) uses three perspectives with
-escalating objectivity:
+Every workflow starts with the `adhd` skill for divergent ideation,
+regardless of which model runs the steps. The review structure differs
+by document type:
 
-1. **Writer** (you, the orchestrator) — has full context, loads the
-   `adhd` skill for divergent ideation, writes the document.
-2. **Optimizer** (subagent, read-only, with context) — sees the document
-   + a context summary. Suggests improvements, challenges scope, checks
-   completeness. Reports findings. Does not fix.
+### Spec and plan creation (tiered: cheap → heavy)
+
+1. **Writer** (orchestrator) — loads `adhd`, writes the document.
+2. **Rounds 1-2: blind reviewer** (cheap model, `swe-1.7-medium`) —
+   catches structural, template, and rule-compliance issues. Security
+   reviewer runs in parallel when crypto work is involved. Max 2 cheap
+   rounds.
+3. **Round 3: planner** (heavy model, `gpt-5.6-sol-medium`, with `adhd`
+   loaded) — deep architecture, coverage, and problem-fit review. Fires
+   once. If unresolved, escalate to the user.
+
+This keeps heavy-model calls to 1 per spec/plan, not 6.
+
+### Task creation (code-optimizer → blind)
+
+1. **Writer** (orchestrator) — loads `adhd`, writes the task file.
+2. **Code-optimizer** (subagent, read-only, with context) — sees the
+   task + a context summary. Checks file paths, algorithm IDs, test
+   vectors, and scope. Reports findings. Does not fix.
 3. **Blind reviewer** (subagent, read-only, no context) — sees only the
-   document + AGENTS.md. Judges against rules, not intent. Reports
+   task + AGENTS.md. Judges against rules, not intent. Reports
    findings. Does not fix.
 
 Max 3 rounds. If unresolved after round 3, escalate to the user.
@@ -283,7 +303,8 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
 | `/inspect-project` | Utility | Read xlsx, print status |
 | `/context` | Utility | Build context packet for subagents |
 | `/uuid` | Utility | Generate v5 UUID |
-| `/code-optimizer` | Subagent | Review with context (read-only) |
+| `/code-optimizer` | Subagent | Review a task with context (read-only) |
+| `/planner` | Subagent | Review a spec or plan with context (read-only) |
 | `/blind-reviewer` | Subagent | Review without context (read-only) |
 | `/test-agent` | Subagent | Write the full test suite (write access) |
 
@@ -305,5 +326,6 @@ Max 3 rounds. If unresolved after round 3, escalate to the user.
    generation, column order, and duplicate detection.
 9. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-10. **The code-optimizer suggests, the writer revises.** Subagents are
+10. **Reviewers suggest, the writer revises.** Subagents are
     read-only. They report findings. The orchestrator applies fixes.
+    Use `planner` for specs/plans, `code-optimizer` for tasks.

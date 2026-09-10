@@ -5,9 +5,9 @@ const ExcelJS = require('exceljs');
 // Sheet definitions: name -> header columns.
 const SHEET_DEFS = [
   { name: 'Identity', headers: ['Field', 'Value'] },
-  { name: 'Specs', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
-  { name: 'Plans', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
-  { name: 'Tasks', headers: ['UUID', 'ID', 'Title', 'Status', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
+  { name: 'Specs', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Parent', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
+  { name: 'Plans', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Parent', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
+  { name: 'Tasks', headers: ['UUID', 'ID', 'Title', 'Status', 'Parent', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
   { name: 'Modules', headers: ['Module', 'Path', 'Import', 'Purpose'] },
   { name: 'Code Structure', headers: ['Domain', 'Path', 'Module', 'Responsibility'] },
   { name: 'Components', headers: ['Component', 'Module', 'Layer', 'Status'] },

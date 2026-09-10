@@ -12,7 +12,8 @@ role is a subagent. The orchestrator spawns them, feeds them context
 packets, collects results, and decides what happens next.
 
 ```
-Orchestrator spawns primary implementer (foreground, write access, primary skill)
+Orchestrator loads adhd skill (divergent ideation on implementation approach)
+    → Orchestrator spawns primary implementer (foreground, write access, primary skill)
     → Primary implements TASK-N (code + initial tests)
         → Orchestrator spawns secondary implementer (foreground, write access, secondary skill)
             → Secondary reviews + fixes TASK-N directly

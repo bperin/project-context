@@ -35,6 +35,13 @@
 
 SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
 
+## Requirements
+
+<!-- The requirements from the source spec that this plan implements. -->
+<!-- Each workstream below must trace to one or more of these. -->
+
+1. 
+
 ## Objective
 
 <!-- One-paragraph summary of what this plan achieves. -->
@@ -104,10 +111,36 @@ SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
 <!-- Group tasks into workstreams by concern. -->
 <!-- Task IDs are monotonically increasing across all files in tasks/. -->
 <!-- Each task here links to its task file in tasks/TASK-NNN.md. -->
+<!-- For each workstream that implements an algorithm, list: -->
+<!--   - algorithm IDs from the project's algorithm registry -->
+<!--   - primary and secondary skills (from the algorithm's skill field) -->
+<!--   - exact test vector sources (RFC section, NIST case ID) -->
+<!--   - negative tests -->
+<!--   - file paths to create/modify -->
 
 | ID | Workstream | Tasks |
 |---|---|---|
 | W1 | | TASK-NNN |
+
+### Workstream details
+
+<!-- One subsection per workstream with algorithm IDs, skills, vectors, -->
+<!-- negative tests, and file paths. -->
+
+#### W1 — <name>
+- Algorithms: 
+- Primary skill: 
+- Secondary skills: 
+- Test vectors: 
+- Negative tests: 
+- Files: 
+
+## Out of Scope
+
+<!-- Explicitly list what this plan does NOT implement. Be honest. -->
+<!-- Features here belong in a future plan or spec. -->
+
+- 
 
 ## Dependencies
 
@@ -136,9 +169,45 @@ SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
 1. 
 2. 
 
+## Acceptance Criteria
+
+<!-- Concrete, verifiable conditions that must hold for this plan to be -->
+<!-- considered done. Each maps to a requirement and is objectively -->
+<!-- checkable (command, grep, test run). Include verification commands: -->
+<!--   go test ./... ; go vet ./... ; go test -race ./... ; govulncheck ./... -->
+
+1. 
+
+## Research Findings
+
+<!-- Populated from the research agent (decisions/PLAN-NNN-research.md). -->
+<!-- Cite governing standards, test vector sources, and known attack -->
+<!-- vectors from primary sources. Do not invent citations. -->
+
+- See `decisions/PLAN-NNN-research.md`
+
+## Security Considerations
+
+<!-- Only if this plan touches crypto, auth, or security primitives. -->
+<!-- List algorithms (by registry ID), required skills, attack surfaces, -->
+<!-- and the verification commands that must pass before merge. -->
+
+- Algorithms: 
+- Required skills: 
+- Attack surfaces: 
+- Verification: `govulncheck ./...`, `go test -race ./...`
+
 ## Linked Tasks
 
 <!-- Every task file created from this plan. -->
 <!-- The Architect copies TASK-NNN.template.md → tasks/TASK-NNN.md for each. -->
 
 - `tasks/TASK-NNN.md` — <one-line summary>
+
+## Review Findings
+
+<!-- Filled in during the plan-creation workflow. One row per finding. -->
+
+| Round | Reviewer | Type | Finding | Resolution |
+|---|---|---|---|---|
+| | | | | |

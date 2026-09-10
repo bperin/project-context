@@ -1,7 +1,7 @@
 ---
 name: test-agent
 description: "Testing agent — writes the full test suite for a task. Detects project language, loads a language-specific testing skill, and writes tests."
-model: sonnet
+model: swe-1.7-medium
 allowed-tools:
   - read
   - grep

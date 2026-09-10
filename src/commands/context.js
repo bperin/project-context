@@ -135,12 +135,41 @@ function findRow(rows, id) {
   return rows.find(r => r.id === id) || null;
 }
 
-// findChildren finds rows that depend on a given ID.
+// findChildren finds rows whose Parent column matches a given ID.
 function findChildren(rows, parentId) {
   return rows.filter(r => {
-    const deps = String(r.dependencies || '');
-    return deps.includes(parentId);
+    const parent = String(r.parent || '').trim().toUpperCase();
+    return parent === parentId.toUpperCase();
   });
+}
+
+// readMarkdown reads a companion markdown file for a spec/plan/task, if one
+// exists. The files live in .ai-trust/specs/, .ai-trust/plans/, or
+// .ai-trust/tasks/ and follow the ID prefix.
+function readMarkdown(aiDir, id) {
+  const type = id.toUpperCase().startsWith('SPEC-') ? 'specs'
+    : id.toUpperCase().startsWith('PLAN-') ? 'plans'
+    : id.toUpperCase().startsWith('TASK-') ? 'tasks'
+    : null;
+  if (!type) return { body: '', testing: '', criteria: '' };
+
+  const filePath = path.join(aiDir, type, `${id.toUpperCase()}.md`);
+  if (!fs.existsSync(filePath)) return { body: '', testing: '', criteria: '' };
+
+  const content = fs.readFileSync(filePath, 'utf8');
+
+  // Pull a few useful sections out of the markdown body
+  function section(name) {
+    const pattern = new RegExp(`##\\s+${name}[\\r\\n]+([\\s\\S]*?)(?=##\\s|$)`, 'i');
+    const m = content.match(pattern);
+    return m ? m[1].trim() : '';
+  }
+
+  return {
+    body: content.trim(),
+    testing: section('Testing'),
+    criteria: section('Completion Criteria') || section('Acceptance Criteria') || section('Success Criteria'),
+  };
 }
 
 // collectSkills gathers skills from all applicable levels for a target.
@@ -155,7 +184,7 @@ async function collectSkills(wb, type, row, matrix) {
 }
 
 // buildPacket constructs a minimal context packet for a spec/plan/task.
-async function buildPacket(xlsxPath, targetId, options = {}) {
+async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(xlsxPath);
 
@@ -165,7 +194,8 @@ async function buildPacket(xlsxPath, targetId, options = {}) {
   const modules = await readSheet(wb, 'Modules');
   const components = await readSheet(wb, 'Components');
 
-  // Determine type by ID prefix
+  // Determine type by ID prefix and resolve parent/child links via the
+  // Parent column (not peer Dependencies).
   let type, row, parent, children, grandparent;
 
   if (targetId.startsWith('SPEC-')) {
@@ -177,37 +207,15 @@ async function buildPacket(xlsxPath, targetId, options = {}) {
     type = 'plan';
     row = findRow(plans, targetId);
     if (!row) throw new Error(`Plan ${targetId} not found`);
-    // Find parent spec from dependencies
-    const depMatch = String(row.dependencies || '').match(/SPEC-\d+/);
-    parent = depMatch ? findRow(specs, depMatch[0]) : null;
+    parent = findRow(specs, row.parent || '');
     children = findChildren(tasks, targetId);
   } else if (targetId.startsWith('TASK-')) {
     type = 'task';
     row = findRow(tasks, targetId);
     if (!row) throw new Error(`Task ${targetId} not found`);
-    // Walk the dependency chain to find the parent plan.
-    // Tasks may depend on other tasks, which eventually depend on a plan.
-    let current = row;
-    const visited = new Set([targetId]);
-    while (current) {
-      const depMatch = String(current.dependencies || '').match(/PLAN-\d+/);
-      if (depMatch) {
-        parent = findRow(plans, depMatch[0]);
-        break;
-      }
-      // Try to find a task dependency and walk up
-      const taskDepMatch = String(current.dependencies || '').match(/TASK-\d+/);
-      if (taskDepMatch && !visited.has(taskDepMatch[0])) {
-        visited.add(taskDepMatch[0]);
-        current = findRow(tasks, taskDepMatch[0]);
-      } else {
-        break;
-      }
-    }
-    // Find grandparent spec from parent plan's dependencies
+    parent = findRow(plans, row.parent || '');
     if (parent) {
-      const specMatch = String(parent.dependencies || '').match(/SPEC-\d+/);
-      grandparent = specMatch ? findRow(specs, specMatch[0]) : null;
+      grandparent = findRow(specs, parent.parent || '');
     }
   } else {
     throw new Error(`Unknown ID format: ${targetId}. Expected SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
@@ -247,6 +255,11 @@ async function buildPacket(xlsxPath, targetId, options = {}) {
     secondarySkills = targetSkills.slice(1);
   }
 
+  // Read markdown bodies for the target, parent, and grandparent.
+  const targetMd = readMarkdown(aiDir, row.id);
+  const parentMd = parent ? readMarkdown(aiDir, parent.id) : { body: '', testing: '', criteria: '' };
+  const grandparentMd = grandparent ? readMarkdown(aiDir, grandparent.id) : { body: '', testing: '', criteria: '' };
+
   // Build the packet — only what's relevant, nothing else
   const packet = {
     target: {
@@ -259,6 +272,9 @@ async function buildPacket(xlsxPath, targetId, options = {}) {
       dependencies: row.dependencies || '',
       skills: targetSkills,
       commit: row.commit || '',
+      body: targetMd.body,
+      testing: targetMd.testing,
+      criteria: targetMd.criteria,
     },
     parent: parent ? {
       type: parent.id.startsWith('SPEC-') ? 'spec' : 'plan',
@@ -267,6 +283,9 @@ async function buildPacket(xlsxPath, targetId, options = {}) {
       status: parent.status || '',
       progress: parent.progress || '',
       skills: parentSkills,
+      body: parentMd.body,
+      testing: parentMd.testing,
+      criteria: parentMd.criteria,
     } : null,
     grandparent: grandparent ? {
       type: 'spec',
@@ -274,6 +293,9 @@ async function buildPacket(xlsxPath, targetId, options = {}) {
       title: grandparent.title || '',
       status: grandparent.status || '',
       skills: grandparentSkills,
+      body: grandparentMd.body,
+      testing: grandparentMd.testing,
+      criteria: grandparentMd.criteria,
     } : null,
     children: children ? children.map(c => ({
       id: c.id,
@@ -329,7 +351,7 @@ async function contextCommand(options) {
   }
 
   try {
-    const packet = await buildPacket(xlsxPath, targetId, options);
+    const packet = await buildPacket(xlsxPath, aiDir, targetId, options);
     const json = JSON.stringify(packet, null, 2);
 
     if (options.output) {

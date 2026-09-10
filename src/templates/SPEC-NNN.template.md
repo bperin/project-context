@@ -40,6 +40,19 @@
 
 - 
 
+## Requirements
+
+<!-- Functional and non-functional requirements derived from the -->
+<!-- desired behavior. Each requirement must be testable. -->
+<!-- Functional: what the system must do. -->
+<!-- Non-functional: performance, security, compatibility, compliance. -->
+
+### Functional
+1. 
+
+### Non-Functional
+1. 
+
 ## Desired Behavior
 
 <!-- Observable behavior from the user's perspective, grouped by feature area. -->
@@ -74,6 +87,32 @@
 1. 
 2. 
 
+## Acceptance Criteria
+
+<!-- The concrete, verifiable conditions that must hold for this spec -->
+<!-- to be considered done. Each criterion maps to one or more -->
+<!-- requirements and is objectively checkable (command, grep, test). -->
+
+1. 
+
+## Research Findings
+
+<!-- Populated from the research agent (decisions/SPEC-NNN-research.md). -->
+<!-- Cite governing standards, test vector sources, and known attack -->
+<!-- vectors from primary sources. Do not invent citations. -->
+
+- See `decisions/SPEC-NNN-research.md`
+
+## Security Considerations
+
+<!-- Only if this spec touches crypto, auth, or security primitives. -->
+<!-- List the algorithms (by registry ID), the skills required, and the -->
+<!-- known attack surfaces that must be tested. -->
+
+- Algorithms: 
+- Required skills: 
+- Attack surfaces: 
+
 ## Linked Plan
 
 <!-- The Architect creates plans/PLAN-NNN.md from this SPEC. -->
@@ -81,3 +120,11 @@
 
 - Plan: `plans/PLAN-NNN.md` (created by Architect)
 - Tasks: listed in the plan under Workstreams
+
+## Review Findings
+
+<!-- Filled in during the spec-creation workflow. One row per finding. -->
+
+| Round | Reviewer | Type | Finding | Resolution |
+|---|---|---|---|---|
+| | | | | |

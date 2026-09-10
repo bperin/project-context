@@ -27,7 +27,13 @@ project rules and the plan's completion criteria.
 
 ## Steps
 
-1. Load the project's code-review skill (on-demand, not always-on).
+1. **Load the `adhd` skill.** Use it to explore the diff from divergent
+   angles before reviewing — what alternative implementations could
+   have been used? What edge cases would each approach miss? This
+   primes the review for architectural issues, not just line-by-line
+   nitpicks.
+
+2. Load the project's code-review skill (on-demand, not always-on).
 2. Run the mechanical checks:
    ```
    <project lint command>        # must output nothing
