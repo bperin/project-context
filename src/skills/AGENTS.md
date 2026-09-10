@@ -142,13 +142,17 @@ apply, then invokes each skill using the `skill` tool:
 skill invoke --skill <skill-name>
 ```
 
-- **Spec/plan/task creation**: the writer loads `adhd` for divergent
-  ideation. Attached skills are listed in the document but not loaded
-  during creation — they load during implementation.
-- **Task implementation**: the implementer loads `alwaysOn` skills first,
-  then the `primarySkills` for its primary lens. The testing agent loads
-  `secondarySkills` plus any `userLocal` skills when writing the full
-  test suite.
+- **Spec/plan/task creation**: the orchestrator (writer) loads `adhd`
+  for divergent ideation. The optimizer subagents get alwaysOn + primary
+  skills. The reviewer gets alwaysOn only. Attached skills are listed in
+  the document but not loaded during creation — they load during
+  implementation.
+- **Task implementation**: each subagent gets alwaysOn + its domain
+  skills (see the per-profile "Skills you load" section in each agent
+  profile). The implementer gets alwaysOn + the task's primary skill.
+  The code-optimizer gets alwaysOn + the language code skills. The
+  reviewer gets alwaysOn only. The test-agent gets alwaysOn + the
+  language testing skills. No subagent receives the full cascade.
 
 ### Subagent profiles
 
@@ -158,7 +162,7 @@ skill invoke --skill <skill-name>
 - **`spec-optimizer`** — optimizes **specs** for problem fit, scope discipline, approach soundness, and coverage. Runs BEFORE the reviewer. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy).
 - **`plan-optimizer`** — optimizes **plans** for spec coverage, workstream ordering, approach soundness, and dependency edges. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high` (medium).
 - **`task-optimizer`** — optimizes **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high`.
-- **`reviewer`** — checks any document (spec, plan, task) for correctness, rule compliance, template compliance, and dependency compliance. Runs AFTER the optimizer. Read-only, with context. Model: `swe-1.7-medium`.
+- **`reviewer`** — checks documents (spec, plan, task) and code for correctness, rule compliance, template compliance, and dependency compliance. Runs AFTER the optimizer (documents) or code-optimizer (code). Read-only, with context. Model: `swe-1.7-medium`.
 - **`code-optimizer`** — optimizes implemented code for inefficiencies, OOM risks, concurrency bugs, error handling gaps, and style. Runs after the implementer, before the reviewer. Read-only, with context. Model: `glm-5.2-high`.
 - **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
 
