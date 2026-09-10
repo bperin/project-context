@@ -12,6 +12,9 @@ flowchart TD
     PLANW -->|committed| TASK["TASK written"]
     TASK --> TASKW["task-creation workflow<br/>writer - code-optimizer - blind<br/>max 3 rounds"]
     TASKW -->|committed| IMPL["task-implementation workflow"]
+    IMPL -->|tests fail| TF["test-failure workflow<br/>triage - fix - re-run<br/>max 3 rounds"]
+    TF -->|fixed| IMPL
+    TF -->|unresolved| ESC["Escalate to user"]
     IMPL -->|all tasks done| PR["PR review workflow"]
     PR -->|checks pass| MERGE["squash-merge"]
 
@@ -23,6 +26,8 @@ flowchart TD
     style PLANW fill:#BDD7EE,stroke:#1F4E79
     style TASKW fill:#BDD7EE,stroke:#1F4E79
     style IMPL fill:#C6EFCE,stroke:#006100
+    style TF fill:#FFC7CE,stroke:#9C0006
+    style ESC fill:#FFC7CE,stroke:#9C0006
     style PR fill:#FFEB9C,stroke:#9C5700
     style MERGE fill:#C6EFCE,stroke:#006100
 ```
@@ -62,8 +67,9 @@ flowchart TD
     BACK1 --> V2
     CRC -->|pass| TA["Testing agent<br/>background, write access<br/>loads testing skill"]
     TA --> TAC{"All tests pass?"}
-    TAC -->|fail| BACK2["Primary fixes"]
-    BACK2 --> TA
+    TAC -->|fail| TF["test-failure workflow<br/>triage: code bug / test bug / design issue<br/>max 3 rounds, escalate"]
+    TF -->|fixed| TA
+    TF -->|unresolved| ESC["Escalate to user"]
     TAC -->|pass| COM["Commit"]
     COM --> DONE["Task done"]
 
@@ -73,6 +79,7 @@ flowchart TD
     style S fill:#BDD7EE,stroke:#1F4E79
     style CR fill:#D9D9D9,stroke:#595959
     style TA fill:#FFEB9C,stroke:#9C5700
+    style TF fill:#FFC7CE,stroke:#9C0006
     style DONE fill:#C6EFCE,stroke:#006100
     style NEXT fill:#E2EFDA,stroke:#006100
 ```
@@ -155,7 +162,7 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
    - The unresolved findings
    - A summary of what has changed across the 3 rounds
    - A recommendation of what to do next
-2. **Implementation:** if the primary cannot make build/test pass after 3 fix attempts, escalate. The testing agent failing is not an escalation by itself — keep fixing until green.
+2. **Implementation:** if the primary cannot make build/test pass after 3 fix attempts, escalate. The testing agent failing triggers the test-failure workflow (`workflows/test-failure.md`) — a structured triage loop, not free-form fixing. If the test-failure workflow exhausts its 3 rounds, escalate to the user.
 3. **PR review:** if mechanical checks fail repeatedly or the review subagent finds security-critical MUST-FIX issues, stop and escalate.
 
 ### Failure and retry rules

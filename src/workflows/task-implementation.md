@@ -16,7 +16,7 @@ Primary implements TASK-N (code + initial tests)
 Primary moves to TASK-N+1 while code review runs
 If code review calls back → go back, fix
 When code review passes → Testing agent writes full test suite (background, write access, the project's testing skill)
-If testing agent calls back → go back, fix
+If tests fail → test-failure workflow (triage, fix, re-run, max 3 rounds, escalate)
 When all tests pass → commit → task done
 ```
 
@@ -137,7 +137,13 @@ When all tests pass → commit → task done
     the code — the code review missed it. If it reports test design
     questions, answer them. Re-run verification after any changes.
 
-13. **Task done.** When the testing agent passes and all tests pass,
+13. **If tests fail → run the test-failure workflow**
+    (`workflows/test-failure.md`). Do not free-form "go back and fix."
+    The test-failure workflow is a structured triage loop: classify
+    each failure (code bug, test bug, design issue), fix, re-run the
+    full suite, max 3 rounds, escalate to the user if unresolved.
+
+14. **Task done.** When the testing agent passes and all tests pass,
     humanize the commit message with the `content-humanizer` skill,
     cite the relevant standard in the commit body, commit, and update
     task status to `done`.

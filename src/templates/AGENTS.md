@@ -63,6 +63,7 @@ flowchart that renders in GitHub and IDE preview.
 | Plan creation | `workflows/plan-creation.md` | After a plan is written, before implementation starts |
 | Task creation | `workflows/task-creation.md` | After a task file is written, before implementation starts |
 | Task implementation | `workflows/task-implementation.md` | When a task moves from `todo` to `in_progress` |
+| Test failure | `workflows/test-failure.md` | When tests fail during implementation or verification |
 | PR review | `workflows/code-review.md` | Before any PR to the protected branch |
 
 See [`overview.md`](workflows/overview.md) for mermaid diagrams of the
@@ -102,8 +103,12 @@ Follow the task-implementation workflow
    project rules.
 6. When code review passes, spawn testing agent (background, write
    access). It writes the full test suite.
-7. When all tests pass, commit.
-8. Update the task's Status to `done` via the CLI:
+7. If tests fail → run the test-failure workflow
+   (`workflows/test-failure.md`). Triage each failure (code bug, test
+   bug, design issue), fix, re-run the full suite. Max 3 rounds, then
+   escalate to the user.
+8. When all tests pass, commit.
+9. Update the task's Status to `done` via the CLI:
    ```bash
    node /Users/brian/code/project-context/bin/cli.js status TASK-NNN done -t .
    ```
