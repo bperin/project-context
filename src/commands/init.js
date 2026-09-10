@@ -23,6 +23,99 @@ const SHEET_DEFS = [
   { name: 'Workflows', headers: ['File', 'Title', 'Trigger', 'Link'] },
 ];
 
+// Language skill presets. Each language maps to triggers, always-on,
+// project-local, user-level, and skill matrix rows.
+const LANGUAGE_PRESETS = {
+  node: {
+    stack: 'JavaScript/Node',
+    alwaysOn: [['typescript-code-review', 'user-level', 'Code quality checks at session start']],
+    projectLocal: [['typescript-unit-testing', 'user-level', 'Any task in this JS/TS project']],
+    userLevel: [
+      ['accelint-ts-performance', 'user-level', 'performance'],
+      ['typescript-security-review', 'user-level', 'security'],
+      ['js-ts-performance-readability', 'user-level', 'performance'],
+    ],
+    matrix: [
+      ['api-validation', 'typescript-unit-testing', 'typescript-code-review', 'REST API input validation, error handling'],
+      ['api-routing', 'typescript-code-review', 'js-ts-performance-readability', 'Express route wiring, controller patterns'],
+      ['testing', 'typescript-unit-testing', 'accelint-ts-performance', 'Test suite design, mocking, coverage'],
+      ['performance', 'accelint-ts-performance', 'js-ts-performance-readability', 'Hot path optimization, allocation reduction'],
+      ['security', 'typescript-security-review', 'typescript-code-review', 'XSS, injection, JWT/OAuth flaws, dependency CVEs'],
+    ],
+  },
+  go: {
+    stack: 'Go',
+    alwaysOn: [
+      ['go-systems-programmer', 'user-level', 'Explicit wiring, stdlib-first, consumer-side interfaces'],
+      ['go-security-expert', 'user-level', 'alg enforcement, claim validation, constant-time, crypto/rand'],
+      ['go-memory-oom-guard', 'user-level', 'Key material lifetime, memory leaks in long-running processes'],
+    ],
+    projectLocal: [['golang-testing', 'user-level', 'Any task in this Go project']],
+    userLevel: [
+      ['golang-security', 'user-level', 'crypto/auth'],
+      ['golang-code-style', 'user-level', 'code-review'],
+      ['golang-error-handling', 'user-level', 'error-boundaries'],
+      ['golang-concurrency', 'user-level', 'concurrency'],
+      ['golang-performance', 'user-level', 'performance'],
+      ['wycheproof', 'user-level', 'crypto-testing'],
+      ['go-code-review', 'user-level', 'pr-review'],
+    ],
+    matrix: [
+      ['crypto', 'golang-security', 'wycheproof', 'Cryptographic primitive implementation'],
+      ['concurrency', 'golang-concurrency', 'golang-performance', 'Goroutines, channels, mutexes, worker pools'],
+      ['error-boundaries', 'golang-error-handling', 'golang-code-style', 'Error wrapping, sentinels, slog logging'],
+      ['crypto-testing', 'wycheproof', 'golang-testing', 'Known attack vectors, test vectors'],
+      ['pr-review', 'go-code-review', 'golang-code-style', 'gofmt, go vet, golangci-lint, review checklist'],
+      ['performance', 'golang-performance', 'golang-code-style', 'Allocation, pooling, hot-path optimization'],
+    ],
+  },
+  rust: {
+    stack: 'Rust',
+    alwaysOn: [['rust-security', 'user-level', 'Supply chain safety, memory-safe FFI']],
+    projectLocal: [['rust-testing', 'user-level', 'Any task in this Rust project']],
+    userLevel: [
+      ['rust-performance', 'user-level', 'performance'],
+    ],
+    matrix: [
+      ['testing', 'rust-testing', 'rust-performance', 'Unit, integration, async, property-based, coverage'],
+      ['performance', 'rust-performance', 'rust-security', 'Latency, throughput, allocations, binary size'],
+      ['security', 'rust-security', 'rust-testing', 'cargo-audit, cargo-deny, RUSTSEC, safe FFI, fuzzing'],
+    ],
+  },
+  python: {
+    stack: 'Python',
+    alwaysOn: [['python-code-style', 'user-level', 'Linting, formatting, naming, docstrings']],
+    projectLocal: [['python-testing-patterns', 'user-level', 'Any task in this Python project']],
+    userLevel: [
+      ['python-performance-optimization', 'user-level', 'performance'],
+      ['python-cybersecurity-tool-development', 'user-level', 'security'],
+    ],
+    matrix: [
+      ['testing', 'python-testing-patterns', 'python-code-style', 'pytest, fixtures, mocking, TDD'],
+      ['performance', 'python-performance-optimization', 'python-code-style', 'cProfile, memory profilers, bottlenecks'],
+      ['security', 'python-cybersecurity-tool-development', 'python-code-style', 'Secure coding, async scanning, structured testing'],
+    ],
+  },
+  unknown: {
+    stack: 'Unknown',
+    alwaysOn: [],
+    projectLocal: [],
+    userLevel: [],
+    matrix: [['example-trigger', 'primary-skill', 'secondary-skill', 'Replace with your own triggers and skills']],
+  },
+};
+
+// detectLanguage looks at the target directory's manifests to determine
+// the primary language. Returns one of: 'node', 'go', 'rust', 'python', 'unknown'.
+function detectLanguage(targetDir) {
+  const pkgJsonPath = path.join(targetDir, 'package.json');
+  if (fs.existsSync(pkgJsonPath)) return 'node';
+  if (fs.existsSync(path.join(targetDir, 'go.mod'))) return 'go';
+  if (fs.existsSync(path.join(targetDir, 'Cargo.toml'))) return 'rust';
+  if (fs.existsSync(path.join(targetDir, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, 'requirements.txt')) || fs.existsSync(path.join(targetDir, 'setup.py'))) return 'python';
+  return 'unknown';
+}
+
 async function createOverviewXlsx(xlsxPath, targetDir) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'project-context';
@@ -41,13 +134,18 @@ async function createOverviewXlsx(xlsxPath, targetDir) {
     };
   }
 
-  // Seed sample rows so the agent can infer the structure.
+  // Detect language and get skill preset
+  const lang = detectLanguage(targetDir);
+  const preset = LANGUAGE_PRESETS[lang] || LANGUAGE_PRESETS.unknown;
   const repoName = path.basename(targetDir);
+
+  // Identity sheet
   const identity = wb.getWorksheet('Identity');
   identity.addRow(['Project', repoName]);
-  identity.addRow(['Stack', 'JavaScript/Node']);
+  identity.addRow(['Stack', preset.stack]);
   identity.addRow(['Repo', targetDir]);
 
+  // Sample spec/plan/task rows (kept as structural examples)
   const specs = wb.getWorksheet('Specs');
   specs.addRow(['uuid-spec-001', 'SPEC-001', 'Example feature', 'committed', '0%', 'none', 'adhd', 'example-trigger', '']);
 
@@ -57,17 +155,29 @@ async function createOverviewXlsx(xlsxPath, targetDir) {
   const tasks = wb.getWorksheet('Tasks');
   tasks.addRow(['uuid-task-001', 'TASK-001', 'Example task', 'committed', 'PLAN-001', 'implementation', 'example-trigger', '']);
 
+  // Skill Matrix — populated from language preset
   const matrix = wb.getWorksheet('Skill Matrix');
-  matrix.addRow(['example-trigger', 'primary-skill', 'secondary-skill, tertiary-skill', 'Replace with your own triggers and skills']);
+  for (const row of preset.matrix) {
+    matrix.addRow(row);
+  }
 
+  // Always-on skills — populated from language preset
   const alwaysOn = wb.getWorksheet('Always-on (user-level)');
-  alwaysOn.addRow(['base-skill', 'user-level', 'Loaded at session start']);
+  for (const row of preset.alwaysOn) {
+    alwaysOn.addRow(row);
+  }
 
+  // On-demand (project-local) — populated from language preset
   const onDemandProject = wb.getWorksheet('On-demand (project-local)');
-  onDemandProject.addRow(['project-skill', 'project-local', '']);
+  for (const row of preset.projectLocal) {
+    onDemandProject.addRow(row);
+  }
 
+  // On-demand (user-level) — populated from language preset
   const onDemandUser = wb.getWorksheet('On-demand (user-level)');
-  onDemandUser.addRow(['user-skill', 'user-level', 'example-trigger']);
+  for (const row of preset.userLevel) {
+    onDemandUser.addRow(row);
+  }
 
   await wb.xlsx.writeFile(xlsxPath);
 }
@@ -76,7 +186,7 @@ async function discoverProject(targetDir, wsDir) {
   console.log('Running project discovery...');
 
   let projectName = path.basename(path.resolve(targetDir));
-  let language = 'unknown';
+  let language = detectLanguage(targetDir);
   let description = 'Project initialized with project-context';
 
   const pkgJsonPath = path.join(targetDir, 'package.json');
@@ -85,14 +195,7 @@ async function discoverProject(targetDir, wsDir) {
       const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
       if (pkg.name) projectName = pkg.name;
       if (pkg.description) description = pkg.description;
-      language = 'node';
     } catch (e) {}
-  } else if (fs.existsSync(path.join(targetDir, 'go.mod'))) {
-    language = 'go';
-  } else if (fs.existsSync(path.join(targetDir, 'Cargo.toml'))) {
-    language = 'rust';
-  } else if (fs.existsSync(path.join(targetDir, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, 'requirements.txt'))) {
-    language = 'python';
   }
 
   // Write identity/project.md
