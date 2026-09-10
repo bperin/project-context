@@ -129,6 +129,21 @@ skill invoke --skill <skill-name>
 
 `code-optimizer`, `blind-reviewer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/code-optimizer`, `/blind-reviewer`, `/test`) use `agent: code-optimizer` / `agent: blind-reviewer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
 
+### Language skill matrix
+
+When a task is code-heavy, the `test-agent` and `code-optimizer` load language-specific skills based on the repo's manifests:
+
+| Language | Detected by | Primary skill | Secondary skills |
+|---|---|---|---|
+| Go | `go.mod` | `golang-testing` | `golang-performance`, `golang-security`, `golang-code-style` |
+| TypeScript | `package.json` | `typescript-unit-testing` | `typescript-security-review`, `typescript-code-review`, `accelint-ts-performance` |
+| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-performance-optimization`, `python-cybersecurity-tool-development`, `python-code-style` |
+| Rust | `Cargo.toml` | `rust-testing` | `rust-performance`, `rust-security` |
+
+For `code-optimizer`, the primary skill is `golang-performance` / `typescript-code-review` / `python-code-style` / `rust-performance`. For `test-agent`, the primary is the testing skill listed above.
+
+If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing. The orchestrator can install it later with `npx skills add <owner/repo@skill> -g -y`.
+
 ### Skill triggers
 
 | Trigger | Meaning |

@@ -13,4 +13,4 @@ The caller will provide:
 - A 1-2 sentence context summary of what this document is for
 - The AGENTS.md path
 
-Read the document, context packet, and AGENTS.md, then return findings in the format specified by the code-optimizer agent profile.
+Read the document, context packet, and AGENTS.md. If the document describes code or the project is Go/TypeScript/Python/Rust, load the matching language skills from the matrix in your agent profile, then return findings in the format specified by the code-optimizer agent profile.

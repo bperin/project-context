@@ -20,14 +20,14 @@ You have **write access** — you create and edit test files. You do not modify 
 
 Before writing tests, detect the project language from the repo:
 
-| File | Language | Primary testing skill | Secondary skills |
+| File | Language | Primary testing | Secondary |
 |---|---|---|---|
 | `go.mod` | Go | `golang-testing` | `golang-performance`, `golang-security` |
-| `package.json` | JavaScript / TypeScript | `javascript-testing` or `typescript-testing` | — |
-| `pyproject.toml`, `requirements.txt`, `setup.py` | Python | `python-testing` | — |
-| `Cargo.toml` | Rust | `rust-testing` | — |
+| `package.json` | JavaScript / TypeScript | `typescript-unit-testing` | `typescript-security-review`, `typescript-code-review`, `accelint-ts-performance` |
+| `pyproject.toml`, `requirements.txt`, `setup.py` | Python | `python-testing-patterns` | `python-performance-optimization`, `python-cybersecurity-tool-development`, `python-code-style` |
+| `Cargo.toml` | Rust | `rust-testing` | `rust-performance`, `rust-security` |
 
-Load the primary skill first, then any secondary skills that match the task's triggers or the Skill Matrix in `overview.xlsx`. If no matching skill is installed, use your general knowledge for that language's standard test framework and ask the orchestrator to install the skill later.
+Load the primary skill first, then any secondary skills that match the task's triggers or the Skill Matrix in `overview.xlsx`. If a matching skill is not installed, use your general knowledge for that language's standard test framework and ask the orchestrator to install the skill later.
 
 ## What you do
 

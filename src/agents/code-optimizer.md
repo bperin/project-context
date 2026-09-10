@@ -16,9 +16,12 @@ You have **context** — you know what the writer is trying to accomplish. Use i
 
 If the document describes code or if the project uses Go, also load the relevant language skills:
 
-| File | Primary skill | Secondary skills |
-|---|---|---|
-| `go.mod` | `golang-performance` | `golang-security`, `golang-code-style` |
+| File | Language | Primary skill | Secondary skills |
+|---|---|---|---|
+| `go.mod` | Go | `golang-performance` | `golang-security`, `golang-code-style` |
+| `package.json` | JavaScript / TypeScript | `typescript-code-review` | `typescript-security-review`, `accelint-ts-performance` |
+| `pyproject.toml`, `requirements.txt`, `setup.py` | Python | `python-code-style` | `python-performance-optimization`, `python-cybersecurity-tool-development` |
+| `Cargo.toml` | Rust | `rust-performance` | `rust-security` |
 
 Load these before reviewing. If a skill is not installed, continue with general knowledge and ask the orchestrator to install it later.
 

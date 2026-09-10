@@ -14,11 +14,12 @@ The caller will provide:
 
 Read the task, context packet, and AGENTS.md.
 
-Detect the project language and load the matching testing skill:
+Detect the project language and load the matching testing skills:
+
 - `go.mod` → primary `golang-testing`, secondary `golang-performance`, `golang-security`
-- `package.json` → `javascript-testing` or `typescript-testing`
-- `pyproject.toml`/`requirements.txt` → `python-testing`
-- `Cargo.toml` → `rust-testing`
+- `package.json` → primary `typescript-unit-testing`, secondary `typescript-security-review`, `typescript-code-review`, `accelint-ts-performance`
+- `pyproject.toml`/`requirements.txt`/`setup.py` → primary `python-testing-patterns`, secondary `python-performance-optimization`, `python-cybersecurity-tool-development`, `python-code-style`
+- `Cargo.toml` → primary `rust-testing`, secondary `rust-performance`, `rust-security`
 
 Load the primary skill first, then any secondary skills from the task's `Skills` column or the Skill Matrix.
 
