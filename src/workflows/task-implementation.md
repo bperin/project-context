@@ -7,33 +7,48 @@ execution pipeline — from implementation through testing to done.
 
 ## Pipeline
 
-Four roles move down the line like an assembly line:
+The orchestrator never implements, reviews, or tests directly. Every
+role is a subagent. The orchestrator spawns them, feeds them context
+packets, collects results, and decides what happens next.
 
 ```
-Primary implements TASK-N (code + initial tests)
-    → Secondary reviews + fixes TASK-N (foreground, write access, different skill lens)
-        → Code reviewer reviews TASK-N (background, no context, the project's code-review skill)
+Orchestrator spawns primary implementer (foreground, write access, primary skill)
+    → Primary implements TASK-N (code + initial tests)
+        → Orchestrator spawns secondary implementer (foreground, write access, secondary skill)
+            → Secondary reviews + fixes TASK-N directly
+                → Orchestrator spawns code reviewer (background, read-only, code-review skill)
+                    → Code reviewer reports findings
 Primary moves to TASK-N+1 while code review runs
-If code review calls back → go back, fix
-When code review passes → Testing agent writes full test suite (background, write access, the project's testing skill)
+If code review calls back → orchestrator spawns fix agent
+When code review passes → orchestrator spawns testing agent (background, write access, testing skill)
 If tests fail → test-failure workflow (triage, fix, re-run, max 3 rounds, escalate)
 When all tests pass → commit → task done
 ```
 
 ## Roles
 
-### Role 1: Primary implementer (you)
+### Role 0: Orchestrator (you)
 
 - Has full conversation context.
-- Consults the algorithm's **primary skill** from the project's
-  algorithm registry (if applicable).
+- **Never writes code, tests, or reviews.** Only spawns subagents,
+  feeds them context packets, collects results, and decides next steps.
+- Builds context packets with the CLI for each subagent.
+- Spawns the primary implementer, secondary implementer, code
+  reviewer, and testing agent. Moves to the next task while background
+  agents work.
+- If any agent calls back with findings, spawns a fix subagent (or
+  re-spawns the relevant agent) to address them.
+
+### Role 1: Primary implementer (subagent, foreground, write access)
+
+- **No conversation context** — sees only the context packet, task
+  file, source files, and the algorithm's **primary skill** from the
+  project's algorithm registry (if applicable).
 - Implements code + initial tests (just enough to get green: known-answer
   vectors and a round-trip where applicable). The full test suite is
   written by the testing agent after code review.
 - Runs verification: the project's build, vet, test, and lint commands.
-- Spawns the secondary implementer, then the code reviewer, then the
-  testing agent. Moves to the next task while background agents work.
-- If any agent calls back with findings, goes back and fixes.
+- Reports what was implemented and any issues found.
 
 ### Role 2: Secondary implementer (subagent, write access)
 
@@ -76,66 +91,70 @@ When all tests pass → commit → task done
 
 ## Steps
 
-1. **Read the task file.** Note goal, files, symbols, constraints,
-   acceptance criteria.
+1. **Build a context packet** for the task:
+   ```bash
+   node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
+   ```
 
-2. **Load the primary skill.** Read its guidance. Do not guess at
-   security-sensitive logic — follow the skill.
+2. **Spawn the primary implementer** (foreground, `subagent_general`
+   profile for write access). Give it:
+   - The context packet file path
+   - The task file path (for goal, files, symbols, constraints, acceptance
+     criteria, algorithm ID)
+   - The primary skill path (from the algorithm registry if applicable)
+   - The project's algorithm registry path (if applicable)
+   - `AGENTS.md` path
+   The primary implementer:
+   - Loads the primary skill, reads its guidance.
+   - Implements the code. Documentation cites the relevant standard.
+     Concrete structs. Constant-time comparisons. No `math/rand`. No
+     private key `String()`/`Format()`/`GoString()`.
+   - Writes initial tests (just enough to get green: known-answer vector
+     from the standard, a round-trip test where applicable, constant-time
+     comparisons for security-sensitive values).
+   - Runs verification: build, vet, test, lint. All must pass.
+   - Reports what was implemented and any issues found.
 
-3. **Read the algorithm entry in the project's algorithm registry**
-   (if applicable) for the algorithm's standard citation and skill
-   mapping.
+3. **Reconcile primary implementer output.** If it reports issues it
+   couldn't fix, spawn it again with specific guidance. Do not fix
+   code yourself — re-spawn the subagent.
 
-4. **Implement the code.** Documentation cites the relevant standard.
-   Concrete structs. Constant-time comparisons. No `math/rand`. No
-   private key `String()`/`Format()`/`GoString()`.
+4. **Spawn the secondary implementer** (foreground, `subagent_general`
+   profile for write access). Give it: context packet, task file,
+   algorithm ID, secondary skill path, files to review. It fixes
+   issues directly and reports what it changed.
 
-5. **Write initial tests.** Just enough to get green:
-   - Known-answer vector from the standard (cite the source in a
-     comment: `// Vector: [Standard] Test Vector 1`).
-   - A round-trip test where applicable (encrypt/decrypt, sign/verify).
-   - Use constant-time comparison for security-sensitive comparisons
-     in tests.
-   The full test suite (known-answer test vectors, fuzz, examples,
-   negative/boundary) is written by the testing agent after code
-   review.
+5. **Reconcile.** If the secondary found and fixed things, verify the
+   fixes are correct by re-running verification. If it flags something
+   it can't fix, re-spawn the primary implementer with specific guidance.
+   Do not fix code yourself — re-spawn the subagent.
 
-6. **Run verification.** Use the project's build, vet, test, and lint
-   commands. All must pass.
-
-7. **Spawn the secondary implementer** (foreground, `subagent_general`
-   profile for write access). Give it: task file, algorithm ID,
-   secondary skill path, files to review. It fixes issues directly and
-   reports what it changed.
-
-8. **Reconcile.** If the secondary found and fixed things, verify the
-   fixes are correct. If it flags something it can't fix, fix it
-   yourself. Re-run verification if changes were made.
-
-9. **Spawn the code reviewer** (background, `subagent_explore`
+6. **Spawn the code reviewer** (background, `subagent_explore`
    profile). Give it: `AGENTS.md`, the project's algorithm registry
    (if applicable), task file, diff. It checks the code against project
    rules (see Code reviewer checks below).
 
-10. **Move to the next task.** If the code reviewer calls back with
-    findings, go back and fix.
+7. **Move to the next task.** If the code reviewer calls back with
+   findings, spawn a fix subagent (re-spawn the primary or secondary
+   implementer with the findings). Do not fix code yourself.
 
-11. **When code review passes → spawn the testing agent** (background,
-    `subagent_general` profile for write access). Give it:
-    - The source file path(s) under test
-    - The task file path (for acceptance criteria and algorithm ID)
-    - `AGENTS.md` path (testing rules section)
-    - The project's algorithm registry path (if applicable)
-    - The project's testing skill path
-    - The algorithm's secondary skill path if testing-focused
-    - The identified tier (so the testing agent applies the right
-      rules — see Testing tiers below)
-    The testing agent writes the full test suite and runs verification.
+8. **When code review passes → spawn the testing agent** (background,
+   `subagent_general` profile for write access). Give it:
+   - The source file path(s) under test
+   - The task file path (for acceptance criteria and algorithm ID)
+   - `AGENTS.md` path (testing rules section)
+   - The project's algorithm registry path (if applicable)
+   - The project's testing skill path
+   - The algorithm's secondary skill path if testing-focused
+   - The identified tier (so the testing agent applies the right
+     rules — see Testing tiers below)
+   The testing agent writes the full test suite and runs verification.
 
-12. **Reconcile testing agent output.** If the testing agent reports a
-    code bug (a test fails against the approved code), go back and fix
-    the code — the code review missed it. If it reports test design
-    questions, answer them. Re-run verification after any changes.
+9. **Reconcile testing agent output.** If the testing agent reports a
+   code bug (a test fails against the approved code), spawn the primary
+   implementer again to fix the code — the code review missed it. If it
+   reports test design questions, answer them. Do not fix code or tests
+   yourself — re-spawn the relevant subagent.
 
 13. **If tests fail → run the test-failure workflow**
     (`workflows/test-failure.md`). Do not free-form "go back and fix."
@@ -260,6 +279,43 @@ No preamble. No "overall this is good." Just the findings.
 
 ## Subagent prompt templates
 
+### Primary implementer
+
+```
+You are a primary implementer for this project. Read AGENTS.md for
+full conventions, documentation rules, testing rules, security
+requirements, and the project's dependency rules.
+
+Read the context packet at <path> for the task's skills, parent plan,
+and spec context.
+Read the task file at <path> for goal, files, symbols, constraints,
+acceptance criteria, and algorithm ID.
+Read the algorithm entry in the project's algorithm registry (if
+applicable) for the algorithm's standard citation and primary skill.
+Read the primary skill at <path>.
+
+Implement the code:
+- Documentation cites the relevant standard.
+- Concrete structs. Constant-time comparisons where required.
+- No math/rand. No private key String()/Format()/GoString().
+
+Write initial tests (just enough to get green):
+- Known-answer vector from the standard (cite the source in a comment:
+  // Vector: [Standard] Test Vector 1).
+- A round-trip test where applicable (encrypt/decrypt, sign/verify).
+- Constant-time comparison for security-sensitive values in tests.
+
+The full test suite (known-answer test vectors, fuzz, examples,
+negative/boundary) is written by the testing agent after code review —
+do not write it yourself.
+
+Run verification using the project's build, vet, test, and lint
+commands. All must pass.
+
+Report what you implemented and any issues found. You have write
+access — write code and test files directly.
+```
+
 ### Secondary implementer
 
 ```
@@ -375,6 +431,11 @@ primary to address.
 
 ## Constraints
 
+- **The orchestrator never writes code, tests, or reviews.** It only
+  spawns subagents, feeds them context packets, collects results, and
+  decides next steps. If code needs fixing, re-spawn the implementer.
+  If tests need fixing, re-spawn the testing agent. If review is needed,
+  spawn the reviewer. The orchestrator is a coordinator, not a worker.
 - No `math/rand`. Only `crypto/rand`.
 - No `==` or `bytes.Equal` on security-sensitive values.
 - No private key `String()` or `Format()` methods.
@@ -384,8 +445,8 @@ primary to address.
 - The testing agent is spawned only after code review passes — not
   before. Code is reviewed before the full test suite is written.
 - The testing agent has write access — it writes test files directly.
-  If a test fails against approved code, the code has a bug; the
-  primary fixes it.
+  If a test fails against approved code, the code has a bug; spawn the
+  primary implementer to fix it.
 - Run race detection and shuffle (if supported) every time.
   Order-dependent or racy tests are MUST-FIX, not NITs.
 - Commit message humanized with `content-humanizer`. Cite the standard

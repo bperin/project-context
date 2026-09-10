@@ -92,23 +92,27 @@ When building a plan (register it via the CLI, not by editing the xlsx):
 Follow the task-implementation workflow
 (`workflows/task-implementation.md`). Summary:
 
-1. Load `alwaysOn` skills first, then the `primarySkills` from the
-   context packet for your primary lens.
-2. Write code + initial tests.
-3. Run build, vet, test, lint.
-4. Spawn secondary implementer (foreground, write access, different
-   skill lens). Have it load `secondarySkills` and `userLocal` skills.
+1. Build a context packet for the task with the CLI.
+2. Spawn primary implementer (foreground, write access). It loads
+   `primarySkills`, writes code + initial tests, runs verification.
+3. Spawn secondary implementer (foreground, write access, different
+   skill lens). It loads `secondarySkills` and `userLocal` skills.
    It fixes issues directly.
-5. Spawn code reviewer (background, no context). It checks against
+4. Spawn code reviewer (background, no context). It checks against
    project rules.
-6. When code review passes, spawn testing agent (background, write
+5. When code review passes, spawn testing agent (background, write
    access). It writes the full test suite.
-7. If tests fail → run the test-failure workflow
+6. If tests fail → run the test-failure workflow
    (`workflows/test-failure.md`). Triage each failure (code bug, test
-   bug, design issue), fix, re-run the full suite. Max 3 rounds, then
-   escalate to the user.
-8. When all tests pass, commit.
-9. Update the task's Status to `done` via the CLI:
+   bug, design issue), re-spawn the relevant subagent to fix, re-run
+   the full suite. Max 3 rounds, then escalate to the user.
+7. When all tests pass, commit.
+8. Update the task's Status to `done` via the CLI:
    ```bash
    node /Users/brian/code/project-context/bin/cli.js status TASK-NNN done -t .
    ```
+
+**The orchestrator never writes code, tests, or reviews.** It only
+spawns subagents, feeds them context packets, collects results, and
+decides next steps. If code needs fixing, re-spawn the implementer. If
+tests need fixing, re-spawn the testing agent.
