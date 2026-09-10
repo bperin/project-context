@@ -60,6 +60,8 @@ const LANGUAGE_PRESETS = {
       ['golang-performance', 'user-level', 'user-local', 'performance', 'When profiling shows a bottleneck'],
       ['wycheproof', 'user-level', 'user-local', 'crypto-testing', 'When testing crypto — known attack vectors'],
       ['go-code-review', 'user-level', 'user-local', 'pr-review', 'Before any PR'],
+      ['implementing-digital-signatures-with-ed25519', 'user-level', 'user-local', 'ed25519', 'When implementing Ed25519 — key generation, signing, verification'],
+      ['ethereum', 'user-level', 'user-local', 'evm', 'When implementing Keccak-256, secp256k1, EIP-712 — EVM context, EIPs'],
     ],
     matrix: [
       ['crypto', 'Go', 'golang-security', 'wycheproof', 'Cryptographic primitive implementation'],
@@ -68,6 +70,8 @@ const LANGUAGE_PRESETS = {
       ['crypto-testing', 'Go', 'wycheproof', 'golang-testing', 'Known attack vectors, test vectors'],
       ['pr-review', 'Go', 'go-code-review', 'golang-code-style', 'gofmt, go vet, golangci-lint, review checklist'],
       ['performance', 'Go', 'golang-performance', 'golang-code-style', 'Allocation, pooling, hot-path optimization'],
+      ['ed25519', 'Go', 'implementing-digital-signatures-with-ed25519', 'wycheproof', 'Ed25519 signing and verification'],
+      ['evm', 'Go', 'ethereum', 'golang-security', 'Keccak-256, secp256k1, EIP-712, EVM chains'],
     ],
   },
   rust: {
@@ -105,13 +109,24 @@ const LANGUAGE_PRESETS = {
 };
 
 // detectLanguage looks at the target directory's manifests to determine
-// the primary language. Returns one of: 'node', 'go', 'rust', 'python', 'unknown'.
+// the primary language. Checks the root and one level of subdirectories
+// (for monorepos like trust/ where go.mod lives in trust/go.mod).
+// Returns one of: 'node', 'go', 'rust', 'python', 'unknown'.
 function detectLanguage(targetDir) {
-  const pkgJsonPath = path.join(targetDir, 'package.json');
-  if (fs.existsSync(pkgJsonPath)) return 'node';
+  if (fs.existsSync(path.join(targetDir, 'package.json'))) return 'node';
   if (fs.existsSync(path.join(targetDir, 'go.mod'))) return 'go';
   if (fs.existsSync(path.join(targetDir, 'Cargo.toml'))) return 'rust';
   if (fs.existsSync(path.join(targetDir, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, 'requirements.txt')) || fs.existsSync(path.join(targetDir, 'setup.py'))) return 'python';
+  // Check one level deep for monorepos (e.g. trust/go.mod, auth/go.mod)
+  try {
+    for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (fs.existsSync(path.join(targetDir, entry.name, 'go.mod'))) return 'go';
+      if (fs.existsSync(path.join(targetDir, entry.name, 'package.json'))) return 'node';
+      if (fs.existsSync(path.join(targetDir, entry.name, 'Cargo.toml'))) return 'rust';
+      if (fs.existsSync(path.join(targetDir, entry.name, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, entry.name, 'requirements.txt'))) return 'python';
+    }
+  } catch (e) {}
   return 'unknown';
 }
 
