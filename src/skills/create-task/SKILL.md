@@ -1,6 +1,6 @@
 ---
 name: create-task
-description: "Run the task-creation workflow — write task from plan, task-optimizer + blind review, max 3 rounds"
+description: "Run the task-creation workflow — write task from plan, task-optimizer review, max 3 rounds"
 argument-hint: "<TASK-NNN> from <PLAN-NNN>"
 triggers:
   - user
@@ -35,7 +35,7 @@ You are running the **task-creation workflow** for this project. Read
 ## What you are doing
 
 Creating a new task (TASK-NNN) from a committed plan using the
-writer-task-optimizer-blind review pattern.
+orchestrator-reviewer pattern.
 
 ## Steps
 
@@ -60,7 +60,6 @@ writer-task-optimizer-blind review pattern.
 
 6. **Run review per `workflows/task-creation.md`:**
    - `task-optimizer` (medium, `glm-5.2-high`) — checks file paths, algorithm IDs, test vectors
-   - `blind-reviewer` (cheap) — rules check, no context
    - Max 3 rounds, then escalate
 
 7. **Register the task via the CLI.** Do not edit `overview.xlsx` directly:

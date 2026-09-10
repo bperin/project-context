@@ -1,6 +1,6 @@
 ---
 name: create-spec
-description: "Run the spec-creation workflow — divergent ideation (adhd), research, write spec, blind rounds 1-2, spec-optimizer round 3, max 3 rounds"
+description: "Run the spec-creation workflow — divergent ideation (adhd), research, write spec, reviewer, max 3 rounds"
 argument-hint: "<SPEC-NNN title>"
 triggers:
   - user
@@ -36,7 +36,7 @@ You are running the **spec-creation workflow** for this project. Read
 ## What you are doing
 
 Creating a new spec (SPEC-NNN) using the
-writer-research-spec-optimizer-security-blind review pattern.
+orchestrator-research-reviewer pattern.
 
 ## Steps
 
@@ -62,9 +62,8 @@ writer-research-spec-optimizer-security-blind review pattern.
    node /Users/brian/code/project-context/bin/cli.js context SPEC-NNN -t . -o .context-packet.json
    ```
 
-6. **Run tiered review per `workflows/spec-creation.md`:**
-   - Rounds 1-2: `blind-reviewer` (cheap) + `security reviewer` if crypto
-   - Round 3 (final): `spec-optimizer` (heavy, `gpt-5.6-sol-medium`) with `adhd` loaded
+6. **Run review per `workflows/spec-creation.md`:**
+   - `spec-optimizer` (heavy, `gpt-5.6-sol-medium`) with `adhd` loaded
    - Max 3 rounds, then escalate
 
 7. **Register the spec via the CLI.** Do not edit `overview.xlsx` directly:

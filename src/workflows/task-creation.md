@@ -10,38 +10,31 @@ implementation.
 
 ## Pattern
 
-Writer-task-optimizer-blind review. Same three-pass pattern as spec and plan
-creation:
+Writer-optimizer review. Same pattern as spec and plan creation. The
+orchestrator is the big brain — it has full context, loads `adhd` for
+divergent ideation, writes the task file, then dispatches a reviewer
+subagent for review.
 
 ```
-Writer writes the task file (with primary skill + adhd loaded)
-    → Task-optimizer reviews (with context — can challenge the task spec against the plan)
-    → Blind reviewer reviews (no context — judges against AGENTS.md + the project's algorithm registry)
-If any reviewer finds issues → writer revises → re-review
-Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
+Orchestrator loads primary skill + adhd (divergent ideation on the task design space)
+    → Orchestrator writes the task file (with full context)
+    → Orchestrator dispatches reviewer subagent (task-optimizer, with context)
+    → Reviewer reports findings
+    → Orchestrator fixes
+    → Loop: max 3 rounds. If still no agreement after 3, escalate to the user.
 ```
 
 The task file is the implementation contract — it tells the implementer
 exactly what to build. A vague task file forces the implementer to
-guess. The three-pass pattern catches that before code is written.
+guess. The review catches that before code is written.
 
 ## Context packets
 
-Each agent receives a structured context packet — only what it needs,
-no more. This keeps context lean and ensures each agent has the right
+The reviewer receives a structured context packet — only what it needs,
+no more. This keeps context lean and ensures the reviewer has the right
 information for its role.
 
-### Writer context packet
-
-- The task file path (being written)
-- The parent plan path (for the workstream section)
-- The primary skill path(s) for the task's algorithm(s)
-- The project's algorithm registry (if applicable)
-- `AGENTS.md` (project rules)
-- A sibling task file path (for format reference)
-- Conversation context (full — the writer is you)
-
-### Critic context packet
+### Reviewer context packet
 
 - The task file path
 - The parent plan path
@@ -51,19 +44,9 @@ information for its role.
 - A sibling task file path
 - A 1-2 sentence context summary (what this task covers, key constraints)
 
-### Blind reviewer context packet
-
-- The task file path
-- The primary skill path(s)
-- The project's algorithm registry (if applicable)
-- `AGENTS.md`
-- The parent plan path
-- A sibling task file path
-- No context summary, no conversation history
-
 ## Roles
 
-### Role 1: Writer (you)
+### Role 1: Orchestrator (you)
 
 - Has full conversation context — knows the plan, the algorithm, the
   user's priorities.
@@ -77,25 +60,16 @@ information for its role.
   hidden flaws (wrong API cited, missing constraint, skill guidance
   not reflected).
 - Writes the task file following the `TASK-NNN.template.md`.
-- Revises after each review round.
+- Dispatches the reviewer subagent.
+- Revises the task file after each review round.
 
-### Role 2: Critic (subagent, read-only, with context)
+### Role 2: Reviewer (task-optimizer subagent, read-only, with context)
 
-- Sees the task file **and** a brief context summary from the writer
-  (1-2 sentences: what this task covers, key constraints).
+- Sees the task file **and** a brief context summary from the
+  orchestrator (1-2 sentences: what this task covers, key constraints).
 - Reviews with knowledge of intent — can challenge whether the task
   spec correctly implements the plan's workstream.
-- Reports findings. Does not fix — the writer revises.
-
-### Role 3: Blind reviewer (subagent, read-only, no context)
-
-- Sees only the task file, the primary skill, the project's algorithm
-  registry (if applicable), `AGENTS.md`, the parent plan, and a sibling
-  task file for format reference.
-- No conversation context, no user messages, no writer rationale.
-- Judges the task file against the rules and the skill, not the
-  intent.
-- Reports findings. Does not fix — the writer revises.
+- Reports findings. Does not fix — the orchestrator revises.
 
 ## Steps
 
@@ -112,8 +86,8 @@ information for its role.
 3. **Write the task file.** Use `TASK-NNN.template.md`. Follow the
    skill's guidance for the Required Change and Constraints.
 
-4. **Spawn the task-optimizer** (foreground, `task-optimizer`
-   profile). Give it the task-optimizer context packet. The task-optimizer checks:
+4. **Dispatch the reviewer** (foreground, `task-optimizer` profile).
+   Give it the reviewer context packet. The reviewer checks:
    - **Plan alignment**: does this task implement the plan's
      workstream? Are all workstream deliverables covered?
    - **Technical accuracy**: does the Required Change match what the
@@ -129,12 +103,6 @@ information for its role.
      library written in another)?
    - **Scope vs. plan**: is the task trying to do more or less than
      the plan's workstream asks?
-
-5. **Apply task-optimizer findings.** Revise the task file.
-
-6. **Spawn the blind reviewer** (foreground, `subagent_explore`
-   profile). Give it the blind reviewer context packet. The blind
-   reviewer checks:
    - **Standards consistency**: does the standard citation in the
      task match the algorithm's standard citation in the project's
      algorithm registry? Does the standard cited match the plan's
@@ -148,18 +116,16 @@ information for its role.
    - **Rule compliance**: does the task respect AGENTS.md constraints
      — no interface inflation, no skipped tests, documentation on
      all exports, the project's dependency rules (see AGENTS.md)?
-   - **Technical accuracy**: are the cited APIs real? Is the skill's
-     guidance reflected in the constraints?
 
-7. **Apply blind reviewer findings.** Revise the task file.
+5. **Apply reviewer findings.** Revise the task file.
 
-8. **Round counter.** This is round 1. If either reviewer found
-   MUST-FIX or SHOULD-FIX issues, go back to step 4 (re-spawn both
-   reviewers on the revised task file). Max 3 rounds. If still
+6. **Round counter.** This is round 1. If the reviewer found
+   MUST-FIX or SHOULD-FIX issues, go back to step 4 (re-dispatch the
+   reviewer on the revised task file). Max 3 rounds. If still
    unresolved after round 3, escalate to the user with a summary of
    the disagreement.
 
-9. **Commit.** When both reviewers pass (only NITs or clean), commit
+7. **Commit.** When the reviewer passes (only NITs or clean), commit
    the task file. The task is now ready for the implement workflow.
 
 ## Expected output
@@ -181,12 +147,12 @@ A task file that:
 - Has a Required Change that matches what the primary skill actually
   says — cited APIs are real, skill guidance is reflected in
   constraints.
-- Has been stress-tested from three angles: intent (writer), context
-  (task-optimizer), and rules (blind reviewer).
+- Has been stress-tested from two angles: intent (orchestrator +
+  adhd + primary skill) and context (reviewer with context).
 
 ## Subagent prompt templates
 
-### Task-optimizer
+### Reviewer (task-optimizer)
 
 ```
 You are a task-optimizer for this project. Read AGENTS.md for full
@@ -206,23 +172,6 @@ Check:
 - Skill alignment: primary skill matches the algorithm registry?
   Secondary skills correct?
 - Scope: is the task doing more or less than the plan asks?
-
-Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
-exact text. Be specific.
-```
-
-### Blind reviewer
-
-```
-You are a task reviewer for this project. Read AGENTS.md for full
-project conventions and rules.
-
-Read the task file at <path>.
-Also read the primary skill at <path>, the project's algorithm
-registry (if applicable), the parent plan at <path>, and the sibling
-task at <path>.
-
-Check:
 - Standards consistency: standard citation matches the algorithm's
   standard citation in the registry? Standard matches the plan's
   workstream table?
@@ -231,12 +180,9 @@ Check:
 - Rule compliance: respects AGENTS.md constraints — no interface
   inflation, no skipped tests, documentation on all exports, the
   project's dependency rules?
-- Technical accuracy: cited APIs real? Skill guidance reflected in
-  constraints?
 
 Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite line numbers and
-exact text. Do not suggest changes you cannot justify from the
-reference files.
+exact text. Be specific.
 ```
 
 ## Inputs
@@ -251,15 +197,14 @@ reference files.
 
 ## Outputs
 
-- Review findings (MUST-FIX / SHOULD-FIX / NIT) from the task-optimizer and
-  blind reviewer
-- A corrected task file (if findings) from the writer
+- Review findings (MUST-FIX / SHOULD-FIX / NIT) from the reviewer
+- A corrected task file (if findings) from the orchestrator
 - A clean task file ready for the implement workflow
 
 ## Constraints
 
-- No task file enters the implement workflow without passing both the
-  task-optimizer and blind reviewer.
+- No task file enters the implement workflow without passing the
+  reviewer.
 - Max 3 review rounds. Escalate to the user if unresolved.
 - The primary skill MUST be loaded before writing the task file, not
   after. Writing a task spec blind and then reviewing it defeats the
@@ -267,13 +212,12 @@ reference files.
 - The reviewer checks the task file against the skill, not the
   implementation against the task. Implementation review is the
   implement workflow's job.
-- The task-optimizer has context (a brief summary). The blind reviewer has
-  none.
-- Reviewers are read-only. They report findings; the writer revises.
+- The reviewer has context (a brief summary).
+- The reviewer is read-only. It reports findings; the orchestrator revises.
 - One review per task file. If a workstream has multiple tasks, review
-  them in parallel (one subagent pair per task) only if they are
+  them in parallel (one reviewer per task) only if they are
   independent. Coupled tasks (shared symbols, ordering dependency) are
-  reviewed together in one subagent pair.
+  reviewed together in one reviewer.
 
 ## Review format
 

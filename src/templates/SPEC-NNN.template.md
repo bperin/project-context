@@ -19,7 +19,7 @@
 
 <!-- Lifecycle: draft → review → committed → done → superseded -->
 <!-- draft: being written (adhd + writer) -->
-<!-- review: critic + blind reviewer running -->
+<!-- review: reviewer running -->
 <!-- committed: passed review, committed to dev -->
 <!-- done: all plans under this spec are done -->
 <!-- superseded: replaced by a newer spec -->

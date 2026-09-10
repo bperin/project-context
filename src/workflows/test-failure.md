@@ -34,7 +34,7 @@ Tests fail
 
 ## Roles
 
-### Role 1: Primary (you, with context)
+### Role 1: Orchestrator (you, with context)
 
 - Has full conversation context — knows what was implemented and why.
 - Triages failures: reads each failing test, classifies the cause.
@@ -43,13 +43,13 @@ Tests fail
   write access to test files).
 - Escalates to the user if the failure reveals a design issue.
 
-### Role 2: Testing agent (subagent, write access, no context)
+### Role 2: Testing agent (subagent, write access)
 
-- Sees only the source files, the failing test files, `AGENTS.md`
-  (testing rules), and a failure summary from the primary.
+- Sees the source files, the failing test files, `AGENTS.md`
+  (testing rules), and a failure summary from the orchestrator.
 - Fixes test bugs directly — wrong assertions, missing setup,
   flaky timing, incorrect mocks.
-- Does NOT fix code bugs — reports them to the primary.
+- Does NOT fix code bugs — reports them to the orchestrator.
 - Runs verification after fixing.
 
 ## Steps
@@ -74,7 +74,7 @@ Tests fail
        or test.
 
 3. **Fix.**
-   - Code bugs: primary fixes the code. Re-run the specific failing
+   - Code bugs: orchestrator fixes the code. Re-run the specific failing
      test first for fast feedback, then the full suite.
    - Test bugs: spawn the testing agent with the failing test path,
      the failure output, and a one-line classification ("test bug:
@@ -87,7 +87,7 @@ Tests fail
    suite. A fix for one test can break another.
 
 5. **Round counter.** This is round 1. If tests still fail, go back
-   to step 1. Max 3 rounds. Each round, the primary should try a
+   to step 1. Max 3 rounds. Each round, the orchestrator should try a
    different approach — if the same fix attempt fails twice, the
    diagnosis is wrong.
 
@@ -95,7 +95,7 @@ Tests fail
    `ask_user_question` to present:
    - The failing tests and their output.
    - What was tried in each round.
-   - The primary's assessment of the root cause.
+   - The orchestrator's assessment of the root cause.
    - Suggested options (fix the code, fix the test, change the spec,
      drop the feature).
 
@@ -117,7 +117,7 @@ Test file: <path>
 Failure output:
 <output>
 
-Primary's classification: <one-line explanation of why this is a
+Orchestrator's classification: <one-line explanation of why this is a
 test bug, e.g. "assertion expects 200 but the API returns 201 for
 POST create — the test is wrong, not the code">
 

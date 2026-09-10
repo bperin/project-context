@@ -7,21 +7,22 @@ execution pipeline — from implementation through testing to done.
 
 ## Pipeline
 
-The orchestrator has full context. It builds a context packet for
-each subagent and passes it along. Subagents are not blind — they
-receive the context packet, task file, source files, and skills. They
-just don't get the raw conversation history, which would bloat their
-context and leak irrelevant detail.
+The orchestrator is the big brain — it has full conversation context
+and loads `adhd` for divergent ideation on the implementation approach.
+It builds a context packet for each subagent and passes it along. The
+packet carries the task's skills, parent plan, spec, modules, and
+components so the subagent has what it needs without the raw
+conversation history.
 
 ```
 Orchestrator loads adhd skill (divergent ideation on implementation approach)
     → Orchestrator builds context packet for TASK-N
-    → Orchestrator spawns implementer (foreground, write access, primary skill)
+    → Orchestrator dispatches implementer (foreground, write access, primary skill)
     → Implementer implements TASK-N (code + initial tests)
-        → Orchestrator spawns reviewer (background, read-only, code-review skill)
+        → Orchestrator dispatches reviewer (background, read-only, code-review skill)
             → Reviewer reports findings
-If reviewer calls back → orchestrator re-spawns implementer with findings
-When review passes → orchestrator spawns testing agent (background, write access, testing skill)
+If reviewer calls back → orchestrator re-dispatches implementer with findings
+When review passes → orchestrator dispatches testing agent (background, write access, testing skill)
 If tests fail → test-failure workflow (triage, fix, re-run, max 3 rounds, escalate)
 When all tests pass → commit → task done
 ```
@@ -30,16 +31,17 @@ When all tests pass → commit → task done
 
 ### Role 0: Orchestrator (you)
 
-- Has full conversation context.
-- **Never writes code, tests, or reviews.** Only spawns subagents,
-  feeds them context packets, collects results, and decides next steps.
+- Has full conversation context. Loads `adhd` for divergent ideation
+  before dispatching the implementer.
+- **Coordinates, does not implement.** Builds context packets,
+  dispatches subagents, collects results, and decides next steps.
 - Builds context packets with the CLI for each subagent. The context
   packet carries the task's skills, parent plan, spec, modules, and
   components so the subagent has what it needs without conversation
   history.
-- Spawns the implementer, reviewer, and testing agent. Moves to the
+- Dispatches the implementer, reviewer, and testing agent. Moves to the
   next task while background agents work.
-- If any agent calls back with findings, re-spawns the implementer
+- If any agent calls back with findings, re-dispatches the implementer
   with specific guidance to address them.
 
 ### Role 1: Implementer (subagent, foreground, write access)
@@ -53,7 +55,7 @@ When all tests pass → commit → task done
   test suite is written by the testing agent after review.
 - Runs verification: the project's build, vet, test, and lint commands.
 - Reports what was implemented and any issues found.
-- If re-spawned with review findings, fixes them directly.
+- If re-dispatched with review findings, fixes them directly.
 
 ### Role 2: Reviewer (subagent, background, read-only)
 
@@ -91,8 +93,7 @@ When all tests pass → commit → task done
    node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
    ```
 
-2. **Spawn the implementer** (foreground, `subagent_general`
-   profile for write access). Give it:
+2. **Spawn the implementer** (foreground, write access). Give it:
    - The context packet file path
    - The task file path (for goal, files, symbols, constraints, acceptance
      criteria, algorithm ID)
@@ -111,20 +112,20 @@ When all tests pass → commit → task done
    - Reports what was implemented and any issues found.
 
 3. **Reconcile implementer output.** If it reports issues it
-   couldn't fix, spawn it again with specific guidance. Do not fix
-   code yourself — re-spawn the subagent.
+   couldn't fix, dispatch it again with specific guidance. Do not fix
+   code yourself — re-dispatch the subagent.
 
-4. **Spawn the reviewer** (background, `subagent_explore`
-   profile). Give it: `AGENTS.md`, the project's algorithm registry
-   (if applicable), task file, diff. It checks the code against project
-   rules (see Reviewer checks below).
+4. **Spawn the reviewer** (background, read-only). Give it:
+   `AGENTS.md`, the project's algorithm registry (if applicable), task
+   file, and the diff. It checks the code against project rules (see
+   Reviewer checks below).
 
 5. **Move to the next task.** If the reviewer calls back with
-   findings, re-spawn the implementer with the findings. Do not fix
+   findings, re-dispatch the implementer with the findings. Do not fix
    code yourself.
 
-6. **When review passes → spawn the testing agent** (background,
-   `subagent_general` profile for write access). Give it:
+6. **When review passes → dispatch the testing agent** (background,
+   write access). Give it:
    - The source file path(s) under test
    - The task file path (for acceptance criteria and algorithm ID)
    - `AGENTS.md` path (testing rules section)
@@ -136,10 +137,10 @@ When all tests pass → commit → task done
    The testing agent writes the full test suite and runs verification.
 
 7. **Reconcile testing agent output.** If the testing agent reports a
-   code bug (a test fails against the approved code), re-spawn the
+   code bug (a test fails against the approved code), re-dispatch the
    implementer to fix the code — the review missed it. If it
    reports test design questions, answer them. Do not fix code or tests
-   yourself — re-spawn the relevant subagent.
+   yourself — re-dispatch the relevant subagent.
 
 8. **If tests fail → run the test-failure workflow**
    (`workflows/test-failure.md`). Do not free-form "go back and fix."
@@ -396,21 +397,22 @@ primary to address.
 
 ## Constraints
 
-- **The orchestrator never writes code, tests, or reviews.** It only
-  spawns subagents, feeds them context packets, collects results, and
-  decides next steps. If code needs fixing, re-spawn the implementer.
-  If tests need fixing, re-spawn the testing agent. If review is needed,
-  spawn the reviewer. The orchestrator is a coordinator, not a worker.
+- **The orchestrator coordinates.** It loads `adhd`, builds context
+  packets, dispatches implementers, reviewers, and testers, collects
+  results, and decides next steps. If code needs fixing, re-dispatch
+  the implementer. If tests need fixing, re-dispatch the testing agent.
+  If review is needed, dispatch the reviewer. The orchestrator is a
+  coordinator, not a worker.
 - No `math/rand`. Only `crypto/rand`.
 - No `==` or `bytes.Equal` on security-sensitive values.
 - No private key `String()` or `Format()` methods.
 - No skipped tests. No live network calls in tests.
 - Every exported declaration has documentation citing its standard.
-- The testing agent is spawned only after review passes — not
+- The testing agent is dispatched only after review passes — not
   before. Code is reviewed before the full test suite is written.
 - The testing agent has write access — it writes test files directly.
-  If a test fails against approved code, the code has a bug; spawn the
-  primary implementer to fix it.
+  If a test fails against approved code, the code has a bug; dispatch the
+  implementer to fix it.
 - Run race detection and shuffle (if supported) every time.
   Order-dependent or racy tests are MUST-FIX, not NITs.
 - Commit message humanized with `content-humanizer`. Cite the standard

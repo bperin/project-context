@@ -6,11 +6,11 @@
 
 ```mermaid
 flowchart TD
-    SPEC["SPEC written"] --> SPECW["spec-creation workflow<br/>writer - blind rounds 1-2 - spec-optimizer round 3<br/>max 3 rounds"]
+    SPEC["SPEC written"] --> SPECW["spec-creation workflow<br/>orchestrator + adhd - research - reviewer<br/>max 3 rounds"]
     SPECW -->|committed| PLAN["PLAN written"]
-    PLAN --> PLANW["plan-creation workflow<br/>writer - blind rounds 1-2 - plan-optimizer round 3<br/>max 3 rounds"]
+    PLAN --> PLANW["plan-creation workflow<br/>orchestrator + adhd - research - reviewer<br/>max 3 rounds"]
     PLANW -->|committed| TASK["TASK written"]
-    TASK --> TASKW["task-creation workflow<br/>writer - task-optimizer - blind<br/>max 3 rounds"]
+    TASK --> TASKW["task-creation workflow<br/>orchestrator + adhd - reviewer<br/>max 3 rounds"]
     TASKW -->|committed| IMPL["task-implementation workflow"]
     IMPL -->|tests fail| TF["test-failure workflow<br/>triage - fix - re-run<br/>max 3 rounds"]
     TF -->|fixed| IMPL
@@ -36,11 +36,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    START["Writer writes spec/plan/task"] --> R1["Round 1"]
-    R1 --> WRITER["Writer produces draft"]
-    WRITER --> OPT["Optimizer reviews<br/>read-only, has context<br/>can challenge approach"]
-    OPT --> BLIND["Blind reviewer reviews<br/>read-only, no context<br/>judges against AGENTS.md + rules"]
-    BLIND --> CHECK{"Issues found?"}
+    START["Orchestrator loads adhd + primary skill"] --> R1["Round 1"]
+    R1 --> WRITER["Orchestrator writes draft"]
+    WRITER --> OPT["Reviewer reviews<br/>read-only, has context<br/>can challenge approach"]
+    OPT --> CHECK{"Issues found?"}
     CHECK -->|no| DONE["Committed"]
     CHECK -->|yes| ROUND{"Round < 3?"}
     ROUND -->|yes| WRITER
@@ -49,22 +48,21 @@ flowchart TD
     style DONE fill:#C6EFCE,stroke:#006100
     style ESCALATE fill:#FFC7CE,stroke:#9C0006
     style OPT fill:#BDD7EE,stroke:#1F4E79
-    style BLIND fill:#D9D9D9,stroke:#595959
 ```
 
 ## Task Implementation (assembly line)
 
 ```mermaid
 flowchart TD
-    P["Primary loads primary skill"] --> CODE["Primary implements code<br/>+ initial tests"]
+    O["Orchestrator loads adhd"] --> CTX["Build context packet"]
+    CTX --> P["Implementer<br/>foreground, write access<br/>loads primary skill"]
+    P --> CODE["Implements code + initial tests"]
     CODE --> V1["build, vet, test, lint"]
-    V1 --> S["Secondary implementer<br/>foreground, write access<br/>loads secondary skill"]
-    S --> FIX["Reviews + fixes directly<br/>different skill lens"]
-    FIX --> V2["build, vet, test, lint"]
-    V2 --> CR["Code reviewer<br/>background, read-only<br/>loads code-review skill"]
+    V1 --> CR["Reviewer<br/>background, read-only<br/>loads code-review skill"]
     CR --> CRC{"Findings?"}
-    CRC -->|MUST-FIX| BACK1["Primary fixes"]
-    BACK1 --> V2
+    CRC -->|MUST-FIX| BACK1["Implementer fixes"]
+    BACK1 --> V2["build, vet, test, lint"]
+    V2 --> CR
     CRC -->|pass| TA["Testing agent<br/>background, write access<br/>loads testing skill"]
     TA --> TAC{"All tests pass?"}
     TAC -->|fail| TF["test-failure workflow<br/>triage: code bug / test bug / design issue<br/>max 3 rounds, escalate"]
@@ -73,10 +71,10 @@ flowchart TD
     TAC -->|pass| COM["Commit"]
     COM --> DONE["Task done"]
 
-    CR -.->|primary moves to next task<br/>while review runs| NEXT["Primary starts TASK-N+1"]
+    CR -.->|orchestrator moves to next task<br/>while review runs| NEXT["Start TASK-N+1"]
 
+    style O fill:#C6EFCE,stroke:#006100
     style P fill:#C6EFCE,stroke:#006100
-    style S fill:#BDD7EE,stroke:#1F4E79
     style CR fill:#D9D9D9,stroke:#595959
     style TA fill:#FFEB9C,stroke:#9C5700
     style TF fill:#FFC7CE,stroke:#9C0006
@@ -93,7 +91,7 @@ flowchart TD
     CHK -->|no| FIX["Fix failures"]
     FIX --> MECH
     CHK -->|yes| DIFF["git diff base...head"]
-    DIFF --> AGENT["Review subagent<br/>no conversation context<br/>full project context"]
+    DIFF --> AGENT["Reviewer subagent<br/>full project context"]
     AGENT --> FIND["Collect findings<br/>MUST-FIX / SHOULD-FIX / NIT"]
     FIND --> APPLY["Apply MUST-FIX + SHOULD-FIX"]
     APPLY --> REV["Re-run verification"]
@@ -126,10 +124,9 @@ The control plane is the set of rules the orchestrator follows to decide **when 
 | `/inspect-project` | user or model | Anytime the agent needs a current view of the xlsx |
 | `/context` | model | During orchestration to build a packet for a subagent |
 | `/uuid` | model | Whenever a new spec/plan/task needs a UUID |
-| `/spec-optimizer` | model only | Spawned by `/create-spec` during round 3 review |
-| `/plan-optimizer` | model only | Spawned by `/create-plan` during round 3 review |
+| `/spec-optimizer` | model only | Spawned by `/create-spec` during review |
+| `/plan-optimizer` | model only | Spawned by `/create-plan` during review |
 | `/task-optimizer` | model only | Spawned by `/create-task` during review rounds |
-| `/blind-reviewer` | model only | Spawned by `/create-spec`, `/create-plan`, or `/create-task` during review rounds |
 
 ### State transitions
 
@@ -142,7 +139,7 @@ TASK:    draft → review → committed → in_progress → done → superseded
 ```
 
 - `draft` — document is being written or revised.
-- `review` — the document is in the optimizer + blind review loop.
+- `review` — the document is in the reviewer loop.
 - `committed` — review passed; the document is authoritative.
 - `in_progress` — for plans and tasks, implementation has started.
 - `done` — all work is complete (tasks) or the spec/plan has been delivered.
@@ -152,25 +149,25 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
 
 ### Concurrency rules
 
-1. **Optimizer and blind reviewer can run in parallel** for the same document. They are independent and read-only. The orchestrator spawns both as background subagents, then waits for both results before deciding whether to revise.
-2. **Secondary implementer and code reviewer can overlap.** The secondary implementer runs in the foreground; once it finishes, the code reviewer runs in the background while the primary moves on to the next task.
-3. **Testing agent runs after code review passes.** It can run in the background; the primary monitors.
-4. **No nested subagents by default.** The optimizers and blind reviewer do not spawn their own subagents. Custom profiles can set `max-nesting` if needed, but the default workflow does not use nested subagents.
+1. **The reviewer runs after the orchestrator writes.** It is read-only and reports findings. The orchestrator revises.
+2. **Reviewer and implementer can overlap.** The reviewer runs in the background while the orchestrator moves on to the next task.
+3. **Testing agent runs after review passes.** It can run in the background; the orchestrator monitors.
+4. **No nested subagents by default.** The optimizers do not spawn their own subagents. Custom profiles can set `max-nesting` if needed, but the default workflow does not use nested subagents.
 
 ### Escalation rules
 
-1. **Creation review (spec/plan/task):** max 3 rounds of optimizer + blind reviewer. If the document still has MUST-FIX or SHOULD-FIX issues after round 3, the orchestrator stops and escalates to the user with:
+1. **Creation review (spec/plan/task):** max 3 rounds of review. If the document still has MUST-FIX or SHOULD-FIX issues after round 3, the orchestrator stops and escalates to the user with:
    - The document path
    - The unresolved findings
    - A summary of what has changed across the 3 rounds
    - A recommendation of what to do next
-2. **Implementation:** if the primary cannot make build/test pass after 3 fix attempts, escalate. The testing agent failing triggers the test-failure workflow (`workflows/test-failure.md`) — a structured triage loop, not free-form fixing. If the test-failure workflow exhausts its 3 rounds, escalate to the user.
-3. **PR review:** if mechanical checks fail repeatedly or the review subagent finds security-critical MUST-FIX issues, stop and escalate.
+2. **Implementation:** if the implementer cannot make build/test pass after 3 fix attempts, escalate. The testing agent failing triggers the test-failure workflow (`workflows/test-failure.md`) — a structured triage loop, not free-form fixing. If the test-failure workflow exhausts its 3 rounds, escalate to the user.
+3. **PR review:** if mechanical checks fail repeatedly or the reviewer finds security-critical MUST-FIX issues, stop and escalate.
 
 ### Failure and retry rules
 
 1. **Subagent fails to start or returns an error.** Do not treat this as a finding. Retry once. If the subagent fails twice, report the error to the user and stop the workflow.
-2. **Subagent findings are empty.** If both the optimizer and blind reviewer return no findings, the document passes. Do not invent findings.
+2. **Subagent findings are empty.** If the reviewer returns no findings, the document passes. Do not invent findings.
 3. **Subagent returns only NITs.** NITs do not block the round. The orchestrator may apply them or commit the document as-is. Do not spawn another round for NITs alone.
 4. **Tool call denied in a background subagent.** Background subagents cannot ask for new permissions. If a subagent fails because a tool was denied, resume it in the foreground or re-run it with the needed permissions.
 
@@ -179,7 +176,7 @@ The orchestrator updates the xlsx **after** the step that produced a state chang
 1. The orchestrator builds a context packet for the target spec/plan/task.
 2. The context packet's `allSkills` field lists every skill that applies (cascaded from target → parent → grandparent, deduplicated).
 3. The orchestrator loads the primary skill first using `skill invoke --skill <name>`.
-4. Secondary skills are loaded later by the appropriate subagent or secondary implementer.
+4. Secondary skills are loaded later by the appropriate subagent.
 5. The `adhd` skill is loaded during the writer phase for divergent ideation in spec/plan/task creation.
 
 ### Exit and hand-off rules

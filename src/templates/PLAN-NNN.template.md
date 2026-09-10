@@ -19,7 +19,7 @@
 
 <!-- Lifecycle: draft → review → committed → in_progress → done → superseded -->
 <!-- draft: being written (adhd + writer) -->
-<!-- review: critic + blind reviewer running -->
+<!-- review: reviewer running -->
 <!-- committed: passed review, committed to dev -->
 <!-- in_progress: tasks under this plan are being implemented -->
 <!-- done: all tasks under this plan are done, PR merged to master -->

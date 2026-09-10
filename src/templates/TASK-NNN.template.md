@@ -28,7 +28,7 @@
 
 <!-- Lifecycle: draft → review → committed → implementing → code-review → testing → done → superseded -->
 <!-- draft: task file being written (primary skill + adhd) -->
-<!-- review: critic + blind reviewer on the task file -->
+<!-- review: reviewer on the task file -->
 <!-- committed: task file passed review, committed to dev -->
 <!-- implementing: primary + secondary coding (code + initial tests) -->
 <!-- code-review: code reviewer checking code against project rules -->

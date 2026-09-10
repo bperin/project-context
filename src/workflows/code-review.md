@@ -10,8 +10,8 @@ diff** of all tasks in the plan.
 
 ## Reviewer model
 
-Reviews are done by a fast subagent with **no conversation context**
-but **full project context**. The subagent gets:
+Reviews are done by a reviewer subagent with full project context. The
+subagent gets:
 
 - **Mission context** (from files it reads): `AGENTS.md` (project
   structure, dependency rules, conventions, documentation rules,
@@ -21,9 +21,8 @@ but **full project context**. The subagent gets:
   documentation citation verification)
 - **The plan**: the PLAN-NNN.md being shipped, for completion criteria
 
-It never sees the implementation conversations, the user's requests,
-or the agent's reasoning. It reviews the cumulative diff against the
-project rules and the plan's completion criteria.
+It reviews the cumulative diff against the project rules and the
+plan's completion criteria.
 
 ## Steps
 
@@ -42,9 +41,8 @@ project rules and the plan's completion criteria.
    <project vuln scan command>    # no known vulnerabilities (if applicable)
    ```
 3. Generate the diff: `git diff protected...feature`.
-4. Launch a review subagent with the diff, the plan file, and any
-   project-specific reference files as input. No conversation context.
-   The subagent checks:
+4. Launch a reviewer subagent with the diff, the plan file, and any
+   project-specific reference files as input. The subagent checks:
    - **Documentation**: every exported declaration has a comment citing
      its standard, where the project requires citations. Citation
      matches the project's reference data.
@@ -130,8 +128,6 @@ Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite file and line.
 - If the review finds a fundamental design problem, set the plan back
   to `in_progress` and flag it to the user.
 - The reviewer has project context (mission, architecture, rules from
-  files) but no conversation context (no implementation rationale, no
-  user messages). It judges the diff against the rules and the plan,
-  not the intent.
+  files). It judges the diff against the rules and the plan.
 - The project's vulnerability scanner (if applicable) must pass. Any
   known vulnerability in a dependency blocks the merge.

@@ -90,15 +90,14 @@ When building a plan (register it via the CLI, not by editing the xlsx):
 Follow the task-implementation workflow
 (`workflows/task-implementation.md`). Summary:
 
-1. Build a context packet for the task with the CLI.
-2. Spawn primary implementer (foreground, write access). It loads
-   `primarySkills`, writes code + initial tests, runs verification.
-3. Spawn secondary implementer (foreground, write access, different
-   skill lens). It loads `secondarySkills` and `userLocal` skills.
-   It fixes issues directly.
-4. Spawn code reviewer (background, no context). It checks against
+1. Load the `adhd` skill for divergent ideation on the implementation
+   approach.
+2. Build a context packet for the task with the CLI.
+3. Spawn implementer (foreground, write access). It loads the primary
+   skill, writes code + initial tests, runs verification.
+4. Spawn reviewer (background, read-only). It checks the code against
    project rules.
-5. When code review passes, spawn testing agent (background, write
+5. When review passes, spawn testing agent (background, write
    access). It writes the full test suite.
 6. If tests fail → run the test-failure workflow
    (`workflows/test-failure.md`). Triage each failure (code bug, test
@@ -110,7 +109,7 @@ Follow the task-implementation workflow
    node /Users/brian/code/project-context/bin/cli.js status TASK-NNN done -t .
    ```
 
-**The orchestrator never writes code, tests, or reviews.** It only
-spawns subagents, feeds them context packets, collects results, and
-decides next steps. If code needs fixing, re-spawn the implementer. If
-tests need fixing, re-spawn the testing agent.
+**The orchestrator coordinates.** It loads `adhd`, builds context
+packets, dispatches implementers, reviewers, and testers, collects
+results, and decides next steps. If code needs fixing, re-spawn the
+implementer. If tests need fixing, re-spawn the testing agent.

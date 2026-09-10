@@ -1,6 +1,6 @@
 ---
 name: create-plan
-description: "Run the plan-creation workflow — divergent ideation (adhd), research, write plan, blind rounds 1-2, plan-optimizer round 3, max 3 rounds"
+description: "Run the plan-creation workflow — divergent ideation (adhd), research, write plan, reviewer, max 3 rounds"
 argument-hint: "<PLAN-NNN> from <SPEC-NNN>"
 triggers:
   - user
@@ -36,7 +36,7 @@ You are running the **plan-creation workflow** for this project. Read
 ## What you are doing
 
 Creating a new plan (PLAN-NNN) from a committed spec using the
-writer-research-plan-optimizer-security-blind review pattern.
+orchestrator-research-reviewer pattern.
 
 ## Steps
 
@@ -63,9 +63,8 @@ writer-research-plan-optimizer-security-blind review pattern.
    node /Users/brian/code/project-context/bin/cli.js context PLAN-NNN -t . -o .context-packet.json
    ```
 
-7. **Run tiered review per `workflows/plan-creation.md`:**
-   - Rounds 1-2: `blind-reviewer` (cheap) + `security reviewer` if crypto
-   - Round 3 (final): `plan-optimizer` (medium, `glm-5.2-high`) with `adhd` loaded
+7. **Run review per `workflows/plan-creation.md`:**
+   - `plan-optimizer` (medium, `glm-5.2-high`) with `adhd` loaded
    - Max 3 rounds, then escalate
 
 8. **Register the plan via the CLI.** Do not edit `overview.xlsx` directly:
