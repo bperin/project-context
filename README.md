@@ -44,13 +44,13 @@ the [Actions tab](https://github.com/bperin/project-context/actions)
 ```mermaid
 graph TD
     subgraph "Source repository"
-        SRC[src/ — workflows, templates, skills]
+        SRC[src/ — workflows, templates, agents, skills]
     end
 
     subgraph "Target repository"
         DATA[data/tasks.jsonl — task state log]
         DOCS[specs/, plans/, tasks/ — Markdown documents]
-        AGENTS[.agents/ — skills]
+        AGENTS[.agents/ — skills + agent profiles]
         WF[workflows/ — workflow definitions]
         TEMPLATES[templates/ — document templates]
         BIN[tools/project-context — bundled CLI]
@@ -63,7 +63,7 @@ graph TD
 
     DATA -->|context packet| BIN
     DOCS -->|document bodies| BIN
-    BIN -->|inspect / status / add / sync| DATA
+    BIN -->|inspect / status / add / sync / graph| DATA
 ```
 
 JSONL files (`data/tasks.jsonl`) hold task state as an append-only event
@@ -83,7 +83,7 @@ graph LR
     SPEC["**SPEC**<br/>adhd once → write<br/>→ review"]
     PLAN["**PLAN**<br/>write → review<br/>(same context as SPEC)"]
     TASK["**TASKS**<br/>task-writer reads spec+plan<br/>→ writes task MDs + JSONL → review"]
-    IMPL["**IMPLEMENT**<br/>implement → review → test → commit"]
+    IMPL["**IMPLEMENT**<br/>implementer → code-optimizer<br/>→ reviewer → test-agent"]
     REVIEW["**REVIEW**<br/>mechanical<br/>→ review diff → PR"]
 
     SPEC -->|approve| PLAN
@@ -175,32 +175,50 @@ Subagents receive context packets (not conversation history) built by
 the CLI. Each packet contains the target entity, parent, children,
 modules, components, and cascaded skills.
 
+## Workflow skills
+
+The `pc-*` skills are the user-facing slash commands that drive the
+workflow. They live in `.agents/skills/` and are discovered by Devin.
+
+| Command | Purpose |
+|---------|---------|
+| `/pc-plan` | Run the planning workflow — adhd once, write spec, review, write plan, review |
+| `/pc-create-tasks` | Run the task-writer workflow — read spec+plan, write task MDs + JSONL |
+| `/pc-implement` | Run the task-implementation workflow — implementer → code-optimizer → reviewer → test-agent |
+| `/pc-review` | Run the PR review workflow — mechanical checks, dispatch reviewer, open PR |
+| `/pc-inspect-project` | Read project state and print specs/plans/tasks with status |
+| `/pc-context` | Build a context packet for a spec/plan/task |
+| `/pc-uuid` | Generate a deterministic UUID from an ID |
+
 ## Commands
 
 ```bash
 # Scaffold a new workspace (do NOT run against existing repos with data)
-project-context init -t <target> [--discover] -w <workspace>
+project-context init -t <target> [--discover] [-w <workspace>]
 
 # Inspect project state
-project-context inspect -w .ai-trust -t .
+project-context inspect -t .
 
 # Refresh project overview from workflow .md files
-project-context overview -w .ai-trust -t .
+project-context overview -t .
+
+# Build graph nodes and edges from source files
+project-context graph -t .
 
 # Build a context packet for a spec/plan/task
-project-context context PLAN-003 -w .ai-trust -t . -o packet.json
+project-context context PLAN-003 -t . -o packet.json
 
 # Add a new spec/plan/task (creates MD file, appends to JSONL for tasks)
-project-context add --type plan --title "Title" --parent SPEC-001 -w .ai-trust -t .
+project-context add --type plan --title "Title" --parent SPEC-001 -t .
 
 # Update status (updates MD file, appends to JSONL for tasks)
-project-context status PLAN-003 committed -w .ai-trust -t .
+project-context status PLAN-003 committed -t .
 
 # Sync task→plan and plan→spec status rollups
-project-context sync -w .ai-trust -t .
+project-context sync -t .
 
 # Safe asset synchronization (workflows, templates, skills, agent profiles)
-project-context upgrade -w .ai-trust -t . \
+project-context upgrade -t . \
   --source /path/to/project-context/src \
   --no-symlink --no-hooks --no-bundled-skills
 ```
