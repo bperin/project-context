@@ -119,7 +119,13 @@ artifact, not the intent.
 
 10. **Commit.** Commit the spec and plan together with a message
     summarizing what was built. Tell the user to run `/pc-create-tasks
-    PLAN-NNN` to start task creation.
+    PLAN-NNN` to start task creation. **The workflow is now complete.
+    Do NOT write another spec. Do NOT write another plan. Do NOT loop
+    back to step 1. Do NOT start `/pc-create-tasks` yourself — that is
+    a separate workflow invoked by the user. Yield control and stop.**
+
+    If the user wants to build something else, they will invoke
+    `/pc-plan` again with a new request. This invocation is done.
 
 ## Expected output
 

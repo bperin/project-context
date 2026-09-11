@@ -124,8 +124,15 @@ reviewer subagent (cheaper model) to check each artifact.
     node /Users/brian/code/project-context/bin/cli.js status PLAN-NNN committed -t .
     ```
 
-15. **Report.** Summarize the spec and plan. Tell the user to run
-    `/pc-create-tasks PLAN-NNN` to have the task-writer generate tasks.
+15. **Report and END.** Summarize the spec and plan. Tell the user to
+    run `/pc-create-tasks PLAN-NNN` to have the task-writer generate
+    tasks. **The workflow is now complete. Do NOT write another spec.
+    Do NOT write another plan. Do NOT loop back to step 1. Do NOT
+    start `/pc-create-tasks` yourself — that is a separate workflow
+    invoked by the user. Yield control and stop.**
+
+    If the user wants to build something else, they will invoke
+    `/pc-plan` again with a new request. This invocation is done.
 
 ## Constraints
 
