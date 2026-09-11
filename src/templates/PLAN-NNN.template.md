@@ -1,5 +1,13 @@
 # PLAN-NNN: <short title>
 
+**UUID**: {{UUID}}
+**Status**: draft
+**Parent**: {{PARENT}}
+**Dependencies**: {{DEPENDENCIES}}
+**Skills**: {{SKILLS}}
+**Triggers**: {{TRIGGERS}}
+**Commit**: {{COMMIT}}
+
 <!-- Template hierarchy: SPEC-NNN → plans/PLAN-NNN.md → tasks/TASK-NNN.md -->
 <!-- Copy to plans/PLAN-NNN.md. Replace NNN with the real ID. -->
 <!-- The PLAN describes HOW the system is built — architecture, not what/why. -->
@@ -25,7 +33,6 @@
 <!-- done: all tasks under this plan are done, PR merged to master -->
 <!-- superseded: replaced by a newer plan -->
 
-- **Status**: draft
 - **Progress**: 0% (0 of N tasks done)
 - **Tasks**: <!-- list tasks created from this plan, or "none yet" -->
 
@@ -206,7 +213,7 @@ SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
 
 ## Review Findings
 
-<!-- Filled in during the plan-creation workflow. One row per finding. -->
+<!-- Filled in during the planning workflow. One row per finding. -->
 
 | Round | Reviewer | Type | Finding | Resolution |
 |---|---|---|---|---|

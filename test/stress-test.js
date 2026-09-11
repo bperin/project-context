@@ -1,11 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const ExcelJS = require('exceljs');
 const initCommand = require('../src/commands/init');
 const inspectCommand = require('../src/commands/inspect');
 const graphCommand = require('../src/commands/graph');
 const overviewCommand = require('../src/commands/overview');
+const addCommand = require('../src/commands/add');
+const setStatusCommand = require('../src/commands/set-status');
+const {
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  getTaskStates,
+  readJSONL,
+} = require('../src/commands/shared');
 
 async function stressTest() {
   console.log('=== STARTING STRESS TESTS & EDGE CASE VALIDATION ===');
@@ -18,7 +26,8 @@ async function stressTest() {
   await initCommand({ target: dir1, workspace: ws1, discover: true });
   assert(fs.existsSync(path.join(dir1, ws1, 'AGENTS.md')));
   assert(fs.existsSync(path.join(dir1, ws1, 'identity', 'project.md')));
-  assert(fs.existsSync(path.join(dir1, ws1, 'overview.xlsx')));
+  assert(fs.existsSync(path.join(dir1, ws1, 'data', 'tasks.jsonl')));
+  assert(fs.existsSync(path.join(dir1, ws1, 'data', 'identity.json')));
 
   // Scenario 2: Go project topology
   const dir2 = path.join('/tmp', 'stress-go-' + Date.now());
@@ -30,34 +39,39 @@ async function stressTest() {
   await initCommand({ target: dir2, workspace: ws2, discover: true });
   await graphCommand({ target: dir2, workspace: ws2 });
   assert(fs.existsSync(path.join(dir2, ws2, 'graph', 'nodes')));
-  assert(fs.existsSync(path.join(dir2, ws2, 'overview.xlsx')));
+  assert(fs.existsSync(path.join(dir2, ws2, 'data', 'tasks.jsonl')));
 
-  // Scenario 3: Populating xlsx with specs/plans/tasks and testing inspect + overview
+  // Scenario 3: Populating with specs/plans/tasks and testing inspect + overview
   const dir3 = path.join('/tmp', 'stress-full-' + Date.now());
   fs.mkdirSync(dir3, { recursive: true });
+  fs.writeFileSync(path.join(dir3, 'package.json'), '{"name":"test"}\n');
   const ws3 = '.full-manager';
   await initCommand({ target: dir3, workspace: ws3, discover: false });
 
-  const xlsxPath = path.join(dir3, ws3, 'overview.xlsx');
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(xlsxPath);
+  // Add spec, plan, task via CLI
+  await addCommand({ type: 'spec', title: 'Core Engine', target: dir3, workspace: ws3 });
+  await addCommand({ type: 'plan', title: 'Database Layer', parent: 'SPEC-001', target: dir3, workspace: ws3 });
+  await addCommand({ type: 'task', title: 'Connection Pool', parent: 'PLAN-001', target: dir3, workspace: ws3 });
 
-  wb.getWorksheet('Specs').addRow(['uuid-001', 'SPEC-001', 'Core Engine', 'committed', '50% (1/2 plans done)', 'none', '', '']);
-  wb.getWorksheet('Plans').addRow(['uuid-002', 'PLAN-001', 'Database Layer', 'in_progress', '60% (3/5 tasks done)', 'SPEC-001', '', '']);
-  wb.getWorksheet('Tasks').addRow(['uuid-003', 'TASK-001', 'Connection Pool', 'done', 'none', '', 'abc1234']);
-  await wb.xlsx.writeFile(xlsxPath);
+  // Set task to done
+  await setStatusCommand({ id: 'TASK-001', status: 'done', target: dir3, workspace: ws3 });
 
-  console.log('[Scenario 3] Testing inspect and overview with xlsx data...');
+  console.log('[Scenario 3] Testing inspect and overview with data...');
   await inspectCommand({ target: dir3, workspace: ws3 });
   await overviewCommand({ target: dir3, workspace: ws3 });
 
-  // Verify the xlsx still has our data after overview (overview only refreshes Workflows)
-  const wb2 = new ExcelJS.Workbook();
-  await wb2.xlsx.readFile(xlsxPath);
-  const specsSheet = wb2.getWorksheet('Specs');
-  assert(specsSheet.rowCount > 1, 'Specs sheet lost data after overview');
-  const tasksSheet = wb2.getWorksheet('Tasks');
-  assert(tasksSheet.rowCount > 1, 'Tasks sheet lost data after overview');
+  // Verify data persists
+  const specs = readSpecs(path.join(dir3, ws3));
+  assert(specs.length === 1, 'Specs not persisted');
+  const plans = readPlans(path.join(dir3, ws3));
+  assert(plans.length === 1, 'Plans not persisted');
+  const taskStates = getTaskStates(path.join(dir3, ws3));
+  assert(taskStates.size === 1, 'Tasks not persisted in JSONL');
+  assert.strictEqual(taskStates.get('TASK-001').status, 'done', 'Task not marked done');
+
+  // Verify plan timeline has events
+  const timeline = readJSONL(path.join(dir3, ws3, 'plans', 'PLAN-001.timeline.jsonl'));
+  assert(timeline.length >= 2, 'Plan timeline should have queued + done events');
 
   // Scenario 4: Error handling when workspace does not exist
   console.log('[Scenario 4] Testing error handling when workspace does not exist...');

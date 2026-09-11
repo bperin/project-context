@@ -1,5 +1,5 @@
 ---
-name: uuid
+name: pc-uuid
 description: "Generate a deterministic v5 UUID from an ID (SPEC-001, PLAN-001, TASK-001)"
 argument-hint: "<ID>"
 triggers:
@@ -20,4 +20,4 @@ Generate a deterministic v5 UUID from the given ID.
 node /Users/brian/code/project-context/bin/cli.js uuid <ID>
 ```
 
-Print the UUID. Use this when adding rows to overview.xlsx.
+Print the UUID. Use this when adding rows to data/tasks.jsonl and Markdown files.

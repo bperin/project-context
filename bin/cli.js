@@ -39,7 +39,7 @@ function resolveWorkspace(options) {
 
 program
   .command('init')
-  .description('Scaffold the project-context-{repo} workspace with workflows, skills, AGENTS.md, and overview.xlsx')
+  .description('Scaffold the project-context-{repo} workspace with workflows, skills, AGENTS.md, and JSONL data files')
   .option('-w, --workspace <path>', 'Workspace directory name (default: project-context-{reponame})')
   .option('-t, --target <path>', 'Target project directory', '.')
   .option('-d, --discover', 'Run discovery to populate identity', false)
@@ -54,7 +54,7 @@ program
 
 program
   .command('upgrade')
-  .description('Refresh an existing project-context workspace: skills, workflows, AGENTS.md, hooks, and xlsx structure (preserves project data)')
+  .description('Refresh an existing project-context workspace: skills, workflows, AGENTS.md, hooks, and JSONL data files (preserves project data)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .option('--source <dir>', 'Asset source root (defaults to this package\'s src/)')
@@ -73,7 +73,7 @@ program
 
 program
   .command('inspect')
-  .description('Read overview.xlsx and report specs/plans/tasks status and progress')
+  .description('Read project state and report specs/plans/tasks status')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (options) => {
@@ -103,7 +103,7 @@ program
 
 program
   .command('overview')
-  .description('Refresh the Workflows sheet in overview.xlsx from workflow markdown files')
+  .description('Refresh project overview from workflow markdown files')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (options) => {
@@ -147,7 +147,7 @@ program
 
 program
   .command('add')
-  .description('Add a spec/plan/task row to overview.xlsx (agents use this, not direct xlsx edits)')
+  .description('Add a spec/plan/task (creates MD file, appends to JSONL for tasks)')
   .requiredOption('--type <type>', 'spec, plan, or task')
   .requiredOption('--title <title>', 'Title')
   .option('--id <id>', 'Override the auto-assigned ID (e.g. SPEC-001)')
@@ -172,7 +172,7 @@ program
 
 program
   .command('status <id> <status>')
-  .description('Set the Status cell for a SPEC/PLAN/TASK row in overview.xlsx')
+  .description('Set the status for a SPEC/PLAN/TASK (updates MD file, appends to JSONL for tasks)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (id, status, options) => {
@@ -189,7 +189,7 @@ program
 
 program
   .command('sync')
-  .description('Recompute plan/spec Status and Progress bottom-up from child rows (uses the Parent column)')
+  .description('Recompute plan/spec Status bottom-up from child tasks/plans')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (options) => {

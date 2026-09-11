@@ -26,13 +26,8 @@ plan's completion criteria.
 
 ## Steps
 
-1. **Load the `adhd` skill.** Use it to explore the diff from divergent
-   angles before reviewing — what alternative implementations could
-   have been used? What edge cases would each approach miss? This
-   primes the review for architectural issues, not just line-by-line
-   nitpicks.
+1. Load the project's code-review skill (on-demand, not always-on).
 
-2. Load the project's code-review skill (on-demand, not always-on).
 2. Run the mechanical checks:
    ```
    <project lint command>        # must output nothing
@@ -40,9 +35,12 @@ plan's completion criteria.
    <project test command>        # must pass, no skips
    <project vuln scan command>    # no known vulnerabilities (if applicable)
    ```
+
 3. Generate the diff: `git diff protected...feature`.
-4. Launch a reviewer subagent with the diff, the plan file, and any
-   project-specific reference files as input. The subagent checks:
+
+4. **Dispatch the reviewer** (foreground, `agent: reviewer`, read-only).
+   Feed it the diff, the plan file, `AGENTS.md`, and any project-specific
+   reference files. The reviewer checks:
    - **Documentation**: every exported declaration has a comment citing
      its standard, where the project requires citations. Citation
      matches the project's reference data.
@@ -62,49 +60,21 @@ plan's completion criteria.
      DI, no interface inflation).
    - **Plan completion**: every task in the plan is `done`. Every
      completion criterion in the plan is met.
+
 5. Collect findings. Categorize as must-fix, should-fix, nit.
+
 6. Apply must-fix and should-fix changes.
+
 7. Re-run verification commands. All must pass.
+
 8. Check branch protection:
    - Branch protection is intact on the protected branch (no direct
      push, no force push, PR required).
    - The PR description summarizes what changed and why.
    - All CI checks pass.
+
 9. If all checks pass, the PR is ready to merge (squash or rebase per
    AGENTS.md branching rules).
-
-## Subagent prompt template
-
-```
-You are a PR reviewer for this project. Read AGENTS.md for full
-conventions, documentation rules, testing rules, security requirements,
-and the project's dependency rules (see AGENTS.md).
-
-Here is the full diff (feature → protected):
-
-<diff>
-
-Read the plan at <path> for completion criteria.
-Read any project-specific reference files for documentation citation
-verification.
-
-Check:
-- Documentation: every exported declaration cites its standard where
-  the project requires it. Citation matches the project's reference
-  data.
-- Security: no math/rand for security-sensitive ops, no == on secrets,
-  no constant-time comparisons missing where required, no private key
-  String()/Format()/GoString() equivalents, no logged secrets.
-- Architecture: no forbidden dependency directions. See AGENTS.md.
-- Testing: known-answer tests cite source. Negative tests present.
-  No skipped tests. Fuzz targets for parser surfaces where applicable.
-  Example functions for the public API where applicable.
-- Style: follow AGENTS.md conventions (concrete structs, explicit
-  constructors, no reflection DI, no interface inflation).
-- Plan completion: every task done. Every completion criterion met.
-
-Return findings as MUST-FIX, SHOULD-FIX, NIT. Cite file and line.
-```
 
 ## Inputs
 

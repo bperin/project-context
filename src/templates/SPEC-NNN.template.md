@@ -1,5 +1,12 @@
 # SPEC-NNN: <short title>
 
+**UUID**: {{UUID}}
+**Status**: draft
+**Dependencies**: {{DEPENDENCIES}}
+**Skills**: {{SKILLS}}
+**Triggers**: {{TRIGGERS}}
+**Commit**: {{COMMIT}}
+
 <!-- Template hierarchy: SPEC-NNN → plans/PLAN-NNN.md → tasks/TASK-NNN.md -->
 <!-- Copy to specs/SPEC-NNN.md. Replace NNN with the real ID. -->
 <!-- The SPEC describes WHAT and WHY. The Architect determines HOW in plans/PLAN-NNN.md. -->
@@ -24,7 +31,6 @@
 <!-- done: all plans under this spec are done -->
 <!-- superseded: replaced by a newer spec -->
 
-- **Status**: draft
 - **Progress**: 0% (0 of N plans done)
 - **Plans**: <!-- list plans created from this spec, or "none yet" -->
 
@@ -123,7 +129,7 @@
 
 ## Review Findings
 
-<!-- Filled in during the spec-creation workflow. One row per finding. -->
+<!-- Filled in during the planning workflow. One row per finding. -->
 
 | Round | Reviewer | Type | Finding | Resolution |
 |---|---|---|---|---|

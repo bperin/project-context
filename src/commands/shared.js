@@ -1,25 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const ExcelJS = require('exceljs');
-
-// Sheet definitions: name -> header columns.
-const SHEET_DEFS = [
-  { name: 'Identity', headers: ['Field', 'Value'] },
-  { name: 'Specs', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Parent', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
-  { name: 'Plans', headers: ['UUID', 'ID', 'Title', 'Status', 'Progress', 'Parent', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
-  { name: 'Tasks', headers: ['UUID', 'ID', 'Title', 'Status', 'Parent', 'Dependencies', 'Skills', 'Triggers', 'Commit'] },
-  { name: 'Modules', headers: ['Module', 'Path', 'Import', 'Purpose'] },
-  { name: 'Code Structure', headers: ['Domain', 'Path', 'Module', 'Responsibility'] },
-  { name: 'Components', headers: ['Component', 'Module', 'Layer', 'Status'] },
-  { name: 'Dependencies', headers: ['Dependency', 'Version', 'Module', 'Purpose'] },
-  { name: 'Data Ownership', headers: ['Data', 'Owner', 'Store', 'Ephemeral?'] },
-  { name: 'Realtime   Events   Channels', headers: ['Channel', 'Direction', 'Transport', 'Purpose'] },
-  { name: 'Deployment', headers: ['Unit', 'Type', 'Deploys to', 'Notes'] },
-  { name: 'Skills', headers: ['Skill', 'Path', 'Layer', 'Workflow/Trigger', 'Purpose'] },
-  { name: 'Skill Matrix', headers: ['Trigger', 'Language', 'Primary Skills', 'Secondary Skills', 'Notes'] },
-  { name: 'Decisions', headers: ['ID', 'Title', 'Status', 'Date'] },
-  { name: 'Workflows', headers: ['File', 'Title', 'Trigger', 'Link'] },
-];
 
 // Language skill presets. Each language maps to triggers, always-on,
 // project-local, user-level, and skill matrix rows.
@@ -135,109 +115,305 @@ function copyWithHeader(src, dst) {
   fs.writeFileSync(dst, header + content);
 }
 
-// createWorkbook builds a fresh overview.xlsx with the canonical sheets.
-async function createWorkbook(xlsxPath, language, projectName, repoName) {
-  const preset = LANGUAGE_PRESETS[language] || LANGUAGE_PRESETS.unknown;
-  const wb = new ExcelJS.Workbook();
+// ---------------------------------------------------------------------------
+// JSONL utilities
+// ---------------------------------------------------------------------------
 
-  for (const def of SHEET_DEFS) {
-    const ws = wb.addWorksheet(def.name);
-    ws.addRow(def.headers);
-  }
-
-  const identity = wb.getWorksheet('Identity');
-  const identityRows = [
-    ['Name', projectName],
-    ['Description', 'Project initialized with project-context'],
-    ['Stack', preset.stack],
-    ['Repository', `git@github.com:bperin/${repoName}.git`],
-    ['Manifests', ''],
-    ['Primary Language', language],
-    ['Discovered At', new Date().toISOString()],
-  ];
-  for (const row of identityRows) identity.addRow(row);
-
-  const skills = wb.getWorksheet('Skills');
-  for (const row of preset.skills) skills.addRow(row);
-
-  const matrix = wb.getWorksheet('Skill Matrix');
-  for (const row of preset.matrix) matrix.addRow(row);
-
-  const workflows = wb.getWorksheet('Workflows');
-  const workflowRows = [
-    ['spec-creation.md', 'Spec creation', 'After a spec is written or revised, before commit', ''],
-    ['plan-creation.md', 'Plan creation', 'After a plan is written, before implementation starts', ''],
-    ['task-creation.md', 'Task creation', 'After a task file is written, before implementation starts', ''],
-    ['task-implementation.md', 'Task implementation', 'When a task moves from todo to in_progress', ''],
-    ['code-review.md', 'Code review', 'Before any PR', ''],
-    ['test-failure.md', 'Test failure', 'When tests fail and need triage', ''],
-    ['skills-io-discovery.md', 'Skills IO discovery', 'When mapping agent skills to project triggers', ''],
-    ['overview.md', 'Overview', 'When refreshing project state', ''],
-  ];
-  for (const row of workflowRows) workflows.addRow(row);
-
-  await wb.xlsx.writeFile(xlsxPath);
-}
-
-// upgradeWorkbook reads an existing xlsx and adds any missing canonical
-// sheets/headers while preserving existing data. It also seeds language
-// presets into Skills and Skill Matrix if those sheets are empty.
-async function upgradeWorkbook(xlsxPath, language) {
-  const preset = LANGUAGE_PRESETS[language] || LANGUAGE_PRESETS.unknown;
-
-  let wb;
-  if (fs.existsSync(xlsxPath)) {
-    wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(xlsxPath);
-  } else {
-    wb = new ExcelJS.Workbook();
-  }
-
-  for (const def of SHEET_DEFS) {
-    let ws = wb.getWorksheet(def.name);
-    if (!ws) {
-      ws = wb.addWorksheet(def.name);
-      ws.addRow(def.headers);
-    } else if (ws.rowCount === 0) {
-      ws.addRow(def.headers);
+// readJSONL reads a .jsonl file and returns an array of parsed objects.
+// Returns [] if the file does not exist.
+function readJSONL(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const content = fs.readFileSync(filePath, 'utf8');
+  const lines = content.split('\n').filter(l => l.trim());
+  const results = [];
+  for (const line of lines) {
+    try {
+      results.push(JSON.parse(line));
+    } catch (e) {
+      // skip malformed lines
     }
   }
+  return results;
+}
 
-  // Seed Skills and Skill Matrix if they only have the header row
-  const skills = wb.getWorksheet('Skills');
-  if (skills.rowCount <= 1) {
-    for (const row of preset.skills) skills.addRow(row);
+// appendJSONL appends a JSON object as a single line to a .jsonl file.
+// Creates the file (and parent dirs) if it does not exist.
+function appendJSONL(filePath, obj) {
+  const dir = path.dirname(filePath);
+  fs.mkdirSync(dir, { recursive: true });
+  const line = JSON.stringify(obj) + '\n';
+  fs.appendFileSync(filePath, line);
+}
+
+// readJSON reads a .json file and returns the parsed object.
+// Returns null if the file does not exist or is invalid.
+function readJSON(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (e) {
+    return null;
   }
+}
 
-  const matrix = wb.getWorksheet('Skill Matrix');
-  if (matrix.rowCount <= 1) {
-    for (const row of preset.matrix) matrix.addRow(row);
+// writeJSON writes an object as pretty-printed JSON to a file.
+// Creates parent dirs if needed.
+function writeJSON(filePath, obj) {
+  const dir = path.dirname(filePath);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(obj, null, 2) + '\n');
+}
+
+// ---------------------------------------------------------------------------
+// Task state (from tasks.jsonl)
+// ---------------------------------------------------------------------------
+
+// readTasks reads data/tasks.jsonl and returns the raw event array.
+function readTasks(aiDir) {
+  return readJSONL(path.join(aiDir, 'data', 'tasks.jsonl'));
+}
+
+// getTaskStates reduces the event log to the current state of each task.
+// Returns a Map of id -> { id, title, plan, status, ts }.
+function getTaskStates(aiDir) {
+  const events = readTasks(aiDir);
+  const states = new Map();
+  for (const ev of events) {
+    if (!ev.id) continue;
+    const existing = states.get(ev.id) || { id: ev.id, title: '', plan: '', status: 'draft' };
+    if (ev.event === 'created') {
+      existing.title = ev.title || existing.title;
+      existing.plan = ev.plan || existing.plan;
+    }
+    if (ev.event === 'created') existing.status = 'draft';
+    else if (ev.event === 'started') existing.status = 'in_progress';
+    else if (ev.event === 'done') existing.status = 'done';
+    else if (ev.status) existing.status = ev.status;
+    existing.ts = ev.ts || existing.ts;
+    states.set(ev.id, existing);
   }
+  return states;
+}
 
-  // Seed Workflows if empty
-  const workflows = wb.getWorksheet('Workflows');
-  if (workflows.rowCount <= 1) {
-    const workflowRows = [
-      ['spec-creation.md', 'Spec creation', 'After a spec is written or revised, before commit', ''],
-      ['plan-creation.md', 'Plan creation', 'After a plan is written, before implementation starts', ''],
-      ['task-creation.md', 'Task creation', 'After a task file is written, before implementation starts', ''],
-      ['task-implementation.md', 'Task implementation', 'When a task moves from todo to in_progress', ''],
-      ['code-review.md', 'Code review', 'Before any PR', ''],
-      ['test-failure.md', 'Test failure', 'When tests fail and need triage', ''],
-      ['skills-io-discovery.md', 'Skills IO discovery', 'When mapping agent skills to project triggers', ''],
-      ['overview.md', 'Overview', 'When refreshing project state', ''],
-    ];
-    for (const row of workflowRows) workflows.addRow(row);
-  }
+// getTaskState returns the current state of a single task, or null.
+function getTaskState(aiDir, taskId) {
+  const states = getTaskStates(aiDir);
+  return states.get(taskId) || null;
+}
 
-  await wb.xlsx.writeFile(xlsxPath);
+// appendTaskEvent appends an event to data/tasks.jsonl.
+function appendTaskEvent(aiDir, event) {
+  if (!event.ts) event.ts = new Date().toISOString();
+  appendJSONL(path.join(aiDir, 'data', 'tasks.jsonl'), event);
+}
+
+// appendTimelineEvent appends an event to a plan's timeline JSONL.
+function appendTimelineEvent(aiDir, planId, event) {
+  if (!event.ts) event.ts = new Date().toISOString();
+  event.plan = planId;
+  appendJSONL(path.join(aiDir, 'plans', `${planId}.timeline.jsonl`), event);
+}
+
+// readTimeline reads a plan's timeline JSONL.
+function readTimeline(aiDir, planId) {
+  return readJSONL(path.join(aiDir, 'plans', `${planId}.timeline.jsonl`));
+}
+
+// ---------------------------------------------------------------------------
+// Spec/Plan state (from MD files)
+// ---------------------------------------------------------------------------
+
+// parseMarkdownStatus extracts the status from a spec/plan/task MD file.
+function parseMarkdownStatus(filePath) {
+  if (!fs.existsSync(filePath)) return 'draft';
+  const content = fs.readFileSync(filePath, 'utf8');
+  const m = content.match(/\*\*Status\*\*:[ \t]*`?([a-z_]+)`?/i);
+  return m ? m[1] : 'draft';
+}
+
+// updateMarkdownStatus updates the **Status** line in a spec/plan/task MD file.
+function updateMarkdownStatus(filePath, newStatus) {
+  if (!fs.existsSync(filePath)) return false;
+  let content = fs.readFileSync(filePath, 'utf8');
+  const updated = content.replace(
+    /(\*\*Status\*\*:[ \t]*`?)([a-z_]+)(`?)/i,
+    `$1${newStatus}$3`
+  );
+  if (updated === content) return false;
+  fs.writeFileSync(filePath, updated);
+  return true;
+}
+
+// parseMarkdownField extracts a **Field**: value line from a MD file.
+function parseMarkdownField(filePath, field) {
+  if (!fs.existsSync(filePath)) return '';
+  const content = fs.readFileSync(filePath, 'utf8');
+  const re = new RegExp(`\\*\\*${field}\\*\\*:[ \\t]*(.*)`, 'i');
+  const m = content.match(re);
+  return m ? m[1].trim() : '';
+}
+
+// readSpecs reads all spec MD files and returns an array of metadata.
+function readSpecs(aiDir) {
+  const specsDir = path.join(aiDir, 'specs');
+  if (!fs.existsSync(specsDir)) return [];
+  return fs.readdirSync(specsDir)
+    .filter(f => f.endsWith('.md') && f.startsWith('SPEC-'))
+    .sort()
+    .map(f => {
+      const fp = path.join(specsDir, f);
+      const id = f.replace('.md', '');
+      const titleMatch = fs.readFileSync(fp, 'utf8').match(/^#\s+(.*)/m);
+      return {
+        id,
+        title: titleMatch ? titleMatch[1] : id,
+        status: parseMarkdownStatus(fp),
+        uuid: parseMarkdownField(fp, 'UUID'),
+        dependencies: parseMarkdownField(fp, 'Dependencies'),
+        skills: parseMarkdownField(fp, 'Skills'),
+        triggers: parseMarkdownField(fp, 'Triggers'),
+        commit: parseMarkdownField(fp, 'Commit'),
+        filePath: fp,
+      };
+    });
+}
+
+// readPlans reads all plan MD files and returns an array of metadata.
+function readPlans(aiDir) {
+  const plansDir = path.join(aiDir, 'plans');
+  if (!fs.existsSync(plansDir)) return [];
+  return fs.readdirSync(plansDir)
+    .filter(f => f.endsWith('.md') && f.startsWith('PLAN-') && !f.includes('.timeline.'))
+    .sort()
+    .map(f => {
+      const fp = path.join(plansDir, f);
+      const id = f.replace('.md', '');
+      const titleMatch = fs.readFileSync(fp, 'utf8').match(/^#\s+(.*)/m);
+      return {
+        id,
+        title: titleMatch ? titleMatch[1] : id,
+        status: parseMarkdownStatus(fp),
+        uuid: parseMarkdownField(fp, 'UUID'),
+        parent: parseMarkdownField(fp, 'Parent'),
+        dependencies: parseMarkdownField(fp, 'Dependencies'),
+        skills: parseMarkdownField(fp, 'Skills'),
+        triggers: parseMarkdownField(fp, 'Triggers'),
+        commit: parseMarkdownField(fp, 'Commit'),
+        filePath: fp,
+      };
+    });
+}
+
+// readTaskFiles reads all task MD files and returns an array of metadata.
+function readTaskFiles(aiDir) {
+  const tasksDir = path.join(aiDir, 'tasks');
+  if (!fs.existsSync(tasksDir)) return [];
+  return fs.readdirSync(tasksDir)
+    .filter(f => f.endsWith('.md') && f.startsWith('TASK-'))
+    .sort()
+    .map(f => {
+      const fp = path.join(tasksDir, f);
+      const id = f.replace('.md', '');
+      const titleMatch = fs.readFileSync(fp, 'utf8').match(/^#\s+(.*)/m);
+      return {
+        id,
+        title: titleMatch ? titleMatch[1] : id,
+        status: parseMarkdownStatus(fp),
+        parent: parseMarkdownField(fp, 'Parent'),
+        dependencies: parseMarkdownField(fp, 'Dependencies'),
+        skills: parseMarkdownField(fp, 'Skills'),
+        triggers: parseMarkdownField(fp, 'Triggers'),
+        commit: parseMarkdownField(fp, 'Commit'),
+        filePath: fp,
+      };
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Identity and skills (from JSON files)
+// ---------------------------------------------------------------------------
+
+// readIdentity reads data/identity.json.
+function readIdentity(aiDir) {
+  return readJSON(path.join(aiDir, 'data', 'identity.json')) || {};
+}
+
+// readSkills reads data/skills.json (skill registry + matrix).
+function readSkills(aiDir) {
+  return readJSON(path.join(aiDir, 'data', 'skills.json')) || { skills: [], matrix: [] };
+}
+
+// ---------------------------------------------------------------------------
+// Init helpers (create JSONL/JSON files)
+// ---------------------------------------------------------------------------
+
+// createDataFiles creates the initial JSONL and JSON data files.
+function createDataFiles(aiDir, language, projectName, repoName) {
+  const preset = LANGUAGE_PRESETS[language] || LANGUAGE_PRESETS.unknown;
+  const dataDir = path.join(aiDir, 'data');
+
+  // identity.json
+  writeJSON(path.join(dataDir, 'identity.json'), {
+    name: projectName,
+    description: 'Project initialized with project-context',
+    stack: preset.stack,
+    repository: `git@github.com:bperin/${repoName}.git`,
+    manifests: '',
+    primaryLanguage: language,
+    discoveredAt: new Date().toISOString(),
+  });
+
+  // skills.json
+  writeJSON(path.join(dataDir, 'skills.json'), {
+    skills: preset.skills.map(row => ({
+      skill: row[0],
+      path: row[1],
+      layer: row[2],
+      workflowTrigger: row[3],
+      purpose: row[4],
+    })),
+    matrix: preset.matrix.map(row => ({
+      trigger: row[0],
+      language: row[1],
+      primarySkills: row[2],
+      secondarySkills: row[3],
+      notes: row[4],
+    })),
+  });
+
+  // decisions.json
+  writeJSON(path.join(dataDir, 'decisions.json'), { decisions: [] });
+
+  // tasks.jsonl — start empty
+  appendJSONL(path.join(dataDir, 'tasks.jsonl'), { _init: true, ts: new Date().toISOString() });
 }
 
 module.exports = {
-  SHEET_DEFS,
   LANGUAGE_PRESETS,
   detectLanguage,
   copyWithHeader,
-  createWorkbook,
-  upgradeWorkbook,
+  // JSONL utilities
+  readJSONL,
+  appendJSONL,
+  readJSON,
+  writeJSON,
+  // Task state
+  readTasks,
+  getTaskStates,
+  getTaskState,
+  appendTaskEvent,
+  appendTimelineEvent,
+  readTimeline,
+  // Spec/Plan state
+  parseMarkdownStatus,
+  updateMarkdownStatus,
+  parseMarkdownField,
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  // Identity and skills
+  readIdentity,
+  readSkills,
+  // Init
+  createDataFiles,
 };

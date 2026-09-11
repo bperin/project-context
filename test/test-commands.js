@@ -1,12 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const ExcelJS = require('exceljs');
 const initCommand = require('../src/commands/init');
 const addCommand = require('../src/commands/add');
 const setStatusCommand = require('../src/commands/set-status');
 const uuidCommand = require('../src/commands/uuid');
 const contextCommand = require('../src/commands/context');
+const {
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  getTaskStates,
+  readJSONL,
+  parseMarkdownStatus,
+} = require('../src/commands/shared');
 
 async function runTests() {
   console.log('=== RUNNING COMMANDS TESTS ===');
@@ -14,6 +21,7 @@ async function runTests() {
   fs.mkdirSync(targetDir, { recursive: true });
   fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(targetDir, 'src', 'index.js'), "module.exports = {};\n");
+  fs.writeFileSync(path.join(targetDir, 'package.json'), '{"name":"test"}\n');
   const ws = '.test-manager';
   await initCommand({ target: targetDir, workspace: ws, discover: true });
 
@@ -26,59 +34,72 @@ async function runTests() {
 
   // --- add spec ---
   console.log('Testing add spec...');
-  const spec = addCommand({ type: 'spec', title: 'Test Spec', target: targetDir, workspace: ws });
-  assert.strictEqual(spec.id, 'SPEC-002', 'wrong spec id');
+  const spec = await addCommand({ type: 'spec', title: 'Test Spec', target: targetDir, workspace: ws });
+  assert.strictEqual(spec.id, 'SPEC-001', 'wrong spec id');
   assert(spec.uuid, 'spec uuid missing');
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const specs = wb.getWorksheet('Specs');
-  assert(specs.rowCount === 2, 'expected 2 spec rows (1 seeded + 1 added)');
-  const specRow = specs.getRow(2);
-  assert.strictEqual(specRow.getCell(2).value, 'SPEC-002');
+  assert(fs.existsSync(path.join(targetDir, ws, 'specs', 'SPEC-001.md')), 'spec MD file not created');
+  const specs = readSpecs(path.join(targetDir, ws));
+  assert(specs.length === 1, 'expected 1 spec');
+  assert.strictEqual(specs[0].id, 'SPEC-001');
+  assert.strictEqual(specs[0].title, 'Test Spec');
 
   // --- add plan ---
   console.log('Testing add plan...');
-  const plan = addCommand({ type: 'plan', title: 'Test Plan', target: targetDir, workspace: ws });
-  assert.strictEqual(plan.id, 'PLAN-002');
+  const plan = await addCommand({ type: 'plan', title: 'Test Plan', parent: 'SPEC-001', target: targetDir, workspace: ws });
+  assert.strictEqual(plan.id, 'PLAN-001');
   assert(plan.uuid, 'plan uuid missing');
-  const wb2 = new ExcelJS.Workbook();
-  await wb2.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const plans = wb2.getWorksheet('Plans');
-  const planRow = plans.getRow(2);
-  assert.strictEqual(planRow.getCell(2).value, 'PLAN-002');
-  assert.strictEqual(planRow.getCell(6).value, 'SPEC-001', 'plan dependency not set');
+  assert(fs.existsSync(path.join(targetDir, ws, 'plans', 'PLAN-001.md')), 'plan MD file not created');
+  const plans = readPlans(path.join(targetDir, ws));
+  assert(plans.length === 1, 'expected 1 plan');
+  assert.strictEqual(plans[0].id, 'PLAN-001');
+  assert.strictEqual(plans[0].parent, 'SPEC-001');
 
   // --- add task ---
   console.log('Testing add task...');
-  const task = addCommand({ type: 'task', title: 'Test Task', target: targetDir, workspace: ws });
-  assert.strictEqual(task.id, 'TASK-002');
+  const task = await addCommand({ type: 'task', title: 'Test Task', parent: 'PLAN-001', target: targetDir, workspace: ws });
+  assert.strictEqual(task.id, 'TASK-001');
   assert(task.uuid, 'task uuid missing');
-  const wb3 = new ExcelJS.Workbook();
-  await wb3.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const tasks = wb3.getWorksheet('Tasks');
-  const taskRow = tasks.getRow(2);
-  assert.strictEqual(taskRow.getCell(2).value, 'TASK-002');
-  assert.strictEqual(taskRow.getCell(6).value, 'PLAN-001', 'task dependency not set');
+  assert(fs.existsSync(path.join(targetDir, ws, 'tasks', 'TASK-001.md')), 'task MD file not created');
+
+  // Verify task event was appended to JSONL
+  const taskEvents = readJSONL(path.join(targetDir, ws, 'data', 'tasks.jsonl'));
+  const createdEvents = taskEvents.filter(e => e.event === 'created' && e.id === 'TASK-001');
+  assert(createdEvents.length === 1, 'task created event not in JSONL');
+  assert.strictEqual(createdEvents[0].plan, 'PLAN-001', 'task plan not set in JSONL');
+
+  // Verify plan timeline was created
+  assert(fs.existsSync(path.join(targetDir, ws, 'plans', 'PLAN-001.timeline.jsonl')), 'plan timeline not created');
+  const timeline = readJSONL(path.join(targetDir, ws, 'plans', 'PLAN-001.timeline.jsonl'));
+  const queuedEvents = timeline.filter(e => e.event === 'queued' && e.task === 'TASK-001');
+  assert(queuedEvents.length === 1, 'task queued event not in plan timeline');
 
   // --- status ---
   console.log('Testing status...');
-  const updated = setStatusCommand({ id: 'TASK-002', status: 'implementing', target: targetDir, workspace: ws });
-  assert.strictEqual(updated.status, 'implementing');
-  const wb4 = new ExcelJS.Workbook();
-  await wb4.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const tasks4 = wb4.getWorksheet('Tasks');
-  const taskRow2 = tasks4.getRow(2);
-  assert.strictEqual(taskRow2.getCell(5).value, 'implementing');
+  await setStatusCommand({ id: 'TASK-001', status: 'in_progress', target: targetDir, workspace: ws });
+
+  // Verify MD file status was updated
+  const taskStatus = parseMarkdownStatus(path.join(targetDir, ws, 'tasks', 'TASK-001.md'));
+  assert.strictEqual(taskStatus, 'in_progress', 'task MD status not updated');
+
+  // Verify JSONL event was appended
+  const taskEvents2 = readJSONL(path.join(targetDir, ws, 'data', 'tasks.jsonl'));
+  const startedEvents = taskEvents2.filter(e => e.event === 'started' && e.id === 'TASK-001');
+  assert(startedEvents.length === 1, 'task started event not in JSONL');
+
+  // Verify plan timeline was updated
+  const timeline2 = readJSONL(path.join(targetDir, ws, 'plans', 'PLAN-001.timeline.jsonl'));
+  const startedTimelineEvents = timeline2.filter(e => e.event === 'started' && e.task === 'TASK-001');
+  assert(startedTimelineEvents.length === 1, 'task started event not in plan timeline');
 
   // --- context packet ---
   console.log('Testing context...');
   let output = '';
   const originalLog = console.log;
   console.log = (msg) => { output += msg + '\n'; };
-  await contextCommand({ target: targetDir, workspace: ws, id: 'TASK-002' });
+  await contextCommand({ target: targetDir, workspace: ws, id: 'TASK-001' });
   console.log = originalLog;
   const packet = JSON.parse(output.trim());
-  assert.strictEqual(packet.target.id, 'TASK-002');
+  assert.strictEqual(packet.target.id, 'TASK-001');
   assert.strictEqual(packet.parent.id, 'PLAN-001');
   assert.strictEqual(packet.grandparent.id, 'SPEC-001');
   assert(Array.isArray(packet.allSkills));

@@ -1,6 +1,6 @@
 ---
-name: review
-description: "Run the code-review workflow — mechanical checks, review subagent, apply findings, open PR"
+name: pc-review
+description: "Run the code-review workflow — mechanical checks, dispatch reviewer subagent, apply findings, open PR"
 argument-hint: "[PLAN-NNN]"
 triggers:
   - user
@@ -37,13 +37,14 @@ Read the full workflow at `workflows/code-review.md` before starting. Follow it 
 
 2. **Diff review.** Run `git diff <protected>...<feature>` to see all changes.
 
-3. **Spawn review subagent** (background, read-only, no conversation context). Feed it:
+3. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`).
+   Feed it:
    - The diff
    - AGENTS.md path
    - The project's code-review skill (if installed)
    - Full project context (file paths, architecture)
 
-4. **Collect findings.** The subagent returns MUST-FIX, SHOULD-FIX, NIT.
+4. **Collect findings.** The reviewer returns MUST-FIX, SHOULD-FIX, NIT.
 
 5. **Apply MUST-FIX + SHOULD-FIX.** Fix the issues directly.
 

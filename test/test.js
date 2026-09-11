@@ -1,12 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const ExcelJS = require('exceljs');
 const initCommand = require('../src/commands/init');
 const inspectCommand = require('../src/commands/inspect');
 const graphCommand = require('../src/commands/graph');
 const overviewCommand = require('../src/commands/overview');
 const contextCommand = require('../src/commands/context');
+const {
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  getTaskStates,
+  readIdentity,
+  readSkills,
+  appendTaskEvent,
+  updateMarkdownStatus,
+  parseMarkdownField,
+  writeJSON,
+} = require('../src/commands/shared');
 
 async function runTests() {
   console.log('Running project-context test suite...');
@@ -16,6 +27,7 @@ async function runTests() {
   // Create a minimal source file so graph has something to walk
   fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(targetDir, 'src', 'index.js'), "module.exports = {};\n");
+  fs.writeFileSync(path.join(targetDir, 'package.json'), '{"name":"test"}\n');
 
   // --- Test init ---
   console.log('Testing init...');
@@ -23,78 +35,80 @@ async function runTests() {
   await initCommand({ target: targetDir, workspace: ws, discover: true });
   assert(fs.existsSync(path.join(targetDir, ws, 'AGENTS.md')), 'AGENTS.md missing');
   assert(fs.existsSync(path.join(targetDir, ws, 'specs')), 'specs dir missing');
-  assert(fs.existsSync(path.join(targetDir, ws, 'overview.xlsx')), 'overview.xlsx missing');
+  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'tasks.jsonl')), 'tasks.jsonl missing');
+  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'identity.json')), 'identity.json missing');
+  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'skills.json')), 'skills.json missing');
 
-  // Verify the xlsx has all expected sheets
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const expectedSheets = [
-    'Identity', 'Specs', 'Plans', 'Tasks', 'Modules', 'Code Structure',
-    'Components', 'Dependencies', 'Data Ownership', 'Realtime   Events   Channels',
-    'Deployment', 'Skills', 'Skill Matrix', 'Decisions', 'Workflows',
-  ];
-  const actualSheets = wb.worksheets.map(ws => ws.name);
-  for (const name of expectedSheets) {
-    assert(actualSheets.includes(name), `sheet "${name}" missing from overview.xlsx`);
-  }
+  // Verify identity.json has expected fields
+  const identity = readIdentity(path.join(targetDir, ws));
+  assert(identity.stack, 'identity.json missing stack');
+  assert(identity.primaryLanguage, 'identity.json missing primaryLanguage');
+
+  // Verify skills.json has expected structure
+  const skillsData = readSkills(path.join(targetDir, ws));
+  assert(Array.isArray(skillsData.skills), 'skills.json missing skills array');
+  assert(Array.isArray(skillsData.matrix), 'skills.json missing matrix array');
+  assert(skillsData.skills.length > 0, 'skills.json has no skill entries');
 
   // Verify custom subagent profiles are copied
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'spec-optimizer.md')), 'spec-optimizer agent profile missing');
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'plan-optimizer.md')), 'plan-optimizer agent profile missing');
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'task-optimizer.md')), 'task-optimizer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'reviewer.md')), 'reviewer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'code-optimizer.md')), 'code-optimizer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'implementer.md')), 'implementer agent profile missing');
+
+  // --- Test graph ---
   console.log('Testing graph...');
   await graphCommand({ target: targetDir, workspace: ws });
   assert(fs.existsSync(path.join(targetDir, ws, 'graph', 'nodes')), 'graph nodes missing');
   const nodeFiles = fs.readdirSync(path.join(targetDir, ws, 'graph', 'nodes'));
   assert(nodeFiles.length > 0, 'graph generated no nodes');
 
-  // --- Test overview (refreshes Workflows sheet) ---
+  // --- Test overview ---
   console.log('Testing overview...');
   await overviewCommand({ target: targetDir, workspace: ws });
-  const wb2 = new ExcelJS.Workbook();
-  await wb2.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const wfSheet = wb2.getWorksheet('Workflows');
-  assert(wfSheet, 'Workflows sheet missing after overview');
-  assert(wfSheet.rowCount > 1, 'Workflows sheet has no data rows');
+  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'workflows.json')), 'workflows.json missing after overview');
 
-  // --- Test inspect (reads from xlsx) ---
+  // --- Test inspect ---
   console.log('Testing inspect...');
-  const wb3 = new ExcelJS.Workbook();
-  await wb3.xlsx.readFile(path.join(targetDir, ws, 'overview.xlsx'));
-  const specs = wb3.getWorksheet('Specs');
-  specs.spliceRows(2, specs.rowCount);
-  specs.addRow(['uuid-001', 'SPEC-001', 'Test Spec', 'committed', '0%', 'none', '', '', '']);
-  const plans = wb3.getWorksheet('Plans');
-  plans.spliceRows(2, plans.rowCount);
-  plans.addRow(['uuid-plan', 'PLAN-001', 'Test Plan', 'committed', '0%', 'SPEC-001', 'go-crypto', 'crypto', '']);
-  const tasks = wb3.getWorksheet('Tasks');
-  tasks.spliceRows(2, tasks.rowCount);
-  tasks.addRow(['uuid-002', 'TASK-001', 'Test Task', 'committed', 'PLAN-001', '', '', 'ed25519', '']);
+  // Create spec, plan, task MD files for inspect to read
+  const specsDir = path.join(targetDir, ws, 'specs');
+  const plansDir = path.join(targetDir, ws, 'plans');
+  const tasksDir = path.join(targetDir, ws, 'tasks');
 
-  const identity = wb3.getWorksheet('Identity');
-  for (let r = 2; r <= identity.rowCount; r++) {
-    const row = identity.getRow(r);
-    const field = String(row.getCell(1).value || '').trim().toLowerCase();
-    if (field === 'primary language' || field === 'stack') {
-      row.getCell(2).value = 'Go';
-    }
-  }
+  fs.writeFileSync(path.join(specsDir, 'SPEC-001.md'),
+    '# SPEC-001: Test Spec\n\n**UUID**: test-uuid-001\n**Status**: committed\n**Dependencies**: none\n**Skills**: go-crypto\n**Triggers**: crypto\n');
+  fs.writeFileSync(path.join(plansDir, 'PLAN-001.md'),
+    '# PLAN-001: Test Plan\n\n**UUID**: test-uuid-plan\n**Status**: committed\n**Parent**: SPEC-001\n**Dependencies**: SPEC-001\n**Skills**: go-crypto\n**Triggers**: crypto\n');
+  fs.writeFileSync(path.join(tasksDir, 'TASK-001.md'),
+    '# TASK-001: Test Task\n\n**UUID**: test-uuid-002\n**Status**: committed\n**Parent**: PLAN-001\n**Dependencies**: PLAN-001\n**Skills**: \n**Triggers**: ed25519\n');
 
-  // Clear seeded skill rows and populate test layers
-  const skills = wb3.getWorksheet('Skills');
-  skills.spliceRows(2, skills.rowCount);
-  skills.addRow(['go-systems-programmer', 'user-level', 'always-on', 'all', 'Base Go style']);
-  skills.addRow(['project-linter', 'user-level', 'project-local', 'all', 'Base project lint']);
-  skills.addRow(['security-check', 'user-level', 'user-local', 'security', 'Security guardrails']);
-  skills.addRow(['ed25519-user', 'user-level', 'user-local', 'ed25519', 'Ed25519 user helper']);
-  const matrix = wb3.getWorksheet('Skill Matrix');
-  matrix.spliceRows(2, matrix.rowCount);
-  matrix.addRow(['ed25519', 'Go', 'ed25519-skill', 'wycheproof, crypto', 'Ed25519 implementation']);
+  // Append a task event to JSONL
+  appendTaskEvent(path.join(targetDir, ws), {
+    id: 'TASK-001',
+    event: 'created',
+    title: 'Test Task',
+    plan: 'PLAN-001',
+    status: 'draft',
+  });
 
-  await wb3.xlsx.writeFile(path.join(targetDir, ws, 'overview.xlsx'));
+  // Update skills.json with test layers
+  writeJSON(path.join(targetDir, ws, 'data', 'skills.json'), {
+    skills: [
+      { skill: 'go-systems-programmer', path: 'user-level', layer: 'always-on', workflowTrigger: 'all', purpose: 'Base Go style' },
+      { skill: 'project-linter', path: 'user-level', layer: 'project-local', workflowTrigger: 'all', purpose: 'Base project lint' },
+      { skill: 'security-check', path: 'user-level', layer: 'user-local', workflowTrigger: 'security', purpose: 'Security guardrails' },
+      { skill: 'ed25519-user', path: 'user-level', layer: 'user-local', workflowTrigger: 'ed25519', purpose: 'Ed25519 user helper' },
+    ],
+    matrix: [
+      { trigger: 'ed25519', language: 'Go', primarySkills: 'ed25519-skill', secondarySkills: 'wycheproof, crypto', notes: 'Ed25519 implementation' },
+    ],
+  });
+
+  // Update identity to Go
+  const identityPath = path.join(targetDir, ws, 'data', 'identity.json');
+  const ident = readIdentity(path.join(targetDir, ws));
+  ident.primaryLanguage = 'Go';
+  ident.stack = 'Go';
+  writeJSON(identityPath, ident);
 
   await inspectCommand({ target: targetDir, workspace: ws });
 

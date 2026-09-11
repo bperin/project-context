@@ -21,11 +21,11 @@ Code review or PR review finds test failures
 
 ```
 Tests fail
-    → Triage (primary, with context) — classify each failure
+    → Triage (orchestrator, with context) — classify each failure
         → Is it a code bug or a test bug?
-            → Code bug → Primary fixes the code
-            → Test bug → Testing agent fixes the test
-            → Design issue → Escalate to user
+            → Code bug → re-dispatch implementer to fix the code
+            → Test bug → re-dispatch testing agent to fix the test
+            → Design issue → escalate to user
     → Fix
     → Re-run full suite
     → If still failing → loop again (max 3 rounds)
@@ -38,12 +38,11 @@ Tests fail
 
 - Has full conversation context — knows what was implemented and why.
 - Triages failures: reads each failing test, classifies the cause.
-- Fixes code bugs directly.
-- Spawns the testing agent to fix test bugs (the testing agent has
-  write access to test files).
+- Re-dispatches the implementer to fix code bugs.
+- Re-dispatches the testing agent to fix test bugs.
 - Escalates to the user if the failure reveals a design issue.
 
-### Role 2: Testing agent (subagent, write access)
+### Role 2: Testing agent (subagent, foreground, write access)
 
 - Sees the source files, the failing test files, `AGENTS.md`
   (testing rules), and a failure summary from the orchestrator.
@@ -62,10 +61,10 @@ Tests fail
    - Read the code under test.
    - Classify:
      - **Code bug**: the code does the wrong thing. The test is
-       correct. Primary fixes the code.
+       correct. Re-dispatch the implementer to fix the code.
      - **Test bug**: the test expects the wrong thing, has a setup
-       error, or tests an implementation detail that changed. Testing
-       agent fixes the test.
+       error, or tests an implementation detail that changed. Re-dispatch
+       the testing agent to fix the test.
      - **Design issue**: the failure reveals that the spec or plan
        was wrong — the code works as designed but the design itself
        is flawed. Escalate to the user. Do not fix blindly.
@@ -74,12 +73,13 @@ Tests fail
        or test.
 
 3. **Fix.**
-   - Code bugs: orchestrator fixes the code. Re-run the specific failing
-     test first for fast feedback, then the full suite.
-   - Test bugs: spawn the testing agent with the failing test path,
-     the failure output, and a one-line classification ("test bug:
-     assertion expects wrong status code"). The testing agent fixes
-     the test file directly and re-runs verification.
+   - Code bugs: re-dispatch the implementer with the failing test path
+     and failure output. It fixes the code and re-runs the specific
+     failing test first for fast feedback, then the full suite.
+   - Test bugs: re-dispatch the testing agent with the failing test
+     path, the failure output, and a one-line classification ("test
+     bug: assertion expects wrong status code"). It fixes the test file
+     directly and re-runs verification.
    - Design issues: stop. Use `ask_user_question` to present the
      failure and the design conflict. Do not patch around it.
 
@@ -87,48 +87,20 @@ Tests fail
    suite. A fix for one test can break another.
 
 5. **Round counter.** This is round 1. If tests still fail, go back
-   to step 1. Max 3 rounds. Each round, the orchestrator should try a
-   different approach — if the same fix attempt fails twice, the
-   diagnosis is wrong.
+   to step 1. Max 3 rounds. Each round, try a different approach —
+   if the same fix attempt fails twice, the diagnosis is wrong.
 
 6. **Escalate.** If still failing after round 3, use
    `ask_user_question` to present:
    - The failing tests and their output.
    - What was tried in each round.
-   - The orchestrator's assessment of the root cause.
+   - Your assessment of the root cause.
    - Suggested options (fix the code, fix the test, change the spec,
      drop the feature).
 
 7. **When all tests pass.** Commit with a message noting the
    failure loop: "fix <X> — test failure round N: <root cause>".
    Update the task status to `done`.
-
-## Subagent prompt template
-
-### Testing agent (test bug fix)
-
-```
-You are a testing agent fixing a test bug. Read AGENTS.md for the
-project's testing rules.
-
-The following test is failing due to a test bug (not a code bug):
-
-Test file: <path>
-Failure output:
-<output>
-
-Orchestrator's classification: <one-line explanation of why this is a
-test bug, e.g. "assertion expects 200 but the API returns 201 for
-POST create — the test is wrong, not the code">
-
-Read the source under test at <path> to confirm the expected
-behavior.
-
-Fix the test file directly — you have write access. Run verification
-after fixing using the project's test command.
-
-Report what you fixed and why, briefly.
-```
 
 ## Inputs
 
@@ -158,3 +130,5 @@ Report what you fixed and why, briefly.
 - Design issues are escalated, not patched. If the code works as
   designed but the design is wrong, the spec or plan needs to change,
   not the code.
+- The orchestrator coordinates. It does not fix code or tests directly
+  — it re-dispatches the implementer or testing agent.

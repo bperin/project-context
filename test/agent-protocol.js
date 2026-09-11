@@ -27,17 +27,28 @@ async function testAgentProtocolsAndFixtures() {
   const agentsMd = fs.readFileSync(path.join(aiDir, 'AGENTS.md'), 'utf8');
   assert(agentsMd.includes('Session start'), 'AGENTS.md missing Session start checklist');
   assert(agentsMd.includes('Workflows'), 'AGENTS.md missing Workflows table');
-  assert(agentsMd.includes('spec-creation'), 'AGENTS.md missing spec-creation workflow reference');
+  assert(agentsMd.includes('plan-workflow'), 'AGENTS.md missing plan-workflow reference');
+  assert(agentsMd.includes('task-workflow'), 'AGENTS.md missing task-workflow reference');
 
   // 3. Verify workflow files are present and match expectations
   const workflowsDir = path.join(aiDir, 'workflows');
-  assert(fs.existsSync(path.join(workflowsDir, 'spec-creation.md')), 'spec-creation.md workflow missing');
-  assert(fs.existsSync(path.join(workflowsDir, 'plan-creation.md')), 'plan-creation.md workflow missing');
-  assert(fs.existsSync(path.join(workflowsDir, 'task-creation.md')), 'task-creation.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'plan-workflow.md')), 'plan-workflow.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'task-workflow.md')), 'task-workflow.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'task-implementation.md')), 'task-implementation.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'code-review.md')), 'code-review.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'overview.md')), 'overview.md workflow missing');
 
-  // 4. Test Graph analysis on fixture
+  // 4. Verify old workflows are NOT present
+  assert(!fs.existsSync(path.join(workflowsDir, 'spec-creation.md')), 'spec-creation.md should be deleted');
+  assert(!fs.existsSync(path.join(workflowsDir, 'plan-creation.md')), 'plan-creation.md should be deleted');
+  assert(!fs.existsSync(path.join(workflowsDir, 'task-creation.md')), 'task-creation.md should be deleted');
+
+  // 5. Verify JSONL data files exist
+  assert(fs.existsSync(path.join(aiDir, 'data', 'tasks.jsonl')), 'tasks.jsonl missing');
+  assert(fs.existsSync(path.join(aiDir, 'data', 'identity.json')), 'identity.json missing');
+  assert(fs.existsSync(path.join(aiDir, 'data', 'skills.json')), 'skills.json missing');
+
+  // 6. Test Graph analysis on fixture
   console.log('Running graph analysis on sample-node-project fixture...');
   await graphCommand({ target: fixtureDir, workspace: ws });
   const nodesDir = path.join(aiDir, 'graph', 'nodes');

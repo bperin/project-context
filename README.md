@@ -44,125 +44,133 @@ the [Actions tab](https://github.com/bperin/project-context/actions)
 ```mermaid
 graph TD
     subgraph "Source repository"
-        SRC[src/ — workflows, templates, agents, skills]
+        SRC[src/ — workflows, templates, skills]
     end
 
     subgraph "Target repository"
-        XLSX[overview.xlsx — source of truth]
-        DOCS[specs/, plans/, tasks/ — prose documents]
-        AGENTS[.ai-trust/.agents/ — skills + agent profiles]
-        DEVIN[.devin/agents/ — host-discovered profiles]
-        WF[.ai-trust/workflows/ — workflow definitions]
-        TEMPLATES[.ai-trust/templates/ — document templates]
+        DATA[data/tasks.jsonl — task state log]
+        DOCS[specs/, plans/, tasks/ — Markdown documents]
+        AGENTS[.agents/ — skills]
+        WF[workflows/ — workflow definitions]
+        TEMPLATES[templates/ — document templates]
         BIN[tools/project-context — bundled CLI]
     end
 
     SRC -->|"upgrade --source ... --no-symlink --no-hooks --no-bundled-skills"| AGENTS
     SRC -->|upgrade| WF
     SRC -->|upgrade| TEMPLATES
-    SRC -->|upgrade| DEVIN
     SRC -->|"esbuild bundle"| BIN
 
-    XLSX -->|context packet| BIN
+    DATA -->|context packet| BIN
     DOCS -->|document bodies| BIN
-    BIN -->|inspect / status / add / sync| XLSX
+    BIN -->|inspect / status / add / sync| DATA
 ```
 
-The `overview.xlsx` workbook is the source of truth for structured
-data (IDs, UUIDs, statuses, dependencies, skills). Markdown documents
-hold prose, requirements, acceptance criteria, and implementation
-detail. The workbook indexes the documents; the documents provide the
-substance.
+JSONL files (`data/tasks.jsonl`) hold task state as an append-only event
+log. Markdown documents hold prose, requirements, acceptance criteria,
+and implementation detail. Specs and plans carry status in their Markdown
+front-matter; tasks carry status in the JSONL event log.
 
 ## Workflow lifecycle
 
-Every workflow starts with the `adhd` skill for divergent ideation,
-regardless of which model runs the steps.
+The orchestrator runs the planning workflow in one continuous context:
+divergent ideation (`adhd`) once on the original input, then write spec,
+review, write plan, review. A separate task-writer then converts the
+approved plan into task Markdown files and JSONL records.
 
 ```mermaid
 graph LR
-    SPEC["**SPEC**<br/>adhd → research → write<br/>→ optimize → review"]
-    PLAN["**PLAN**<br/>adhd → research → write<br/>→ optimize → review"]
-    TASK["**TASK**<br/>adhd → write<br/>→ optimize → review"]
-    IMPL["**IMPLEMENT**<br/>adhd → implementer<br/>→ code-optimizer → reviewer → tester"]
-    REVIEW["**REVIEW**<br/>adhd → mechanical<br/>→ reviewer → PR"]
+    SPEC["**SPEC**<br/>adhd once → write<br/>→ review"]
+    PLAN["**PLAN**<br/>write → review<br/>(same context as SPEC)"]
+    TASK["**TASKS**<br/>task-writer reads spec+plan<br/>→ writes task MDs + JSONL → review"]
+    IMPL["**IMPLEMENT**<br/>implement → review → test → commit"]
+    REVIEW["**REVIEW**<br/>mechanical<br/>→ review diff → PR"]
 
     SPEC -->|approve| PLAN
     PLAN -->|approve| TASK
-    TASK -->|implement| IMPL
+    TASK -->|implement one at a time| IMPL
     IMPL -->|all tasks done| REVIEW
-    REVIEW -->|squash merge| DONE["**DONE**<br/>tag + record in xlsx"]
+    REVIEW -->|squash merge| DONE["**DONE**<br/>tag + record in JSONL"]
 ```
 
-## Orchestrator-optimizer-reviewer pattern
+Everything is linear. One task at a time. Subagents run sequentially —
+each one finishes before the next starts.
 
-Every workflow starts with the `adhd` skill for divergent ideation,
-loaded by the orchestrator (the big brain with full context). The
-orchestrator writes the document, then dispatches an optimizer subagent
-(with context) to tighten it, then a reviewer subagent (with context)
-to check correctness.
+## Planning workflow
+
+The orchestrator uses one continuous high-context process for spec and
+plan creation. `adhd` runs once, on the original user input, to frame the
+problem. The same context then writes the spec, dispatches the reviewer,
+writes the plan, and dispatches the reviewer. No optimizer or research
+subagents run during planning.
 
 ```mermaid
 graph TD
-    WRITE["**Orchestrator** (main agent)<br/>loads adhd, writes document"]
-    OPT["**Optimizer** (subagent, with context)<br/>tightens scope, challenges approach,<br/>checks coverage"]
-    REVIEW["**Reviewer** (subagent, with context)<br/>checks correctness, rule compliance,<br/>template compliance, dependencies"]
+    ADHD["**adhd** (once, on original input)<br/>divergent problem framing"]
+    WRITESPEC["**Write spec**<br/>same orchestrator context"]
+    REVIEWSPEC["**Review spec**<br/>reviewer subagent, with context"]
+    GATE1["**User approves spec**<br/>hard gate — no auto-progression"]
+    WRITEPLAN["**Write plan**<br/>same orchestrator context"]
+    REVIEWPLAN["**Review plan**<br/>reviewer subagent, with context"]
+    GATE2["**User approves plan**<br/>hard gate — no auto-progression"]
     COMMIT["**Commit**"]
 
-    WRITE --> OPT
-    OPT --> REVIEW
-    REVIEW -->|"MUST-FIX? revise, re-run"| REVIEW
-    REVIEW -->|"pass (NITs only)"| COMMIT
-    REVIEW -->|"MUST-FIX? escalate"| USER["**Escalate to user**"]
+    ADHD --> WRITESPEC
+    WRITESPEC --> REVIEWSPEC
+    REVIEWSPEC -->|"MUST-FIX? revise"| WRITESPEC
+    REVIEWSPEC -->|"pass"| GATE1
+    GATE1 -->|"approved"| WRITEPLAN
+    GATE1 -->|"changes"| WRITESPEC
+    WRITEPLAN --> REVIEWPLAN
+    REVIEWPLAN -->|"MUST-FIX? revise"| WRITEPLAN
+    REVIEWPLAN -->|"pass"| GATE2
+    GATE2 -->|"approved"| COMMIT
+    GATE2 -->|"changes"| WRITEPLAN
 ```
 
-Max 3 rounds, then escalate to the user.
+One review pass per artifact. If MUST-FIX issues remain after one
+revision, escalate to the user.
 
 ## Model rotation
 
 Custom subagent profiles are pinned to specific models via the `model:`
 field in their definition files. Profiles are discovered from
-`.devin/agents/` at the project root.
+`.agents/agents/` in the workspace.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
 | `implementer` | `gpt-5.6-sol-medium` | Write code + initial tests | Task implementation |
-| `spec-optimizer` | `gpt-5.6-sol-medium` | Spec optimization (approach, scope) | Spec creation, before reviewer |
-| `plan-optimizer` | `glm-5.2-high` | Plan optimization (ordering, coverage) | Plan creation, before reviewer |
-| `task-optimizer` | `glm-5.2-high` | Task optimization (files, vectors, readiness) | Task creation, before reviewer |
-| `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After optimizer, all creation workflows |
+| `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
 | `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
 | `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
 
 The orchestrator runs on `gpt-5.6-sol-high`. All subagents are pinned
 to different models via the `model:` field in their profile — none use
-the orchestrator's model.
+the orchestrator's model. The orchestrator is used only for the
+planning workflow (spec + plan). A separate task-writer handles task
+creation so the expensive orchestrator is not used for every task.
 
 ## Subagent architecture
 
 ```mermaid
 graph TD
-    ORCH["**Orchestrator** (main agent)<br/>loads adhd, builds context packets,<br/>dispatches subagents, applies findings"]
+    ORCH["**Orchestrator** (main agent)<br/>loads adhd once, builds context packets,<br/>writes spec + plan, dispatches reviewer"]
 
-    subgraph "Custom profiles (.devin/agents/)"
+    subgraph "Custom profiles (.agents/agents/)"
         IMPL["implementer.md<br/>model: gpt-5.6-sol-medium<br/>write access, with context"]
-        SPECOPT["spec-optimizer.md<br/>model: gpt-5.6-sol-medium<br/>read-only, with context"]
-        PLANOPT["plan-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
-        TASKOPT["task-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         REV["reviewer.md<br/>model: swe-1.7-medium<br/>read-only, with context"]
         CODEOPT["code-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
     end
 
     ORCH -->|"implementation"| IMPL
-    ORCH -->|"spec creation"| SPECOPT
-    ORCH -->|"plan creation"| PLANOPT
-    ORCH -->|"task creation"| TASKOPT
-    ORCH -->|"after optimizer"| REV
+    ORCH -->|"after writer"| REV
     ORCH -->|"after implementer"| CODEOPT
     ORCH -->|"after review"| TEST
 ```
 
+Subagents run **sequentially**, not in parallel. Each one finishes
+before the next starts. One task at a time — no parallel lanes.
 Subagents receive context packets (not conversation history) built by
 the CLI. Each packet contains the target entity, parent, children,
 modules, components, and cascaded skills.
@@ -173,19 +181,19 @@ modules, components, and cascaded skills.
 # Scaffold a new workspace (do NOT run against existing repos with data)
 project-context init -t <target> [--discover] -w <workspace>
 
-# Inspect the workbook
+# Inspect project state
 project-context inspect -w .ai-trust -t .
 
-# Refresh the Workflows sheet from workflow .md files (preserves all other sheets)
+# Refresh project overview from workflow .md files
 project-context overview -w .ai-trust -t .
 
 # Build a context packet for a spec/plan/task
 project-context context PLAN-003 -w .ai-trust -t . -o packet.json
 
-# Add a new spec/plan/task row
+# Add a new spec/plan/task (creates MD file, appends to JSONL for tasks)
 project-context add --type plan --title "Title" --parent SPEC-001 -w .ai-trust -t .
 
-# Update status
+# Update status (updates MD file, appends to JSONL for tasks)
 project-context status PLAN-003 committed -w .ai-trust -t .
 
 # Sync task→plan and plan→spec status rollups
@@ -200,12 +208,12 @@ project-context upgrade -w .ai-trust -t . \
 ### Safe upgrade
 
 `upgrade` synchronizes generated assets from the source repository
-while preserving workbook data. It copies:
+while preserving workspace data. It copies:
 
-- workflows → `.ai-trust/workflows/`
-- skills → `.ai-trust/.agents/skills/`
-- agent profiles → `.ai-trust/.agents/agents/` **and** `.devin/agents/`
-- templates → `.ai-trust/templates/`
+- workflows → `workflows/`
+- skills → `.agents/skills/`
+- agent profiles → `.agents/agents/`
+- templates → `templates/`
 
 The `--no-symlink`, `--no-hooks`, and `--no-bundled-skills` flags
 prevent unwanted side effects:
@@ -216,44 +224,38 @@ prevent unwanted side effects:
   into the workflow workspace (they belong at the repo root or
   user-level)
 
-Agent profiles are copied to `.devin/agents/` (without generated
-headers) so the Devin host discovers them as custom subagent
-profiles with their pinned models.
+`upgrade` also removes obsolete assets from older versions:
+`overview.xlsx`, old workflow files (`spec-creation.md`, etc.), old
+skill directories (unprefixed names), old agent profiles
+(`spec-optimizer.md`, `plan-optimizer.md`, `task-optimizer.md`), and
+stale templates.
 
 ## Directory structure
 
 ```text
 target repository/
 ├── .ai-trust/                      # durable workspace
-│   ├── overview.xlsx               # source of truth (structured data)
 │   ├── AGENTS.md                   # workflow protocol (generated)
 │   ├── .agents/
 │   │   ├── AGENTS.md               # shared skill instructions (generated)
 │   │   ├── agents/                 # subagent profiles (generated)
-│   │   │   ├── spec-optimizer.md
-│   │   │   ├── plan-optimizer.md
-│   │   │   ├── task-optimizer.md
 │   │   │   ├── reviewer.md
 │   │   │   ├── code-optimizer.md
 │   │   │   ├── implementer.md
 │   │   │   └── test-agent.md
-│   │   └── skills/                 # workflow skills (generated)
+│   │   └── skills/                 # pc-* workflow skills (generated)
 │   ├── workflows/                  # workflow definitions (generated)
 │   ├── templates/                  # document templates (generated)
 │   ├── specs/                      # spec documents (authored)
 │   ├── plans/                      # plan documents (authored)
 │   ├── tasks/                      # task documents (authored)
+│   ├── data/                       # JSONL + JSON state files
+│   │   ├── tasks.jsonl             # task event log (append-only)
+│   │   ├── identity.json           # project identity
+│   │   ├── skills.json            # skill registry + matrix
+│   │   └── decisions.json         # ADR index
 │   ├── decisions/                  # ADRs and research findings
 │   └── architecture/              # architecture docs
-├── .devin/
-│   └── agents/                     # host-discovered subagent profiles
-│       ├── spec-optimizer.md
-│       ├── plan-optimizer.md
-│       ├── task-optimizer.md
-│       ├── reviewer.md
-│       ├── code-optimizer.md
-│       ├── implementer.md
-│       └── test-agent.md
 └── tools/
     └── project-context             # bundled CLI (esbuild, self-contained)
 ```
@@ -304,9 +306,6 @@ project-context/
 ├── bin/cli.js                      # CLI entry point
 ├── src/
 │   ├── agents/                     # subagent profile source
-│   │   ├── spec-optimizer.md       #   model: gpt-5.6-sol-medium
-│   │   ├── plan-optimizer.md       #   model: glm-5.2-high
-│   │   ├── task-optimizer.md       #   model: glm-5.2-high
 │   │   ├── reviewer.md             #   model: swe-1.7-medium
 │   │   ├── code-optimizer.md       #   model: glm-5.2-high
 │   │   ├── implementer.md          #   model: gpt-5.6-sol-medium
@@ -321,7 +320,7 @@ project-context/
 │   │   ├── sync.js
 │   │   ├── upgrade.js
 │   │   └── shared.js
-│   ├── skills/                     # workflow skill source
+│   ├── skills/                     # pc-* workflow skill source
 │   ├── templates/                  # document template source
 │   └── workflows/                  # workflow definition source
 ├── test/                           # test suite

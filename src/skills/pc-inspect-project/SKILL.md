@@ -1,6 +1,6 @@
 ---
-name: inspect-project
-description: "Read overview.xlsx and print a nice view of specs, plans, and tasks"
+name: pc-inspect-project
+description: "Read project state and print a nice view of specs, plans, and tasks"
 triggers:
   - user
   - model
@@ -15,7 +15,7 @@ permissions:
 
 > **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the shared protocol, CLI commands, context packets, and rules for all skills.
 
-Read the project state from the overview.xlsx spreadsheet and print a summary.
+Read the project state from JSONL and Markdown files and print a summary.
 
 ```bash
 node /Users/brian/code/project-context/bin/cli.js inspect -t .

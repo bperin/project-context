@@ -18,15 +18,20 @@ The directory structure is flat — no nesting:
 ```
 .{reponame}-manager/
 ├── AGENTS.md                        # Workflow protocol (read this too)
-├── overview.xlsx                    # Source of truth — all specs, plans, tasks
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (implementer, spec-optimizer, plan-optimizer, task-optimizer, reviewer, code-optimizer, test-agent)
-│   └── skills/                      # Workflow + utility + skill wrappers
+│   ├── agents/                      # Custom subagent profiles (implementer, reviewer, code-optimizer, test-agent)
+│   └── skills/                      # pc-* workflow + utility skills
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── specs/SPEC-NNN.md               # Spec documents
 ├── plans/PLAN-NNN.md               # Plan documents
+├── plans/PLAN-NNN.timeline.jsonl   # Per-plan build timeline (append-only)
 ├── tasks/TASK-NNN.md               # Task documents
+├── data/
+│   ├── tasks.jsonl                 # Task event log (append-only)
+│   ├── identity.json               # Project identity
+│   ├── skills.json                 # Skill registry + matrix
+│   └── decisions.json              # ADR index
 ├── architecture/                    # Architecture docs
 ├── decisions/                       # ADRs
 ├── identity/                        # Project identity
@@ -37,164 +42,117 @@ The directory structure is flat — no nesting:
 
 ## Source of truth
 
-`overview.xlsx` is the single source of truth for all structured data.
-Every spec, plan, task, module, component, dependency, decision, and
-workflow link lives in that workbook. Markdown files are documents —
-the xlsx is the index.
+JSONL files hold task state. Markdown files hold spec/plan/task
+documents. JSON files hold project metadata.
 
-### Sheets
+| File | Content |
+|------|---------|
+| `data/tasks.jsonl` | Task event log — append-only. Each line is an event (created, started, done). |
+| `plans/PLAN-NNN.timeline.jsonl` | Per-plan build timeline — append-only. |
+| `data/identity.json` | Project name, stack, modules, repo |
+| `data/skills.json` | Skill registry and skill matrix |
+| `data/decisions.json` | ADR index |
+| `specs/SPEC-NNN.md` | Spec documents (human-readable, status in file) |
+| `plans/PLAN-NNN.md` | Plan documents (human-readable, status in file) |
+| `tasks/TASK-NNN.md` | Task documents (human-readable, status in file) |
 
-| Sheet | Content |
-|-------|---------|
-| Identity | Project name, stack, modules |
-| Specs | UUID, ID, Title, Status, Progress, Dependencies, Skills, Commit |
-| Plans | UUID, ID, Title, Status, Progress, Dependencies, Skills, Commit |
-| Tasks | UUID, ID, Title, Status, Dependencies, Skills, Commit |
-| Modules | Module, Path, Import, Purpose |
-| Code Structure | Domain, Path, Module, Responsibility |
-| Components | Component, Module, Layer, Status |
-| Dependencies | Dependency, Version, Module, Purpose |
-| Data Ownership | Data, Owner, Store, Ephemeral? |
-| Realtime/Events/Channels | Channel, Direction, Transport, Purpose |
-| Deployment | Unit, Type, Deploys to, Notes |
-| Always-on (user-level) | Skills loaded at session start |
-| On-demand (project-local) | Skills loaded for any task in this project |
-| On-demand (user-level) | Skills loaded when the trigger condition matches |
-| Skill Matrix | Trigger × Language → primary/secondary skill mapping |
-| Decisions | ADR index |
-| Workflows | Links to workflow files |
+Do not edit JSONL files directly. Register specs/plans/tasks with
+`project-context add` and update status with `project-context status`.
+The CLI handles UUID generation, event formatting, and timeline updates.
 
-### Skills sheet
+### tasks.jsonl format
 
-The `Skills` sheet is a unified skill registry:
+Append-only event log. Each line is a JSON object:
 
-```
-| Skill | Path | Layer | Workflow/Trigger | Purpose |
-|-------|------|-------|------------------|---------|
-| go-systems-programmer | user-level | always-on | all | Base Go style for all sessions |
-| go-security-expert | user-level | always-on | task-implementation | Security for crypto tasks |
-| golang-testing | user-level | project-local | all | Testing for any Go task |
-| golang-security | user-level | user-local | crypto | Crypto security review |
+```jsonl
+{"id":"TASK-001","event":"created","title":"Add JSONL backend","plan":"PLAN-001","status":"draft","skills":"go-crypto","triggers":"crypto","ts":"2026-09-11T..."}
+{"id":"TASK-001","event":"started","ts":"2026-09-11T..."}
+{"id":"TASK-001","event":"done","ts":"2026-09-11T..."}
 ```
 
-- **Skill**: the skill name (used with `skill invoke --skill <name>`)
-- **Path**: `user-level`, `project-local`, or the path to the skill
-- **Layer**: `always-on`, `project-local`, or `user-local`
-- **Workflow/Trigger**:
-  - For `always-on` / `project-local`: the workflow name (e.g. `task-implementation`) or `all`
-  - For `user-local`: the trigger name (e.g. `crypto`)
-- **Purpose**: human-readable note
+The `created` event is written by the task-writer. The `started` and
+`done` events are written by the `status` command during
+implementation. The log is a historical record — do not modify past
+lines.
 
-### Skills column
+### Plan timeline format
 
-The `Skills` column on Specs, Plans, and Tasks sheets contains
-comma-separated skill names. Skills cascade downward:
-
-- A **spec** lists skills needed for the whole feature area.
-- A **plan** inherits its parent spec's skills and adds its own.
-- A **task** inherits its parent plan's skills (and grandparent spec's)
-  and adds its own.
-
-When building a context packet, all applicable skills are collected
-and deduplicated: always-on (for this workflow) + project-local (for this
-workflow) + user-local (matching the task's triggers) + Skill Matrix
-(by language and trigger) + target skills + parent skills + grandparent
-skills.
-
-### Skill layers
-
-The context packet exposes four skill layers plus a trigger matrix:
-
-| Layer | Source | When to load |
-|-------|--------|--------------|
-| `alwaysOn` | `Skills` sheet, layer `always-on` | At session start, for the current workflow |
-| `projectLocal` | `Skills` sheet, layer `project-local` | When working on any task in this project, for the current workflow |
-| `userLocal` | `Skills` sheet, layer `user-local` | When the task's `Triggers` column matches the row's `Workflow/Trigger` |
-| `matrixSkills` | `Skill Matrix` sheet | When the task's `Triggers` column matches a matrix row for the project language |
-| `target/parent/grandparent` | `Skills` column on Specs/Plans/Tasks | Cascaded from spec → plan → task |
-
-### Skill Matrix
-
-The `Skill Matrix` sheet maps a `Trigger` + `Language` to `Primary Skills` and
-`Secondary Skills`:
-
-```
-| Trigger  | Language | Primary Skills        | Secondary Skills     | Notes |
-|----------|----------|----------------------|----------------------|-------|
-| ed25519  | Go       | ed25519-skill        | wycheproof, crypto   | …     |
-| ed25519  | Rust     | rust-ed25519         | rust-security        | …     |
-| ui-review| any      | design-system, a11y  | —                    | …     |
+```jsonl
+{"plan":"PLAN-001","task":"TASK-001","event":"queued","ts":"2026-09-11T..."}
+{"plan":"PLAN-001","task":"TASK-001","event":"started","ts":"2026-09-11T..."}
+{"plan":"PLAN-001","task":"TASK-001","event":"done","ts":"2026-09-11T..."}
 ```
 
-A task lists its triggers in the `Triggers` column (e.g. `ed25519, crypto`).
-The context packet resolves those triggers into `matrixSkills`, then splits
-`Primary Skills` and `Secondary Skills` into `primarySkills` and
-`secondarySkills`.
+### Skills
+
+The `data/skills.json` file contains the skill registry and matrix:
+
+```json
+{
+  "skills": [
+    {"skill": "go-systems-programmer", "path": "user-level", "layer": "always-on", "workflowTrigger": "all", "purpose": "Base Go style"},
+    {"skill": "golang-testing", "path": "user-level", "layer": "project-local", "workflowTrigger": "all", "purpose": "Testing for Go tasks"}
+  ],
+  "matrix": [
+    {"trigger": "crypto", "language": "Go", "primarySkills": "golang-security", "secondarySkills": "wycheproof", "notes": "Crypto implementation"}
+  ]
+}
+```
+
+Skills cascade downward: a spec lists skills for the whole feature
+area, a plan inherits and adds, a task inherits and adds.
 
 ### How attached skills are loaded
 
-Skills listed in the xlsx are **loaded by the orchestrator** at the
-point of use, not at session start. The orchestrator (spec, plan,
-task-create, implement) reads the context packet to find which skills
-apply, then invokes each skill using the `skill` tool:
+Skills are recorded in spec/plan/task metadata during planning and
+task-writing, but they are not loaded until implementation. The
+planner and task-writer record what skills will be needed; the
+implementer loads them at implementation time.
 
-```
-skill invoke --skill <skill-name>
-```
+- **Plan workflow**: the orchestrator loads `adhd` once, before
+  writing the spec. No other skill is loaded during planning. Skills
+  needed for implementation are recorded in the spec/plan metadata.
+- **Task workflow**: the task-writer does not load `adhd` or any
+  skills. It reads the spec and plan, thinks through implementations,
+  writes tasks, and records each task's skills + triggers in the MD
+  file and JSONL record.
+- **Task implementation**: the implementer reads the task's skills
+  and triggers from the JSONL record and loads them.
 
-- **Spec/plan/task creation**: the orchestrator (writer) loads `adhd`
-  for divergent ideation. The optimizer subagents get alwaysOn + primary
-  skills. The reviewer gets alwaysOn only. Attached skills are listed in
-  the document but not loaded during creation — they load during
-  implementation.
-- **Task implementation**: each subagent gets alwaysOn + its domain
-  skills (see the per-profile "Skills you load" section in each agent
-  profile). The implementer gets alwaysOn + the task's primary skill.
-  The code-optimizer gets alwaysOn + the language code skills. The
-  reviewer gets alwaysOn only. The test-agent gets alwaysOn + the
-  language testing skills. No subagent receives the full cascade.
+## Subagent profiles
 
-### Subagent profiles
+`implementer`, `reviewer`, `code-optimizer`, and `test-agent` are
+**custom subagent profiles** under `.agents/agents/`. They are pinned to
+specific models via the `model:` field in their profile so they don't
+all run on the expensive orchestrator model.
 
-`implementer`, `spec-optimizer`, `plan-optimizer`, `task-optimizer`, `reviewer`, `code-optimizer`, and `test-agent` are **custom subagent profiles** under `.agents/agents/`. They are not invoked as regular skills. The thin skill wrappers (`/implementer`, `/spec-optimizer`, `/plan-optimizer`, `/task-optimizer`, `/reviewer`, `/code-optimizer`, `/test`) use `agent: implementer` / `agent: spec-optimizer` / `agent: plan-optimizer` / `agent: task-optimizer` / `agent: reviewer` / `agent: code-optimizer` / `agent: test-agent` in their frontmatter to spawn them. Subagents can run in the foreground or background — the orchestrator decides.
-
-- **`implementer`** — writes code and initial tests for a task. Loads the primary skill, implements, runs verification. Write access, with context. Model: `gpt-5.6-sol-medium` (NOT the orchestrator's `gpt-5.6-sol-high`).
-- **`spec-optimizer`** — optimizes **specs** for problem fit, scope discipline, approach soundness, and coverage. Runs BEFORE the reviewer. Read-only, with context. Model: `gpt-5.6-sol-medium` (heavy).
-- **`plan-optimizer`** — optimizes **plans** for spec coverage, workstream ordering, approach soundness, and dependency edges. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high` (medium).
-- **`task-optimizer`** — optimizes **tasks** for file paths, algorithm IDs, test vectors, and implementation readiness. Runs BEFORE the reviewer. Read-only, with context. Model: `glm-5.2-high`.
-- **`reviewer`** — checks documents (spec, plan, task) and code for correctness, rule compliance, template compliance, and dependency compliance. Loads alwaysOn + the language-specific code review skill. Runs AFTER the optimizer (documents) or code-optimizer (code). Read-only, with context. Model: `swe-1.7-medium`.
-- **`code-optimizer`** — optimizes implemented code for inefficiencies, OOM risks, concurrency bugs, error handling gaps, and style. Runs after the implementer, before the reviewer. Read-only, with context. Model: `glm-5.2-high`.
-- **`test-agent`** — writes the full test suite during implementation. Write access. Model: `swe-1.7-medium`.
+| Profile | Model | Role | Fires when |
+|---------|-------|------|------------|
+| `implementer` | `gpt-5.6-sol-medium` | Write code + initial tests | Task implementation |
+| `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
+| `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
+| `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
 
 The orchestrator runs on `gpt-5.6-sol-high`. All subagents are pinned to
 different models via the `model:` field in their profile — none use the
 orchestrator's model.
 
+Subagents run **sequentially**, not in parallel. Each one finishes
+before the next starts. One task at a time — no parallel lanes.
+
 ### Language skill matrix
 
-When a task is code-heavy, the `test-agent`, `code-optimizer`, `reviewer`, and `task-optimizer` load language-specific skills based on the repo's manifests:
+When a task is code-heavy, the `test-agent`, `code-optimizer`, and
+`reviewer` load language-specific skills based on the repo's manifests:
 
-| Language | Detected by | test-agent | code-optimizer | reviewer | task-optimizer |
-|---|---|---|---|---|---|
-| Go | `go.mod` | `golang-testing` | `golang-performance` | `go-code-review` | `golang-performance` |
-| TypeScript | `package.json` | `typescript-unit-testing` | `typescript-code-review` | `typescript-security-review` | `typescript-code-review` |
-| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-code-style` | `python-code-style` | `python-code-style` |
-| Rust | `Cargo.toml` | `rust-testing` | `rust-performance` | `rust-security` | `rust-performance` |
+| Language | Detected by | test-agent | code-optimizer | reviewer |
+|---|---|---|---|---|
+| Go | `go.mod` | `golang-testing` | `golang-performance` | `go-code-review` |
+| TypeScript | `package.json` | `typescript-unit-testing` | `typescript-code-review` | `typescript-security-review` |
+| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-code-style` | `python-code-style` |
+| Rust | `Cargo.toml` | `rust-testing` | `rust-performance` | `rust-security` |
 
-Each specialized agent loads its own column. The implementer loads the task's primary skill from the algorithm registry (not from this matrix). If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing. The orchestrator can install it later with `npx skills add <owner/repo@skill> -g -y`.
-
-### Skill triggers
-
-| Trigger | Meaning |
-|---------|---------|
-| `user` | Invokable by the user via `/skill-name` |
-| `model` | Invokable by the model (orchestrator) autonomously |
-
-Orchestrator skills (spec-create, plan-create, task-create, implement,
-review, approve-spec, approve-plan) use both triggers. Utility skills
-(inspect, context, uuid) use both. Subagent wrapper skills (spec-optimizer,
-plan-optimizer, task-optimizer, reviewer, code-optimizer) use `model` only — they are spawned by orchestrators, not
-invoked directly by users.
+Each specialized agent loads its own column. The implementer loads the task's primary skill from the algorithm registry (not from this matrix). If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing.
 
 ## CLI commands
 
@@ -206,14 +164,12 @@ All skills use the `project-context` CLI at
 node /Users/brian/code/project-context/bin/cli.js uuid SPEC-001
 
 # Build a minimal context packet for a spec/plan/task (JSON output)
-# -w is optional — auto-detects .{reponame}-manager
-# --workflow defaults to 'all'; use it to scope always-on/project-local skills
 node /Users/brian/code/project-context/bin/cli.js context TASK-012 -t .
 
-# Read the xlsx and print specs/plans/tasks with status
+# Read project state and print specs/plans/tasks with status
 node /Users/brian/code/project-context/bin/cli.js inspect -t .
 
-# Refresh the Workflows sheet from workflow markdown files
+# Refresh project overview from workflow markdown files
 node /Users/brian/code/project-context/bin/cli.js overview -t .
 
 # Build graph nodes and edges from source files
@@ -222,12 +178,12 @@ node /Users/brian/code/project-context/bin/cli.js graph -t .
 # Scaffold a new .{reponame}-manager workspace
 node /Users/brian/code/project-context/bin/cli.js init -t . --discover
 
-# Add a spec/plan/task row to overview.xlsx (agents use this, not direct edits)
+# Add a spec/plan/task (creates MD file, appends to JSONL for tasks)
 node /Users/brian/code/project-context/bin/cli.js add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
-node /Users/brian/code/project-context/bin/cli.js add --type plan --title "<title>" --dependencies "SPEC-001" --skills "<skills>" -t .
-node /Users/brian/code/project-context/bin/cli.js add --type task --title "<title>" --dependencies "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
+node /Users/brian/code/project-context/bin/cli.js add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
+node /Users/brian/code/project-context/bin/cli.js add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
 
-# Update a spec/plan/task status (agents use this, not direct edits)
+# Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
 node /Users/brian/code/project-context/bin/cli.js status TASK-001 done -t .
 ```
 
@@ -237,17 +193,18 @@ Subagents must not receive conversation history. Instead, the
 orchestrator builds a context packet and feeds it to the subagent:
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js context TASK-012 -t . -o .{reponame}-manager/.context-packet.json
+node /Users/brian/code/project-context/bin/cli.js context TASK-012 -t . -o .context-packet.json
 ```
 
 The packet contains:
-- **target**: the spec/plan/task row (id, uuid, title, status, skills)
+- **target**: the spec/plan/task (id, uuid, title, status, skills, body)
 - **parent**: the parent plan (if task) or parent spec (if plan)
 - **grandparent**: the grandparent spec (if task)
 - **children**: child plans (if spec) or child tasks (if plan)
-- **modules**: all project modules
-- **components**: all project components
-- **allSkills**: deduplicated cascade of target + parent + grandparent skills
+- **modules**: project modules from the graph
+- **skillLayers**: alwaysOn, projectLocal, userLocal, matrixSkills,
+  primarySkills, secondarySkills
+- **allSkills**: deduplicated cascade of all applicable skills
 
 The subagent reads the packet + AGENTS.md + the document file. Nothing
 else. This keeps subagent context lean and prevents conversation history
@@ -256,91 +213,35 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-SPEC → `/create-spec` workflow (adhd → research → write → optimize → review, max 3 rounds)
+PLAN → /pc-plan workflow (adhd once → write spec → review → [user approves] → write plan → review → [user approves])
   ↓
-PLAN → `/create-plan` workflow (adhd → research → write → optimize → review, max 3 rounds)
+TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task MDs + JSONL → review)
   ↓
-TASK → `/create-task` workflow (adhd → write → optimize → review, max 3 rounds)
+IMPLEMENT → /pc-implement workflow (implementer → code-optimizer → reviewer → test-agent, sequential)
   ↓
-IMPLEMENT → `/implement` workflow (adhd → implementer → code-optimizer → reviewer → tester)
-  ↓
-REVIEW → `/review` workflow (adhd → mechanical → reviewer → apply → PR)
+REVIEW → /pc-review workflow (mechanical → dispatch reviewer → apply → PR)
 ```
 
-## Orchestrator-optimizer-reviewer pattern
-
-Every workflow starts with the `adhd` skill for divergent ideation,
-loaded by the orchestrator (the big brain with full context). The
-orchestrator writes the document, then dispatches an optimizer subagent
-(with context) to tighten it, then a reviewer subagent (with context)
-to check correctness.
-
-### Spec and plan creation
-
-1. **Orchestrator** — loads `adhd`, dispatches research subagent, writes
-   the document.
-2. **Optimizer** (spec-optimizer or plan-optimizer, with context) —
-   optimizes for problem fit, approach soundness, scope discipline, and
-   coverage. Reports findings. Does not fix.
-3. **Reviewer** (reviewer, with context) — checks correctness, rule
-   compliance, template compliance, dependency compliance. Reports
-   findings. Does not fix.
-4. The orchestrator revises. Max 3 rounds, then escalate.
-
-### Task creation
-
-1. **Orchestrator** — loads `adhd` + primary skill, writes the task file.
-2. **Optimizer** (task-optimizer, with context) — optimizes for file
-   paths, algorithm IDs, test vectors, and scope. Reports findings.
-   Does not fix.
-3. **Reviewer** (reviewer, with context) — checks correctness, rule
-   compliance, template compliance, dependency compliance. Reports
-   findings. Does not fix.
-4. The orchestrator revises. Max 3 rounds, then escalate.
-
-## Skills in this project
-
-| Skill | Type | Purpose |
-|-------|------|---------|
-| `/create-spec` | Orchestrator | Run spec-creation workflow |
-| `/create-plan` | Orchestrator | Run plan-creation workflow |
-| `/create-task` | Orchestrator | Run task-creation workflow |
-| `/implement` | Orchestrator | Run task-implementation workflow |
-| `/review` | Orchestrator | Run code-review workflow |
-| `/test` | Orchestrator | Spawn the test-agent (background, write access) |
-| `/approve-spec` | Orchestrator | Approve a committed spec and start `/create-plan` |
-| `/approve-plan` | Orchestrator | Approve a committed plan and start `/create-task` for each task |
-| `/inspect-project` | Utility | Read xlsx, print status |
-| `/context` | Utility | Build context packet for subagents |
-| `/uuid` | Utility | Generate v5 UUID |
-| `/implementer` | Subagent | Write code + initial tests (write access) |
-| `/spec-optimizer` | Subagent | Optimize a spec with context (read-only) |
-| `/plan-optimizer` | Subagent | Optimize a plan with context (read-only) |
-| `/task-optimizer` | Subagent | Optimize a task with context (read-only) |
-| `/reviewer` | Subagent | Check correctness, rule compliance (read-only) |
-| `/code-optimizer` | Subagent | Optimize implemented code (read-only) |
-| `/test-agent` | Subagent | Write the full test suite (write access) |
+Everything is linear. One task at a time. Subagents run sequentially —
+each one finishes before the next starts.
 
 ## Rules for all skills
 
 1. **Read AGENTS.md first.** It has the project workflow protocol.
 2. **Read this file first.** It has the shared instructions.
-3. **The xlsx is the source of truth.** Markdown files are documents.
-   Status, progress, dependencies, and skills live in the xlsx.
-4. **Subagents get context packets, not conversation history.** Build
-   a packet with `/context <ID>` and feed it to the subagent.
-5. **Never block.** If something fails, report the error and continue.
-6. **Never modify generated files.** If you need a template, copy the structure from the sample `overview.xlsx` and the relevant skill (`/create-spec`, `/create-plan`, `/create-task`), not by editing the xlsx.
-7. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
+3. **JSONL is the task state.** MD files are documents. Status for
+   specs/plans is in the MD files. Status for tasks is in
+   `data/tasks.jsonl`.
+4. **Subagents run sequentially.** No parallel lanes. One task at a
+   time. Each subagent finishes before the next starts.
+5. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
    `project-context uuid <ID>`.
-8. **Update the xlsx through the CLI.** Never edit `overview.xlsx`
-   directly. Use `project-context add` to register specs/plans/tasks and
-   `project-context status` to update status. The CLI handles UUID
-   generation, column order, and duplicate detection.
-9. **Skills cascade.** A task inherits skills from its plan and spec.
+6. **Update state through the CLI.** Never edit JSONL files directly.
+   Use `project-context add` to register specs/plans/tasks and
+   `project-context status` to update status.
+7. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-10. **Optimizers and reviewers suggest, the writer revises.** Subagents
-    are read-only. They report findings. The orchestrator applies fixes.
-    Use `spec-optimizer` for specs, `plan-optimizer` for plans,
-    `task-optimizer` for tasks, then `reviewer` for correctness checks.
-    Use `code-optimizer` for implemented code before the reviewer.
+8. **One task at a time.** No parallel lanes. The build order in JSONL
+   determines the sequence.
+9. **Hard gates.** Stop and wait for the user after spec review and
+   after plan review. Never auto-progress.

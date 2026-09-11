@@ -1,20 +1,20 @@
 const fs = require('fs');
 const path = require('path');
-const ExcelJS = require('exceljs');
+const {
+  appendTaskEvent,
+  appendTimelineEvent,
+  parseMarkdownField,
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  getTaskStates,
+} = require('./shared');
 
-// sheetForID picks the right sheet based on the ID prefix.
-function sheetForID(id) {
-  if (id.toUpperCase().startsWith('SPEC-')) return 'Specs';
-  if (id.toUpperCase().startsWith('PLAN-')) return 'Plans';
-  if (id.toUpperCase().startsWith('TASK-')) return 'Tasks';
-  return null;
-}
-
-// nextID finds the highest NNN suffix in a sheet and returns NNN+1 zero-padded.
-function nextID(rows, prefix) {
+// nextID finds the highest NNN suffix among existing IDs and returns NNN+1.
+function nextID(existing, prefix) {
   let max = 0;
-  for (const r of rows) {
-    const id = String(r.id || '');
+  for (const item of existing) {
+    const id = String(item.id || '');
     const match = id.match(new RegExp(`^${prefix}-(\\d+)$`, 'i'));
     if (match) {
       const n = parseInt(match[1], 10);
@@ -24,66 +24,30 @@ function nextID(rows, prefix) {
   return `${prefix}-${String(max + 1).padStart(3, '0')}`;
 }
 
-// readSheet reads a worksheet and returns an array of row objects keyed by
-// lowercased headers.
-async function readSheet(wb, name) {
-  const ws = wb.getWorksheet(name);
-  if (!ws) return [];
-  const headers = [];
-  ws.getRow(1).eachCell((cell, col) => {
-    headers[col - 1] = String(cell.value || '').trim();
-  });
-  const rows = [];
-  for (let r = 2; r <= ws.rowCount; r++) {
-    const row = ws.getRow(r);
-    const obj = {};
-    let hasData = false;
-    row.eachCell((cell, col) => {
-      const key = headers[col - 1];
-      if (!key) return;
-      let val = cell.value;
-      if (val && typeof val === 'object' && val.text) val = val.text;
-      obj[key.toLowerCase()] = val || '';
-      if (val) hasData = true;
-    });
-    if (hasData) rows.push(obj);
+// readTemplate reads a template file and fills in placeholders.
+function readTemplate(aiDir, templateName, vars) {
+  const templatePath = path.join(aiDir, 'templates', templateName);
+  if (!fs.existsSync(templatePath)) {
+    return null;
   }
-  return rows;
+  let content = fs.readFileSync(templatePath, 'utf8');
+  // Replace {{KEY}} placeholders
+  for (const [key, val] of Object.entries(vars)) {
+    content = content.replace(new RegExp(`{{${key}}}`, 'g'), val);
+  }
+  // Replace ID-NNN pattern with actual ID
+  if (vars.ID) {
+    const prefix = vars.ID.replace(/-\d+$/, '');
+    content = content.replace(new RegExp(`${prefix}-NNN`, 'g'), vars.ID);
+  }
+  // Replace <short title> with actual title
+  if (vars.TITLE) {
+    content = content.replace(/<short title>/g, vars.TITLE);
+  }
+  return content;
 }
 
-// addRow appends a row to a sheet by header name.
-async function addRow(xlsxPath, sheetName, data) {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(xlsxPath);
-  const ws = wb.getWorksheet(sheetName);
-  if (!ws) {
-    throw new Error(`Sheet "${sheetName}" not found in overview.xlsx`);
-  }
-
-  // Read headers
-  const headers = [];
-  ws.getRow(1).eachCell((cell, col) => {
-    headers[col - 1] = String(cell.value || '').trim();
-  });
-
-  // Check for duplicate ID
-  const idCol = headers.findIndex(h => h.toLowerCase() === 'id');
-  if (idCol !== -1 && data.id) {
-    for (let r = 2; r <= ws.rowCount; r++) {
-      const existing = ws.getRow(r).getCell(idCol + 1).value;
-      if (existing && String(existing).toUpperCase() === String(data.id).toUpperCase()) {
-        throw new Error(`${data.id} already exists in sheet "${sheetName}"`);
-      }
-    }
-  }
-
-  // Build row in header order
-  const rowValues = headers.map(h => data[h.toLowerCase()] || '');
-  ws.addRow(rowValues);
-  await wb.xlsx.writeFile(xlsxPath);
-}
-
-// addCommand handles adding a spec, plan, or task row to overview.xlsx.
+// addCommand handles adding a spec, plan, or task.
 async function addCommand(options) {
   const { type, title, status, dependencies, skills, triggers, commit, id } = options;
 
@@ -100,12 +64,6 @@ async function addCommand(options) {
     process.exit(1);
   }
 
-  const xlsxPath = path.join(aiDir, 'overview.xlsx');
-  if (!fs.existsSync(xlsxPath)) {
-    console.error('overview.xlsx not found. Run init first.');
-    process.exit(1);
-  }
-
   const prefix = type.toUpperCase().startsWith('SPEC-') ? 'SPEC'
     : type.toUpperCase().startsWith('PLAN-') ? 'PLAN'
     : type.toUpperCase().startsWith('TASK-') ? 'TASK'
@@ -119,15 +77,14 @@ async function addCommand(options) {
     process.exit(1);
   }
 
-  const sheetName = sheetForID(`${prefix}-001`);
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(xlsxPath);
-  const rows = await readSheet(wb, sheetName);
-
   // Determine the ID
   let finalID = id;
   if (!finalID) {
-    finalID = nextID(rows, prefix);
+    let existing;
+    if (prefix === 'SPEC') existing = readSpecs(aiDir);
+    else if (prefix === 'PLAN') existing = readPlans(aiDir);
+    else existing = [...readTaskFiles(aiDir), ...getTaskStates(aiDir).values()];
+    finalID = nextID(existing, prefix);
   }
 
   // Generate UUID deterministically
@@ -140,32 +97,69 @@ async function addCommand(options) {
     uuid = '';
   }
 
-  const data = {
-    uuid,
-    id: finalID,
-    title,
-    status: status || 'draft',
-    parent: options.parent || '',
-    dependencies: dependencies || '',
-    skills: skills || '',
-    triggers: triggers || '',
-    commit: commit || '',
-  };
+  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : 'tasks';
+  const filePath = path.join(aiDir, dirName, `${finalID}.md`);
 
-  // Plans and Specs have a Progress column
-  if (sheetName === 'Specs' || sheetName === 'Plans') {
-    data.progress = options.progress || '0%';
+  // Check for duplicates
+  if (fs.existsSync(filePath)) {
+    console.error(`${finalID} already exists: ${filePath}`);
+    process.exit(1);
   }
 
-  await addRow(xlsxPath, sheetName, data);
+  // Create the MD file from template
+  const templateName = `${prefix}-NNN.template.md`;
+  const parent = options.parent || dependencies || '';
+  const templateVars = {
+    ID: finalID,
+    UUID: uuid,
+    TITLE: title,
+    STATUS: status || 'draft',
+    PARENT: parent,
+    DEPENDENCIES: dependencies || parent,
+    SKILLS: skills || '',
+    TRIGGERS: triggers || '',
+    COMMIT: commit || '',
+  };
 
-  console.log(`Added ${finalID} to ${sheetName}: ${title}`);
+  let content = readTemplate(aiDir, templateName, templateVars);
+  if (!content) {
+    // No template — write a minimal file
+    content = `# ${finalID}: ${title}\n\n**UUID**: ${uuid}\n**Status**: ${status || 'draft'}\n**Parent**: ${parent}\n**Dependencies**: ${dependencies || parent}\n**Skills**: ${skills || ''}\n**Triggers**: ${triggers || ''}\n**Commit**: ${commit || ''}\n`;
+  }
+
+  fs.writeFileSync(filePath, content);
+
+  // For tasks: also append to tasks.jsonl and plan timeline
+  if (prefix === 'TASK') {
+    const planId = parent || dependencies || '';
+    appendTaskEvent(aiDir, {
+      id: finalID,
+      event: 'created',
+      title,
+      plan: planId,
+      status: 'draft',
+      skills: skills || '',
+      triggers: triggers || '',
+    });
+    if (planId) {
+      appendTimelineEvent(aiDir, planId, {
+        task: finalID,
+        event: 'queued',
+      });
+    }
+  }
+
+  console.log(`Added ${finalID} to ${dirName}/: ${title}`);
   console.log(`  UUID: ${uuid}`);
-  console.log(`  Status: ${data.status}`);
-  if (data.dependencies) console.log(`  Dependencies: ${data.dependencies}`);
-  if (data.skills) console.log(`  Skills: ${data.skills}`);
-  if (data.triggers) console.log(`  Triggers: ${data.triggers}`);
-  console.log(`  Workbook: ${xlsxPath}`);
+  console.log(`  Status: ${status || 'draft'}`);
+  if (parent) console.log(`  Parent: ${parent}`);
+  if (dependencies) console.log(`  Dependencies: ${dependencies}`);
+  if (skills) console.log(`  Skills: ${skills}`);
+  if (triggers) console.log(`  Triggers: ${triggers}`);
+  console.log(`  File: ${filePath}`);
+  if (prefix === 'TASK') {
+    console.log(`  JSONL: ${path.join(aiDir, 'data', 'tasks.jsonl')}`);
+  }
 
   return { id: finalID, uuid };
 }

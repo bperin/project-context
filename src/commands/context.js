@@ -1,35 +1,14 @@
 const fs = require('fs');
 const path = require('path');
-const ExcelJS = require('exceljs');
-
-// readSheet reads a worksheet and returns an array of row objects keyed by
-// the sheet's headers (lowercased).
-async function readSheet(wb, name) {
-  const ws = wb.getWorksheet(name);
-  if (!ws) return [];
-
-  const headers = [];
-  ws.getRow(1).eachCell((cell, col) => {
-    headers[col - 1] = String(cell.value || '').trim();
-  });
-
-  const rows = [];
-  for (let r = 2; r <= ws.rowCount; r++) {
-    const row = ws.getRow(r);
-    const obj = {};
-    let hasData = false;
-    row.eachCell((cell, col) => {
-      const key = headers[col - 1];
-      if (!key) return;
-      let val = cell.value;
-      if (val && typeof val === 'object' && val.text) val = val.text;
-      obj[key.toLowerCase()] = val || '';
-      if (val) hasData = true;
-    });
-    if (hasData) rows.push(obj);
-  }
-  return rows;
-}
+const {
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  getTaskStates,
+  readIdentity,
+  readSkills,
+  parseMarkdownField,
+} = require('./shared');
 
 // parseSkills splits a comma-separated skills string into an array.
 function parseSkills(skillsStr) {
@@ -37,21 +16,9 @@ function parseSkills(skillsStr) {
   return skillsStr.split(',').map(s => s.trim()).filter(Boolean);
 }
 
-// readSkillLayers reads the unified Skills sheet and returns the three layers
+// readSkillLayers reads the skills.json and returns the three layers
 // filtered by the current workflow and task triggers.
-//
-// Skills sheet schema:
-//   Skill | Path | Layer | Workflow/Trigger | Purpose
-//
-// Layer values:
-//   - always-on     : loaded at session start for the given workflow (or 'all')
-//   - project-local : loaded for any task in this project for the given workflow (or 'all')
-//   - user-local    : loaded when the task's trigger matches Workflow/Trigger
-//
-// The workflow argument is the current workflow name (e.g. 'task-implementation',
-// 'spec-creation'). If omitted, 'all' is used as the default.
-async function readSkillLayers(wb, taskTriggers, workflow = 'all') {
-  const rows = await readSheet(wb, 'Skills');
+function readSkillLayers(skillsData, taskTriggers, workflow = 'all') {
   const triggerSet = new Set(taskTriggers.map(t => t.toLowerCase()));
   const workflowNorm = String(workflow || 'all').toLowerCase().trim();
 
@@ -59,11 +26,11 @@ async function readSkillLayers(wb, taskTriggers, workflow = 'all') {
   const projectLocal = [];
   const userLocal = [];
 
-  for (const r of rows) {
+  for (const r of skillsData.skills || []) {
     const skill = String(r.skill || '').trim();
     if (!skill) continue;
     const layer = String(r.layer || '').trim().toLowerCase();
-    const wfOrTrigger = String(r['workflow/trigger'] || '').trim().toLowerCase();
+    const wfOrTrigger = String(r.workflowTrigger || r['workflow/trigger'] || '').trim().toLowerCase();
 
     if (layer === 'always-on') {
       if (wfOrTrigger === 'all' || wfOrTrigger === workflowNorm) {
@@ -83,36 +50,23 @@ async function readSkillLayers(wb, taskTriggers, workflow = 'all') {
   return { alwaysOn, projectLocal, userLocal };
 }
 
-// readProjectLanguage reads the Identity sheet and returns the primary
-// language / stack value. Falls back to 'any' if not found.
-async function readProjectLanguage(wb) {
-  const rows = await readSheet(wb, 'Identity');
-  for (const r of rows) {
-    const field = String(r.field || '').trim().toLowerCase();
-    if (field === 'primary language' || field === 'stack') {
-      const value = String(r.value || '').trim();
-      if (value) return value;
-    }
-  }
-  return 'any';
+// readProjectLanguage reads identity.json and returns the primary language.
+function readProjectLanguage(identity) {
+  return identity.primaryLanguage || identity.stack || 'any';
 }
 
-// readSkillMatrix reads the Skill Matrix sheet and returns a map of
-// trigger -> { primary: [...], secondary: [...] }, filtered by language.
-// A row is included if its Language column is empty, 'any', or matches
-// the project's primary language.
-async function readSkillMatrix(wb, language = 'any') {
-  const rows = await readSheet(wb, 'Skill Matrix');
+// readSkillMatrix reads the skill matrix from skills.json.
+function readSkillMatrix(skillsData, language = 'any') {
   const matrix = {};
   const langNorm = String(language || 'any').toLowerCase().trim();
-  for (const r of rows) {
+  for (const r of skillsData.matrix || []) {
     const trigger = (r.trigger || '').trim();
     if (!trigger) continue;
     const rowLang = String(r.language || 'any').toLowerCase().trim();
     if (rowLang !== 'any' && rowLang !== langNorm) continue;
     matrix[trigger] = {
-      primary: parseSkills(r['primary skills'] || r.primaryskills || ''),
-      secondary: parseSkills(r['secondary skills'] || r.secondaryskills || ''),
+      primary: parseSkills(r.primarySkills || r['primary skills'] || ''),
+      secondary: parseSkills(r.secondarySkills || r['secondary skills'] || ''),
     };
   }
   return matrix;
@@ -130,22 +84,20 @@ function collectMatrixSkills(matrix, triggersStr) {
   return skills;
 }
 
-// findRow finds a row by ID in a sheet.
+// findRow finds a row by ID in an array.
 function findRow(rows, id) {
-  return rows.find(r => r.id === id) || null;
+  return rows.find(r => r.id === id || r.id === id.toUpperCase()) || null;
 }
 
-// findChildren finds rows whose Parent column matches a given ID.
+// findChildren finds rows whose parent matches a given ID.
 function findChildren(rows, parentId) {
   return rows.filter(r => {
-    const parent = String(r.parent || '').trim().toUpperCase();
+    const parent = String(r.parent || r.dependencies || '').trim().toUpperCase();
     return parent === parentId.toUpperCase();
   });
 }
 
-// readMarkdown reads a companion markdown file for a spec/plan/task, if one
-// exists. The files live in .ai-trust/specs/, .ai-trust/plans/, or
-// .ai-trust/tasks/ and follow the ID prefix.
+// readMarkdown reads a companion markdown file for a spec/plan/task.
 function readMarkdown(aiDir, id) {
   const type = id.toUpperCase().startsWith('SPEC-') ? 'specs'
     : id.toUpperCase().startsWith('PLAN-') ? 'plans'
@@ -158,7 +110,6 @@ function readMarkdown(aiDir, id) {
 
   const content = fs.readFileSync(filePath, 'utf8');
 
-  // Pull a few useful sections out of the markdown body
   function section(name) {
     const pattern = new RegExp(`##\\s+${name}[\\r\\n]+([\\s\\S]*?)(?=##\\s|$)`, 'i');
     const m = content.match(pattern);
@@ -173,71 +124,83 @@ function readMarkdown(aiDir, id) {
 }
 
 // collectSkills gathers skills from all applicable levels for a target.
-async function collectSkills(wb, type, row, matrix) {
+function collectSkills(row, matrix) {
   const skills = new Set();
-
-  // Target-level: the Skills and Triggers columns on the row itself
   for (const s of parseSkills(row.skills)) skills.add(s);
   for (const s of collectMatrixSkills(matrix, row.triggers)) skills.add(s);
-
   return [...skills];
 }
 
 // buildPacket constructs a minimal context packet for a spec/plan/task.
-async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(xlsxPath);
+async function buildPacket(aiDir, targetId, options = {}) {
+  const specs = readSpecs(aiDir);
+  const plans = readPlans(aiDir);
+  const taskFiles = readTaskFiles(aiDir);
+  const taskStates = getTaskStates(aiDir);
 
-  const specs = await readSheet(wb, 'Specs');
-  const plans = await readSheet(wb, 'Plans');
-  const tasks = await readSheet(wb, 'Tasks');
-  const modules = await readSheet(wb, 'Modules');
-  const components = await readSheet(wb, 'Components');
+  // Merge task MD metadata with JSONL state (JSONL wins for status)
+  const tasks = taskFiles.map(tf => {
+    const state = taskStates.get(tf.id);
+    return state ? { ...tf, status: state.status } : tf;
+  });
 
-  // Determine type by ID prefix and resolve parent/child links via the
-  // Parent column (not peer Dependencies).
+  const identity = readIdentity(aiDir);
+  const skillsData = readSkills(aiDir);
+
+  // Graph nodes/edges
+  const graphNodesDir = path.join(aiDir, 'graph', 'nodes');
+  const graphEdgesDir = path.join(aiDir, 'graph', 'edges');
+  let modules = [];
+  let components = [];
+  try {
+    if (fs.existsSync(graphNodesDir)) {
+      modules = fs.readdirSync(graphNodesDir)
+        .filter(f => f.endsWith('.json'))
+        .map(f => {
+          const node = JSON.parse(fs.readFileSync(path.join(graphNodesDir, f), 'utf8'));
+          return { module: node.id || '', path: node.path || '', purpose: node.type || '' };
+        });
+    }
+  } catch (e) {}
+
   let type, row, parent, children, grandparent;
 
-  if (targetId.startsWith('SPEC-')) {
+  if (targetId.toUpperCase().startsWith('SPEC-')) {
     type = 'spec';
     row = findRow(specs, targetId);
     if (!row) throw new Error(`Spec ${targetId} not found`);
     children = findChildren(plans, targetId);
-  } else if (targetId.startsWith('PLAN-')) {
+  } else if (targetId.toUpperCase().startsWith('PLAN-')) {
     type = 'plan';
     row = findRow(plans, targetId);
     if (!row) throw new Error(`Plan ${targetId} not found`);
-    parent = findRow(specs, row.parent || '');
+    parent = findRow(specs, row.parent || row.dependencies || '');
     children = findChildren(tasks, targetId);
-  } else if (targetId.startsWith('TASK-')) {
+  } else if (targetId.toUpperCase().startsWith('TASK-')) {
     type = 'task';
     row = findRow(tasks, targetId);
     if (!row) throw new Error(`Task ${targetId} not found`);
-    parent = findRow(plans, row.parent || '');
+    parent = findRow(plans, row.parent || row.dependencies || '');
     if (parent) {
-      grandparent = findRow(specs, parent.parent || '');
+      grandparent = findRow(specs, parent.parent || parent.dependencies || '');
     }
   } else {
     throw new Error(`Unknown ID format: ${targetId}. Expected SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
   }
 
-  // Project-level skill layers (filtered by workflow and task triggers)
-  const projectLanguage = await readProjectLanguage(wb);
+  const projectLanguage = readProjectLanguage(identity);
   const taskTriggers = parseSkills(row.triggers || '');
   const workflow = options.workflow || 'all';
-  const skillLayers = await readSkillLayers(wb, taskTriggers, workflow);
-  const skillMatrix = await readSkillMatrix(wb, projectLanguage);
+  const skillLayers = readSkillLayers(skillsData, taskTriggers, workflow);
+  const skillMatrix = readSkillMatrix(skillsData, projectLanguage);
 
   const { alwaysOn, projectLocal, userLocal } = skillLayers;
 
-  // Collect applicable skills (async now because collectSkills reads the matrix)
-  const targetSkills = await collectSkills(wb, type, row, skillMatrix);
-  const parentSkills = parent ? await collectSkills(wb, 'plan', parent, skillMatrix) : [];
-  const grandparentSkills = grandparent ? await collectSkills(wb, 'spec', grandparent, skillMatrix) : [];
+  const targetSkills = collectSkills(row, skillMatrix);
+  const parentSkills = parent ? collectSkills(parent, skillMatrix) : [];
+  const grandparentSkills = grandparent ? collectSkills(grandparent, skillMatrix) : [];
   const matrixSkills = collectMatrixSkills(skillMatrix, row.triggers);
 
-  // Determine primary and secondary skills from the matrix if available,
-  // otherwise fall back to the first target skill as primary and the rest as secondary.
   const triggers = parseSkills(row.triggers || '');
   let primarySkills = [];
   let secondarySkills = [];
@@ -255,12 +218,10 @@ async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
     secondarySkills = targetSkills.slice(1);
   }
 
-  // Read markdown bodies for the target, parent, and grandparent.
   const targetMd = readMarkdown(aiDir, row.id);
   const parentMd = parent ? readMarkdown(aiDir, parent.id) : { body: '', testing: '', criteria: '' };
   const grandparentMd = grandparent ? readMarkdown(aiDir, grandparent.id) : { body: '', testing: '', criteria: '' };
 
-  // Build the packet — only what's relevant, nothing else
   const packet = {
     target: {
       type,
@@ -268,8 +229,7 @@ async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
       uuid: row.uuid || '',
       title: row.title || '',
       status: row.status || '',
-      progress: row.progress || '',
-      dependencies: row.dependencies || '',
+      dependencies: row.dependencies || row.parent || '',
       skills: targetSkills,
       commit: row.commit || '',
       body: targetMd.body,
@@ -281,7 +241,6 @@ async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
       id: parent.id,
       title: parent.title || '',
       status: parent.status || '',
-      progress: parent.progress || '',
       skills: parentSkills,
       body: parentMd.body,
       testing: parentMd.testing,
@@ -302,23 +261,8 @@ async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
       title: c.title || '',
       status: c.status || '',
     })) : [],
-    modules: modules.map(m => ({
-      module: m.module || '',
-      path: m.path || '',
-      purpose: m.purpose || '',
-    })),
-    components: components.map(c => ({
-      component: c.component || '',
-      module: c.module || '',
-      layer: c.layer || '',
-      status: c.status || '',
-    })),
-    // Skill layers — these tell the orchestrator what to load and when.
-    // alwaysOn: loaded at session start for every task in this project.
-    // projectLocal: loaded for any task in this project.
-    // userLocal: loaded when the trigger condition in the sheet matches.
-    // matrixSkills: skills mapped from this task's Triggers via the Skill Matrix.
-    // primarySkills / secondarySkills: the implementer's skill lenses.
+    modules,
+    components,
     skillLayers: {
       alwaysOn,
       projectLocal,
@@ -327,7 +271,6 @@ async function buildPacket(xlsxPath, aiDir, targetId, options = {}) {
       primarySkills,
       secondarySkills,
     },
-    // All applicable skills (deduplicated, ordered: alwaysOn → projectLocal → userLocal → matrix → target → parent → grandparent)
     allSkills: [...new Set([...alwaysOn, ...projectLocal, ...userLocal, ...matrixSkills, ...targetSkills, ...parentSkills, ...grandparentSkills])],
   };
 
@@ -344,14 +287,13 @@ async function contextCommand(options) {
     process.exit(1);
   }
 
-  const xlsxPath = path.join(aiDir, 'overview.xlsx');
-  if (!fs.existsSync(xlsxPath)) {
-    console.error('overview.xlsx not found. Run init first.');
+  if (!fs.existsSync(aiDir)) {
+    console.error(`Workspace directory ${aiDir} does not exist. Run init first.`);
     process.exit(1);
   }
 
   try {
-    const packet = await buildPacket(xlsxPath, aiDir, targetId, options);
+    const packet = await buildPacket(aiDir, targetId, options);
     const json = JSON.stringify(packet, null, 2);
 
     if (options.output) {

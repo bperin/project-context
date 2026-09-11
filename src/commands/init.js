@@ -1,12 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const ExcelJS = require('exceljs');
 const {
   detectLanguage,
   copyWithHeader,
-  createWorkbook,
-  upgradeWorkbook,
+  createDataFiles,
+  readIdentity,
+  writeJSON,
+  readSpecs,
+  readPlans,
+  readTaskFiles,
+  appendJSONL,
 } = require('./shared');
 
 const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
@@ -41,33 +45,16 @@ Primary project identity and source-of-truth metadata.
 `;
   fs.writeFileSync(path.join(identityDir, 'project.md'), projectMd);
 
-  // Populate the Identity sheet
-  const xlsxPath = path.join(wsDir, 'overview.xlsx');
-  if (fs.existsSync(xlsxPath)) {
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(xlsxPath);
-    const identity = wb.getWorksheet('Identity');
-    if (identity) {
-      const fieldMap = { Field: 1, Value: 2 };
-      const set = (field, value) => {
-        for (let r = 2; r <= identity.rowCount; r++) {
-          const row = identity.getRow(r);
-          if (row.getCell(fieldMap.Field).value === field) {
-            row.getCell(fieldMap.Value).value = value;
-            return;
-          }
-        }
-        identity.addRow([field, value]);
-      };
-      set('Name', projectName);
-      set('Repo', repoUrl);
-      set('Git Branch', branch);
-      set('Git Commits', commitCount);
-      await wb.xlsx.writeFile(xlsxPath);
-    }
-  }
+  // Update data/identity.json with discovered info
+  const identityPath = path.join(wsDir, 'data', 'identity.json');
+  const identity = readIdentity(wsDir);
+  identity.name = projectName;
+  identity.repo = repoUrl;
+  identity.gitBranch = branch;
+  identity.gitCommits = commitCount;
+  writeJSON(identityPath, identity);
 
-  // Module discovery
+  // Module discovery (Go)
   const modules = [];
   const entries = fs.readdirSync(targetDir, { withFileTypes: true });
   for (const entry of entries) {
@@ -77,18 +64,12 @@ Primary project identity and source-of-truth metadata.
       try {
         modImport = execSync('go list -m', { cwd: modPath, encoding: 'utf8' }).trim();
       } catch (e) {}
-      modules.push([entry.name, modImport, modPath, '']);
+      modules.push({ module: entry.name, import: modImport, path: modPath, purpose: '' });
     }
   }
 
-  if (modules.length > 0 && fs.existsSync(path.join(wsDir, 'overview.xlsx'))) {
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(path.join(wsDir, 'overview.xlsx'));
-    const ws = wb.getWorksheet('Modules');
-    if (ws) {
-      for (const row of modules) ws.addRow(row);
-      await wb.xlsx.writeFile(path.join(wsDir, 'overview.xlsx'));
-    }
+  if (modules.length > 0) {
+    writeJSON(path.join(wsDir, 'data', 'modules.json'), { modules });
   }
 }
 
@@ -124,6 +105,7 @@ async function initCommand(options) {
     path.join(wsDir, 'architecture'),
     path.join(wsDir, 'identity'),
     path.join(wsDir, 'graph'),
+    path.join(wsDir, 'data'),
   ];
 
   for (const d of dirs) fs.mkdirSync(d, { recursive: true });
@@ -146,11 +128,18 @@ async function initCommand(options) {
     }
   }
 
+  // Copy document templates (SPEC/PLAN/TASK/ADR/etc.)
+  const srcTemplates = path.join(__dirname, '..', 'templates');
+  if (fs.existsSync(srcTemplates)) {
+    const dstTemplates = path.join(wsDir, 'templates');
+    fs.mkdirSync(dstTemplates, { recursive: true });
+    for (const f of fs.readdirSync(srcTemplates)) {
+      if (!f.endsWith('.md')) continue;
+      copyWithHeader(path.join(srcTemplates, f), path.join(dstTemplates, f));
+    }
+  }
+
   // Copy .agents/ skills + shared instructions
-  // Workflow skills come from src/skills/ (implement, review, create-spec, etc.)
-  // Language skills come from skills/ at the package root (golang-testing,
-  // typescript-unit-testing, wycheproof, etc.) — bundled so project-context
-  // works without ~/.agents/skills/ on the target machine.
   const srcSkills = path.join(__dirname, '..', 'skills');
   const bundledSkills = path.join(__dirname, '..', '..', 'skills');
   const agentsDir = path.join(wsDir, '.agents');
@@ -179,7 +168,6 @@ async function initCommand(options) {
   }
 
   // Copy bundled language skills from skills/ (at package root)
-  // These have subdirectories (references/, evals/, etc.) so use recursive copy.
   if (fs.existsSync(bundledSkills)) {
     for (const skillName of fs.readdirSync(bundledSkills)) {
       const srcSkillDir = path.join(bundledSkills, skillName);
@@ -201,11 +189,10 @@ async function initCommand(options) {
     }
   }
 
-  // Create the starter overview.xlsx (source of truth)
+  // Create the data files (identity.json, skills.json, tasks.jsonl, etc.)
   const language = detectLanguage(targetDir);
-  const xlsxPath = path.join(wsDir, 'overview.xlsx');
   const repoName = path.basename(targetDir);
-  await createWorkbook(xlsxPath, language, repoName, repoName);
+  createDataFiles(wsDir, language, repoName, repoName);
 
   if (options.discover) {
     await discoverProject(targetDir, wsDir);

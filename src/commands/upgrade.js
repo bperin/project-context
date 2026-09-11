@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { copyWithHeader, detectLanguage, upgradeWorkbook } = require('./shared');
+const { copyWithHeader, detectLanguage, createDataFiles, readIdentity, writeJSON } = require('./shared');
 
 async function upgradeCommand(options) {
   const targetDir = path.resolve(options.target || '.');
@@ -33,8 +33,63 @@ async function upgradeCommand(options) {
   const srcSkills = path.join(srcRoot, 'skills');
   const srcAgents = path.join(srcRoot, 'agents');
   const srcTemplates = path.join(srcRoot, 'templates');
-  // Language skills are vendored by the target repo's Makefile, not by
-  // upgrade. See the comment below the bundled-skills block.
+
+  // Clean up obsolete files from older versions. We don't migrate data
+  // from these — we just remove them. Existing specs/plans/tasks MD
+  // files are left alone.
+  const obsoleteFiles = [
+    path.join(wsDir, 'overview.xlsx'),
+    path.join(wsDir, 'overview.csv'),
+    path.join(wsDir, 'workflows', 'spec-creation.md'),
+    path.join(wsDir, 'workflows', 'plan-creation.md'),
+    path.join(wsDir, 'workflows', 'task-creation.md'),
+    // Old templates no longer generated
+    path.join(wsDir, 'templates', 'STATE.md'),
+    path.join(wsDir, 'templates', 'current.md'),
+    path.join(wsDir, 'templates', 'DECISIONS.md'),
+    path.join(wsDir, 'templates', 'skill.md'),
+    path.join(wsDir, 'templates', 'skill.template.md'),
+    path.join(wsDir, 'templates', 'state.template.md'),
+    path.join(wsDir, 'templates', 'workflow.template.md'),
+    path.join(wsDir, 'templates', 'architecture.template.md'),
+    path.join(wsDir, 'templates', 'identity.template.md'),
+    path.join(wsDir, 'templates', 'ADR-NNN.template.md'),
+  ];
+  const obsoleteSkillDirs = [
+    // Old workflow names (pre-pc- prefix)
+    'create-spec', 'create-plan', 'create-task',
+    'approve-spec', 'approve-plan',
+    'spec-optimizer', 'plan-optimizer', 'task-optimizer',
+    // Old non-prefixed skill names (renamed to pc-*)
+    'code-optimizer', 'context', 'implement', 'implementer',
+    'inspect-project', 'plan', 'review', 'reviewer', 'test', 'uuid',
+  ];
+  const obsoleteAgentProfiles = [
+    'spec-optimizer.md', 'plan-optimizer.md', 'task-optimizer.md',
+  ];
+
+  for (const f of obsoleteFiles) {
+    if (fs.existsSync(f)) {
+      fs.rmSync(f, { force: true });
+      console.log(`Removed obsolete file: ${path.relative(wsDir, f)}`);
+    }
+  }
+  for (const skillName of obsoleteSkillDirs) {
+    const d = path.join(wsDir, '.agents', 'skills', skillName);
+    if (fs.existsSync(d)) {
+      fs.rmSync(d, { recursive: true, force: true });
+      console.log(`Removed obsolete skill: ${skillName}`);
+    }
+  }
+  for (const agentFile of obsoleteAgentProfiles) {
+    for (const agentsBase of [path.join(wsDir, '.agents', 'agents'), path.join(targetDir, '.devin', 'agents')]) {
+      const f = path.join(agentsBase, agentFile);
+      if (fs.existsSync(f)) {
+        fs.rmSync(f, { force: true });
+        console.log(`Removed obsolete agent profile: ${path.relative(targetDir, f)}`);
+      }
+    }
+  }
 
   // Ensure directories exist
   const dirs = [
@@ -97,7 +152,7 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Copy subagent profiles (implementer, spec-optimizer, plan-optimizer, task-optimizer, reviewer, code-optimizer, test-agent)
+  // Copy subagent profiles (implementer, reviewer, code-optimizer, test-agent)
   if (fs.existsSync(srcAgents)) {
     const dstAgentsDir = path.join(agentsDir, 'agents');
     fs.mkdirSync(dstAgentsDir, { recursive: true });
@@ -128,10 +183,12 @@ async function upgradeCommand(options) {
   // all bundled language skills here pollutes the target workspace
   // with irrelevant skills (e.g. Rust skills in a Go repo).
 
-  // Upgrade xlsx: add missing sheets/headers, seed empty Skills/Matrix/Workflows
+  // Ensure data files exist (create if missing, preserve if existing)
   const language = detectLanguage(targetDir);
-  const xlsxPath = path.join(wsDir, 'overview.xlsx');
-  await upgradeWorkbook(xlsxPath, language);
+  const dataDir = path.join(wsDir, 'data');
+  if (!fs.existsSync(path.join(dataDir, 'identity.json'))) {
+    createDataFiles(wsDir, language, repoName, repoName);
+  }
 
   // Ensure .agents symlink exists (unless --no-symlink)
   if (options.symlink !== false) {

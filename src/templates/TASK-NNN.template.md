@@ -1,5 +1,13 @@
 # TASK-NNN — <short title>
 
+**UUID**: {{UUID}}
+**Status**: draft
+**Parent**: {{PARENT}}
+**Dependencies**: {{DEPENDENCIES}}
+**Skills**: {{SKILLS}}
+**Triggers**: {{TRIGGERS}}
+**Commit**: {{COMMIT}}
+
 <!-- Template hierarchy: SPEC-NNN → plans/PLAN-NNN.md → tasks/TASK-NNN.md -->
 <!-- Copy to tasks/TASK-NNN.md for each new task. -->
 <!-- Replace NNN with the actual monotonically increasing task ID. -->
@@ -26,20 +34,14 @@
 
 ## Status
 
-<!-- Lifecycle: draft → review → committed → implementing → code-review → testing → done → superseded -->
-<!-- draft: task file being written (primary skill + adhd) -->
-<!-- review: reviewer on the task file -->
-<!-- committed: task file passed review, committed to dev -->
-<!-- implementing: primary + secondary coding (code + initial tests) -->
-<!-- code-review: code reviewer checking code against project rules -->
-<!-- testing: testing agent writing full test suite -->
+<!-- Lifecycle: draft → in_progress → done → superseded -->
+<!-- draft: task file being written -->
+<!-- in_progress: implementation underway -->
 <!-- done: all tests pass, committed -->
 <!-- superseded: replaced by a newer task -->
 
-- **Status**: draft
 - **Owner**: unassigned
-- **Model class**: <!-- implementer | fast-worker | debugger -->
-- **Dependencies**: <!-- TASK-NNN, or "none" -->
+- **Task Dependencies**: <!-- TASK-NNN, or "none" -->
 
 ## Goal
 
