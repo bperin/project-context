@@ -7,6 +7,8 @@ function walkDir(dir, fileList = [], skipDirs = new Set(['.git', 'node_modules',
   for (const file of files) {
     if (skipDirs.has(file)) continue;
     const filePath = path.join(dir, file);
+    const lstat = fs.lstatSync(filePath);
+    if (lstat.isSymbolicLink()) continue; // skip symlinks (e.g. .agents → workspace)
     const stat = fs.statSync(filePath);
     if (stat.isDirectory()) {
       walkDir(filePath, fileList, skipDirs);
@@ -133,7 +135,7 @@ async function graphCommand(options) {
     fs.unlinkSync(path.join(edgesDir, f));
   }
 
-  const allFiles = walkDir(targetDir);
+  const allFiles = walkDir(targetDir, [], new Set(['.git', 'node_modules', '.ai', 'dist', 'build', options.workspace]));
   const nodes = [];
 
   // First pass: create nodes
