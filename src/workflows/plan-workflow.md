@@ -34,6 +34,8 @@ artifact, not the intent.
 
 ## Steps
 
+### Phase 1: Spec (steps 1-5)
+
 1. **Load the `adhd` skill.** Use it to explore the problem space before
    writing anything. Spawn divergent branches under different cognitive
    frames, score and prune, then write from the survivors. Do not lock
@@ -67,10 +69,16 @@ artifact, not the intent.
    a fundamental problem (wrong problem, wrong scope), stop and discuss
    with the user before rewriting.
 
-5. **Wait for user approval.** Present the reviewed spec to the user.
-   Do not proceed to the plan until the user approves. The user may
-   request changes, reject the spec, or approve it as-is. This is a
-   hard gate — no automatic progression.
+5. **STOP. Present the reviewed spec to the user and yield control.**
+   Do NOT proceed to step 6. Do NOT write the plan. Do NOT register a
+   plan. Summarize what the spec covers and ask the user if they want
+   to proceed to the plan. **This is a hard stop.** The workflow ends
+   here until the user explicitly says to continue. If the user says
+   "continue", "proceed", "write the plan", or similar, go to step 6.
+   If the user requests changes, revise the spec and re-dispatch the
+   reviewer. If the user says nothing, do nothing — wait.
+
+### Phase 2: Plan (steps 6-10) — only after user approval
 
 6. **Write the plan.** Use `PLAN-NNN.template.md`. Same context — do
    not re-read the spec, do not start a new session, do not reload
@@ -100,10 +108,14 @@ artifact, not the intent.
 8. **Apply reviewer findings.** Revise the plan. If MUST-FIX issues
    remain after one revision, escalate to the user.
 
-9. **Wait for user approval.** Present the reviewed plan to the user.
-   Do not proceed to task creation until the user approves. The user
-   may request changes, reject the plan, or approve it as-is. This is
-   a hard gate — no automatic progression.
+9. **STOP. Present the reviewed plan to the user and yield control.**
+   Do NOT proceed to step 10. Do NOT commit. Do NOT create tasks.
+   Summarize what the plan covers and ask the user if they want to
+   commit and proceed to task creation. **This is a hard stop.** The
+   workflow ends here until the user explicitly says to continue. If
+   the user says "commit", "proceed", "create tasks", or similar, go
+   to step 10. If the user requests changes, revise the plan and
+   re-dispatch the reviewer. If the user says nothing, do nothing — wait.
 
 10. **Commit.** Commit the spec and plan together with a message
     summarizing what was built. Tell the user to run `/pc-create-tasks
@@ -143,5 +155,10 @@ artifact, not the intent.
   not start a new session between them. Context is not re-read.
 - The reviewer is read-only. It reports findings; the orchestrator
   revises.
-- Hard gates: stop and wait for the user after spec review and after
-  plan review. Never auto-progress.
+- **Hard gates: two hard stops.** After spec review (step 5) and after
+  plan review (step 9), present the artifact, yield control to the
+  user, and do not proceed until the user explicitly says to. Do NOT
+  auto-progress. Do NOT write the plan until the user approves the
+  spec. Do NOT commit until the user approves the plan. If you find
+  yourself writing step 6 without the user saying "continue" or
+  "proceed", STOP — you skipped the gate.
