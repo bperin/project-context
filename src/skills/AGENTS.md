@@ -185,6 +185,11 @@ node /Users/brian/code/project-context/bin/cli.js add --type task --title "<titl
 
 # Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
 node /Users/brian/code/project-context/bin/cli.js status TASK-001 done -t .
+
+# Archive done/superseded records (moves MD to archive/, appends JSONL event)
+node /Users/brian/code/project-context/bin/cli.js archive TASK-014 -t .
+node /Users/brian/code/project-context/bin/cli.js archive --status done -t .
+node /Users/brian/code/project-context/bin/cli.js inspect -t . --include-archived
 ```
 
 ## Context packets
@@ -220,6 +225,8 @@ TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task 
 IMPLEMENT → /pc-implement workflow (implementer → code-optimizer → reviewer → test-agent, sequential)
   ↓
 REVIEW → /pc-review workflow (mechanical → dispatch reviewer → apply → PR)
+  ↓
+ARCHIVE → /pc-archive (move done/superseded records to archive/, append JSONL event)
 ```
 
 Everything is linear. One task at a time. Subagents run sequentially —
