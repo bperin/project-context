@@ -15,6 +15,7 @@ const addCommand = require('../src/commands/add');
 const syncCommand = require('../src/commands/sync');
 const archiveCommand = require('../src/commands/archive');
 const upgradeCommand = require('../src/commands/upgrade');
+const updateCommand = require('../src/commands/update');
 
 const program = new Command();
 
@@ -169,6 +170,27 @@ program
     try {
       options.workspace = resolveWorkspace(options);
       await addCommand(options);
+    } catch (err) {
+      console.error('Error:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('update <id>')
+  .description('Update spec/plan/task metadata without replacing history')
+  .option('--title <title>', 'Title')
+  .option('--parent <id>', 'Parent ID')
+  .option('--dependencies <deps>', 'Comma-separated dependency IDs')
+  .option('--skills <skills>', 'Comma-separated skill names')
+  .option('--triggers <triggers>', 'Comma-separated trigger names')
+  .option('--commit <hash>', 'Commit hash')
+  .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
+  .option('-t, --target <path>', 'Target project directory', '.')
+  .action(async (id, options) => {
+    try {
+      options.workspace = resolveWorkspace(options);
+      await updateCommand({ id, ...options });
     } catch (err) {
       console.error('Error:', err.message);
       process.exit(1);

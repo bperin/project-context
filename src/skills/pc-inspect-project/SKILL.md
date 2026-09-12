@@ -18,7 +18,7 @@ permissions:
 Read the project state from JSONL and Markdown files and print a summary.
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js inspect -t .
+project-context inspect -t .
 ```
 
 Print the output. That's it — no analysis, no recommendations. Just the facts.

@@ -25,11 +25,11 @@ const LANGUAGE_PRESETS = {
     stack: 'Go',
     skills: [
       ['go-systems-programmer', 'user-level', 'always-on', 'all', 'Explicit wiring, stdlib-first, consumer-side interfaces'],
-      ['go-security-expert', 'user-level', 'always-on', 'task-implementation', 'alg enforcement, claim validation, constant-time, crypto/rand'],
-      ['go-memory-oom-guard', 'user-level', 'always-on', 'task-implementation', 'Key material lifetime, memory leaks'],
+      ['go-security-expert', 'user-level', 'always-on', 'pc-implement', 'alg enforcement, claim validation, constant-time, crypto/rand'],
+      ['go-memory-oom-guard', 'user-level', 'always-on', 'pc-implement', 'Key material lifetime, memory leaks'],
       ['golang-testing', 'user-level', 'project-local', 'all', 'Any task in this Go project'],
       ['golang-security', 'user-level', 'user-local', 'crypto', 'When writing crypto/auth code'],
-      ['golang-code-style', 'user-level', 'user-local', 'code-review', 'When writing or reviewing Go code for style'],
+      ['golang-code-style', 'user-level', 'user-local', 'pc-review', 'When writing or reviewing Go code for style'],
       ['golang-error-handling', 'user-level', 'user-local', 'error-boundaries', 'When designing error boundaries'],
       ['golang-concurrency', 'user-level', 'user-local', 'concurrency', 'When writing concurrent code'],
       ['golang-performance', 'user-level', 'user-local', 'performance', 'When profiling shows a bottleneck'],
@@ -181,9 +181,13 @@ function getTaskStates(aiDir) {
   for (const ev of events) {
     if (!ev.id) continue;
     const existing = states.get(ev.id) || { id: ev.id, title: '', plan: '', status: 'draft' };
-    if (ev.event === 'created') {
-      existing.title = ev.title || existing.title;
-      existing.plan = ev.plan || existing.plan;
+    if (ev.event === 'created' || ev.event === 'updated') {
+      if (Object.hasOwn(ev, 'title')) existing.title = ev.title;
+      if (Object.hasOwn(ev, 'plan')) existing.plan = ev.plan;
+      if (Object.hasOwn(ev, 'skills')) existing.skills = ev.skills;
+      if (Object.hasOwn(ev, 'triggers')) existing.triggers = ev.triggers;
+      if (Object.hasOwn(ev, 'dependencies')) existing.dependencies = ev.dependencies;
+      if (Object.hasOwn(ev, 'commit')) existing.commit = ev.commit;
     }
     if (ev.event === 'created') existing.status = 'draft';
     else if (ev.event === 'started') existing.status = 'in_progress';

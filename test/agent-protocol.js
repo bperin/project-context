@@ -27,16 +27,43 @@ async function testAgentProtocolsAndFixtures() {
   const agentsMd = fs.readFileSync(path.join(aiDir, 'AGENTS.md'), 'utf8');
   assert(agentsMd.includes('Session start'), 'AGENTS.md missing Session start checklist');
   assert(agentsMd.includes('Workflows'), 'AGENTS.md missing Workflows table');
-  assert(agentsMd.includes('plan-workflow'), 'AGENTS.md missing plan-workflow reference');
-  assert(agentsMd.includes('task-workflow'), 'AGENTS.md missing task-workflow reference');
+  assert(agentsMd.includes('pc-plan'), 'AGENTS.md missing pc-plan reference');
+  assert(agentsMd.includes('pc-create-tasks'), 'AGENTS.md missing pc-create-tasks reference');
+  assert(!agentsMd.includes('/Users/brian/'), 'Generated AGENTS.md contains a machine-specific path');
 
   // 3. Verify workflow files are present and match expectations
   const workflowsDir = path.join(aiDir, 'workflows');
-  assert(fs.existsSync(path.join(workflowsDir, 'plan-workflow.md')), 'plan-workflow.md workflow missing');
-  assert(fs.existsSync(path.join(workflowsDir, 'task-workflow.md')), 'task-workflow.md workflow missing');
-  assert(fs.existsSync(path.join(workflowsDir, 'task-implementation.md')), 'task-implementation.md workflow missing');
-  assert(fs.existsSync(path.join(workflowsDir, 'code-review.md')), 'code-review.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'pc-plan.md')), 'pc-plan.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'pc-create-tasks.md')), 'pc-create-tasks.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'pc-implement.md')), 'pc-implement.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'pc-review.md')), 'pc-review.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'overview.md')), 'overview.md workflow missing');
+  for (const workflow of fs.readdirSync(workflowsDir).filter((name) => name.endsWith('.md'))) {
+    const content = fs.readFileSync(path.join(workflowsDir, workflow), 'utf8');
+    assert(!content.includes('/Users/brian/'), `${workflow} contains a machine-specific path`);
+  }
+
+  // Expensive or disruptive orchestration must use explicit pinned profiles.
+  const profileDir = path.join(aiDir, '.agents', 'agents');
+  const expectedPins = {
+    'planning-brain.md': 'gpt-5.6-sol-medium',
+    'spec-writer.md': 'glm-5.2-high',
+    'plan-writer.md': 'glm-5.2-high',
+    'task-writer.md': 'glm-5.2-high',
+    'workstream-analyst.md': 'glm-5.2-high',
+    'implementer.md': 'swe-2-high',
+    'reviewer.md': 'swe-1.7-medium',
+  };
+  for (const [file, model] of Object.entries(expectedPins)) {
+    const content = fs.readFileSync(path.join(profileDir, file), 'utf8');
+    assert(content.includes(`model: ${model}`), `${file} is not pinned to ${model}`);
+  }
+
+  const finalReviewSkill = fs.readFileSync(
+    path.join(aiDir, '.agents', 'skills', 'pc-review', 'SKILL.md'),
+    'utf8'
+  );
+  assert(!/triggers:\s*[\s\S]*?- model/.test(finalReviewSkill), 'pc-review should not auto-trigger from the model');
 
   // 4. Verify old workflows are NOT present
   assert(!fs.existsSync(path.join(workflowsDir, 'spec-creation.md')), 'spec-creation.md should be deleted');

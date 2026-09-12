@@ -30,6 +30,9 @@ compliance. You do not optimize — you verify.
 4. Check the document or code (see What you check below).
 5. Report findings in the output format below.
 
+Review only changed lines and directly affected behavior. Do not turn
+pre-existing issues, optional improvements, or speculative risks into blockers.
+
 ## What you check
 
 **For documents (spec, plan, task):**
@@ -67,3 +70,8 @@ NIT:
 ```
 
 Cite line numbers and exact text. Be specific.
+
+`MUST-FIX` is limited to demonstrated acceptance-criteria failures,
+regressions, security defects, data-loss risks, forbidden dependencies, or
+failing required checks. If none exist, write `MUST-FIX: none`. Suggestions
+belong under `SHOULD-FIX` and never trigger a correction loop.

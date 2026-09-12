@@ -7,6 +7,8 @@ const graphCommand = require('../src/commands/graph');
 const overviewCommand = require('../src/commands/overview');
 const addCommand = require('../src/commands/add');
 const setStatusCommand = require('../src/commands/set-status');
+const syncCommand = require('../src/commands/sync');
+const updateCommand = require('../src/commands/update');
 const {
   readSpecs,
   readPlans,
@@ -50,8 +52,21 @@ async function stressTest() {
 
   // Add spec, plan, task via CLI
   await addCommand({ type: 'spec', title: 'Core Engine', target: dir3, workspace: ws3 });
-  await addCommand({ type: 'plan', title: 'Database Layer', parent: 'SPEC-001', target: dir3, workspace: ws3 });
+  await addCommand({ type: 'plan', title: 'Database Layer', parent: 'SPEC-001', status: 'committed', target: dir3, workspace: ws3 });
+
+  // A committed plan remains committed before task creation.
+  await syncCommand({ target: dir3, workspace: ws3 });
+  let plans = readPlans(path.join(dir3, ws3));
+  assert.strictEqual(plans[0].status, 'committed', 'sync demoted a childless committed plan');
+
   await addCommand({ type: 'task', title: 'Connection Pool', parent: 'PLAN-001', target: dir3, workspace: ws3 });
+  await updateCommand({
+    id: 'TASK-001',
+    title: 'Bounded Connection Pool',
+    skills: 'database-testing',
+    target: dir3,
+    workspace: ws3,
+  });
 
   // Set task to done
   await setStatusCommand({ id: 'TASK-001', status: 'done', target: dir3, workspace: ws3 });
@@ -63,11 +78,13 @@ async function stressTest() {
   // Verify data persists
   const specs = readSpecs(path.join(dir3, ws3));
   assert(specs.length === 1, 'Specs not persisted');
-  const plans = readPlans(path.join(dir3, ws3));
+  plans = readPlans(path.join(dir3, ws3));
   assert(plans.length === 1, 'Plans not persisted');
   const taskStates = getTaskStates(path.join(dir3, ws3));
   assert(taskStates.size === 1, 'Tasks not persisted in JSONL');
   assert.strictEqual(taskStates.get('TASK-001').status, 'done', 'Task not marked done');
+  assert.strictEqual(taskStates.get('TASK-001').title, 'Bounded Connection Pool', 'Task title update not reduced from JSONL');
+  assert.strictEqual(taskStates.get('TASK-001').skills, 'database-testing', 'Task skills update not reduced from JSONL');
 
   // Verify plan timeline has events
   const timeline = readJSONL(path.join(dir3, ws3, 'plans', 'PLAN-001.timeline.jsonl'));

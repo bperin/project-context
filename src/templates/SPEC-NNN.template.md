@@ -1,7 +1,7 @@
 # SPEC-NNN: <short title>
 
 **UUID**: {{UUID}}
-**Status**: draft
+**Status**: {{STATUS}}
 **Dependencies**: {{DEPENDENCIES}}
 **Skills**: {{SKILLS}}
 **Triggers**: {{TRIGGERS}}

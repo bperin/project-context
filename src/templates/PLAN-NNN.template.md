@@ -1,7 +1,7 @@
 # PLAN-NNN: <short title>
 
 **UUID**: {{UUID}}
-**Status**: draft
+**Status**: {{STATUS}}
 **Parent**: {{PARENT}}
 **Dependencies**: {{DEPENDENCIES}}
 **Skills**: {{SKILLS}}

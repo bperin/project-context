@@ -4,10 +4,10 @@
 
 ```mermaid
 flowchart TD
-    INPUT["User input"] --> PLANW["plan-workflow<br/>adhd once → spec → review → plan → review"]
-    PLANW -->|committed| TASKW["task-workflow<br/>task-writer → task MDs + JSONL → review"]
-    TASKW -->|committed| IMPL["task-implementation<br/>implementer → code-optimizer → reviewer → test-agent"]
-    IMPL -->|tests fail| TF["test-failure<br/>max 3 rounds"]
+    INPUT["User input"] --> PLANW["pc-plan<br/>adhd once → spec → review → plan → review"]
+    PLANW -->|committed| TASKW["pc-create-tasks<br/>task-writer → task MDs + JSONL → review"]
+    TASKW -->|committed| IMPL["pc-implement<br/>implement + tests → verify → focused review"]
+    IMPL -->|one correction needed| TF["bounded correction<br/>one pass"]
     TF -->|fixed| IMPL
     TF -->|unresolved| ESC["Escalate to user"]
     IMPL -->|all tasks done| PR["PR review"]
@@ -37,13 +37,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    CTX["Context packet"] --> P["Implementer"]
-    P --> CO["Code-optimizer"]
-    CO --> CR["Reviewer"]
-    CR -->|"MUST-FIX"| P
-    CR -->|pass| TA["Test-agent"]
-    TA -->|"fail"| TF["test-failure workflow"]
-    TA -->|pass| COM["Commit + done"]
+    CTX["Context packet"] --> P["Implementer + complete tests"]
+    P --> V["Mechanical verification"]
+    V --> CR["Focused reviewer"]
+    CR -->|"MUST-FIX: one pass"| P
+    CR -->|pass| COM["Commit + done"]
 ```
 
 ## Control Plane
@@ -70,16 +68,18 @@ TASK:    draft → in_progress → done → superseded
 
 ### Concurrency
 
-1. One task at a time. No parallel lanes.
-2. Subagents run sequentially. Each finishes before the next starts.
-3. One review pass per artifact. If MUST-FIX after one revision,
+1. One implementation task at a time.
+2. Task creation may use up to four pinned read-only analysts in parallel; one
+   task-writer serializes every Markdown and JSONL change.
+3. All other subagents run sequentially.
+4. One review pass per artifact. If MUST-FIX after one revision,
    escalate.
 
 ### Escalation
 
 1. Plan/task workflow: one revision, then escalate.
-2. Implementation: 3 fix attempts, then escalate.
-3. Test failure: 3 rounds, then escalate.
+2. Implementation: one correction pass, then escalate.
+3. Test failure: one correction pass, then escalate.
 4. PR review: security-critical MUST-FIX, stop and escalate.
 
 ### Skill loading
@@ -87,6 +87,5 @@ TASK:    draft → in_progress → done → superseded
 1. `adhd` runs ONCE, by the orchestrator, before the spec.
 2. Task-writer does not load `adhd` or any skills.
 3. Implementer loads the task's primary skill.
-4. Code-optimizer loads the project's language skills.
+4. Code-optimizer loads performance skills only when conditionally dispatched.
 5. Reviewer loads the project's code-review skill.
-6. Test-agent loads the project's testing skill.

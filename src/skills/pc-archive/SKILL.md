@@ -22,16 +22,16 @@ rewritten — an `archived` event is appended.
 ## Archive one record
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js archive TASK-014 -t .
-node /Users/brian/code/project-context/bin/cli.js archive PLAN-003 -t .
-node /Users/brian/code/project-context/bin/cli.js archive SPEC-002 -t .
+project-context archive TASK-014 -t .
+project-context archive PLAN-003 -t .
+project-context archive SPEC-002 -t .
 ```
 
 Refuses non-terminal status and parents with active children. Use
 `--force` to override:
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js archive PLAN-003 -t . --force
+project-context archive PLAN-003 -t . --force
 ```
 
 ## Bulk archive all terminal records
@@ -40,8 +40,8 @@ Archives every active record with `done` or `superseded` status.
 Children first (tasks → plans → specs):
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js archive --status done -t .
-node /Users/brian/code/project-context/bin/cli.js archive --status superseded -t .
+project-context archive --status done -t .
+project-context archive --status superseded -t .
 ```
 
 ## What moves
@@ -63,8 +63,8 @@ node /Users/brian/code/project-context/bin/cli.js archive --status superseded -t
 `inspect` hides archived records by default:
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js inspect -t .                       # active only
-node /Users/brian/code/project-context/bin/cli.js inspect -t . --include-archived    # include archive/
+project-context inspect -t .                       # active only
+project-context inspect -t . --include-archived    # include archive/
 ```
 
 `sync` skips archived records so they don't roll up into parent status.

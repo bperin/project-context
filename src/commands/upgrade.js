@@ -43,6 +43,11 @@ async function upgradeCommand(options) {
     path.join(wsDir, 'workflows', 'spec-creation.md'),
     path.join(wsDir, 'workflows', 'plan-creation.md'),
     path.join(wsDir, 'workflows', 'task-creation.md'),
+    // Old workflow names (pre-skill-name alignment)
+    path.join(wsDir, 'workflows', 'plan-workflow.md'),
+    path.join(wsDir, 'workflows', 'task-workflow.md'),
+    path.join(wsDir, 'workflows', 'task-implementation.md'),
+    path.join(wsDir, 'workflows', 'code-review.md'),
     // Old templates no longer generated
     path.join(wsDir, 'templates', 'STATE.md'),
     path.join(wsDir, 'templates', 'current.md'),

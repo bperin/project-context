@@ -83,7 +83,7 @@ graph LR
     SPEC["**SPEC**<br/>adhd once → write<br/>→ review"]
     PLAN["**PLAN**<br/>write → review<br/>(same context as SPEC)"]
     TASK["**TASKS**<br/>task-writer reads spec+plan<br/>→ writes task MDs + JSONL → review"]
-    IMPL["**IMPLEMENT**<br/>implementer → code-optimizer<br/>→ reviewer → test-agent"]
+    IMPL["**IMPLEMENT**<br/>implement + complete tests<br/>→ verify → focused review"]
     REVIEW["**REVIEW**<br/>mechanical<br/>→ review diff → PR"]
 
     SPEC -->|approve| PLAN
@@ -139,38 +139,48 @@ field in their definition files. Profiles are discovered from
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `implementer` | `gpt-5.6-sol-medium` | Write code + initial tests | Task implementation |
+| `planning-brain` | `gpt-5.6-sol-medium` | Scope and architecture decisions | Planning only |
+| `spec-writer` | `glm-5.2-high` | Write spec from SOL decision brief | Specification phase |
+| `plan-writer` | `glm-5.2-high` | Write plan from SOL architecture brief | Plan phase |
+| `task-writer` | `glm-5.2-high` | Serialize task documents and event history | Task creation |
+| `workstream-analyst` | `glm-5.2-high` | Read-only workstream analysis | Optional bounded parallel fan-out |
+| `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
 | `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
-| `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
-| `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
+| `code-optimizer` | `glm-5.2-high` | Performance, memory, and concurrency review | Only when task risk or measurements warrant it |
+| `test-agent` | `swe-1.7-medium` | Test-only specialist | Optional isolated test repair |
 
-The orchestrator runs on `gpt-5.6-sol-high`. All subagents are pinned
-to different models via the `model:` field in their profile — none use
-the orchestrator's model. The orchestrator is used only for the
-planning workflow (spec + plan). A separate task-writer handles task
-creation so the expensive orchestrator is not used for every task.
+The root agent is a lightweight orchestrator. A custom `planning-brain` profile
+is explicitly pinned to `gpt-5.6-sol-medium`; document writers use
+`glm-5.2-high`, implementation uses `swe-2-high`, and review uses
+`swe-1.7-medium`. The workflow never uses `subagent_general`, which would inherit
+the root model.
 
 ## Subagent architecture
 
 ```mermaid
 graph TD
-    ORCH["**Orchestrator** (main agent)<br/>loads adhd once, builds context packets,<br/>writes spec + plan, dispatches reviewer"]
+    ORCH["**Orchestrator** (main agent)<br/>coordinates pinned profiles"]
 
     subgraph "Custom profiles (.agents/agents/)"
-        IMPL["implementer.md<br/>model: gpt-5.6-sol-medium<br/>write access, with context"]
+        BRAIN["planning-brain.md<br/>model: gpt-5.6-sol-medium<br/>scope + architecture"]
+        WRITERS["spec/plan/task writers<br/>model: glm-5.2-high"]
+        IMPL["implementer.md<br/>model: swe-2-high<br/>write access, with context"]
         REV["reviewer.md<br/>model: swe-1.7-medium<br/>read-only, with context"]
         CODEOPT["code-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
         TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
     end
 
+    ORCH -->|"planning decisions"| BRAIN
+    ORCH -->|"documents"| WRITERS
     ORCH -->|"implementation"| IMPL
     ORCH -->|"after writer"| REV
     ORCH -->|"after implementer"| CODEOPT
     ORCH -->|"after review"| TEST
 ```
 
-Subagents run **sequentially**, not in parallel. Each one finishes
-before the next starts. One task at a time — no parallel lanes.
+Writers, reviewers, and implementation agents run sequentially. Task creation may
+fan out up to four pinned read-only workstream analysts in parallel; one writer
+collects their reports and serializes all Markdown and JSONL changes.
 Subagents receive context packets (not conversation history) built by
 the CLI. Each packet contains the target entity, parent, children,
 modules, components, and cascaded skills.
@@ -184,7 +194,7 @@ workflow. They live in `.agents/skills/` and are discovered by Devin.
 |---------|---------|
 | `/pc-plan` | Run the planning workflow — adhd once, write spec, review, write plan, review |
 | `/pc-create-tasks` | Run the task-writer workflow — read spec+plan, write task MDs + JSONL |
-| `/pc-implement` | Run the task-implementation workflow — implementer → code-optimizer → reviewer → test-agent |
+| `/pc-implement` | Implement + complete tests → verify → one focused review; optimizer only when warranted |
 | `/pc-review` | Run the PR review workflow — mechanical checks, dispatch reviewer, open PR |
 | `/pc-inspect-project` | Read project state and print specs/plans/tasks with status |
 | `/pc-context` | Build a context packet for a spec/plan/task |

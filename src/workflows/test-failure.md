@@ -2,42 +2,26 @@
 
 ## When
 
-When tests fail during implementation or verification.
-
-## Loop
-
-```
-Tests fail → Triage → Fix → Re-run full suite → (max 3 rounds) → Escalate
-```
+When required verification fails during task implementation or final review.
 
 ## Steps
 
-1. **Capture the failure.** Run the test command, capture full output.
-
-2. **Triage each failure:**
-   - **Code bug** → re-dispatch the implementer to fix the code.
-   - **Test bug** → re-dispatch the test-agent to fix the test.
-   - **Design issue** → escalate to the user. Do not patch around it.
-   - **Environment issue** → fix the environment, not the code or test.
-
-3. **Fix.** Re-dispatch the implementer (code bugs) or test-agent
-   (test bugs). Do not fix code or tests yourself.
-
-4. **Re-run the full suite.** Not just the failing test.
-
-5. **Round counter.** Max 3 rounds. If the same fix fails twice, the
-   diagnosis is wrong — re-triage from scratch.
-
-6. **Escalate.** If still failing after round 3, present the failures,
-   what was tried, and your assessment to the user.
-
-7. **When all tests pass.** Commit with a message noting the failure
-   loop. Update task status to `done`.
+1. Capture the failing command and relevant output.
+2. Classify the failure as implementation, test, environment, or design.
+3. Use the task's single correction pass:
+   - **Implementation or test defect:** re-dispatch the implementer with the
+     complete failure set. The implementer owns both code and task-level tests.
+   - **Environment defect:** repair the environment and retry without changing
+     repository behavior.
+   - **Design defect:** stop and present the decision to the user.
+4. Re-run the required suite once.
+5. If implementation code changed, return to the focused confirmation review in
+   `pc-implement.md` before committing.
+6. If the same required check still fails, stop with the command, output, attempted
+   correction, and diagnosis. Do not start another agent loop.
 
 ## Constraints
 
-- Max 3 rounds. Escalate if unresolved.
-- Never skip a failing test. Never weaken a test to make it pass.
-- Re-run the full suite after every fix.
-- Design issues are escalated, not patched.
-- The orchestrator coordinates. It does not fix code or tests directly.
+- Never skip or weaken a required test merely to make it pass.
+- Do not repeatedly run the full suite while diagnosing one deterministic failure.
+- A final full-suite run is required before commit when the project defines one.

@@ -87,15 +87,11 @@ async function addCommand(options) {
     finalID = nextID(existing, prefix);
   }
 
-  // Generate UUID deterministically
-  const { execSync } = require('child_process');
-  let uuid;
-  try {
-    const cliPath = path.join(__dirname, '..', '..', 'bin', 'cli.js');
-    uuid = execSync(`node ${cliPath} uuid ${finalID}`, { encoding: 'utf8' }).trim();
-  } catch (e) {
-    uuid = '';
-  }
+  // Generate UUID deterministically — inline, not via execSync
+  // (execSync to bin/cli.js breaks in bundled builds)
+  const { v5 } = require('uuid');
+  const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+  const uuid = v5(finalID, NAMESPACE);
 
   const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : 'tasks';
   const filePath = path.join(aiDir, dirName, `${finalID}.md`);

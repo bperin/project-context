@@ -1,6 +1,6 @@
 ---
 name: pc-create-tasks
-description: "Run the task workflow for a plan — orchestrator dispatches the task-writer subagent, then the reviewer"
+description: "Build tasks from a plan using optional pinned parallel analysts, one serial task writer, then one reviewer"
 argument-hint: "<PLAN-NNN>"
 triggers:
   - user
@@ -33,19 +33,25 @@ a cheaper model) and collect its results.
 
 ## What you do
 
-Follow `workflows/task-workflow.md` exactly. In order:
+Follow `workflows/pc-create-tasks.md` exactly. In order:
 
 1. Build a context packet: `project-context context PLAN-NNN -t . -o .context-packet.json`
-2. Dispatch `task-writer` (foreground, write access to tasks/ + CLI) —
-   it reads the spec + plan, consults the graph, writes `TASK-NNN.md`
-   files, and registers each task via `project-context add --type task`
-   in build order
-3. Dispatch `reviewer` (foreground, read-only) — checks task files
+2. For multiple independent workstreams, optionally dispatch up to four pinned
+   `workstream-analyst` agents in the background and collect every report
+3. Dispatch `task-writer` (foreground, write access to tasks/ + CLI) —
+   it reads the spec + plan, consults the graph, **registers each task
+   via `project-context add --type task` first** (creates the MD from
+   template + JSONL record), **then edits the generated MD files** to
+   fill in detailed content (goal, files, symbols, constraints,
+   verification). Never `write` a TASK-NNN.md directly — the CLI `add`
+   is the only thing that creates task files and JSONL records.
+4. Dispatch `reviewer` (foreground, read-only) — checks task files
    against the plan, templates, and rules
-4. Re-dispatch `task-writer` with findings on MUST-FIX (one revision,
+5. Re-dispatch `task-writer` with findings on MUST-FIX (one revision,
    then escalate)
-5. Commit task files + JSONL together
+6. Commit task files + JSONL together
 6. Report build order; tell the user to run `/pc-implement TASK-NNN`
 
-All dispatches are foreground (`is_background: false`), sequential.
-Block on `read_subagent` to collect each result.
+Only read-only workstream analysis may run in parallel/background. Every analyst
+must use the pinned `workstream-analyst` profile. Collect all reports before the
+single foreground task-writer mutates state; reviewer and revisions remain serial.

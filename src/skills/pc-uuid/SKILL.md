@@ -17,7 +17,7 @@ permissions:
 Generate a deterministic v5 UUID from the given ID.
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js uuid <ID>
+project-context uuid <ID>
 ```
 
 Print the UUID. Use this when adding rows to data/tasks.jsonl and Markdown files.

@@ -1,6 +1,6 @@
 ---
 name: pc-implement
-description: "Run the task-implementation workflow for a task — orchestrator dispatches implementer, code-optimizer, reviewer, test-agent sequentially"
+description: "Implement one task with complete tests, verification, one focused review, and a bounded correction pass"
 argument-hint: "<TASK-NNN>"
 triggers:
   - user
@@ -29,25 +29,22 @@ permissions:
 > **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the
 > shared protocol, CLI commands, context packets, and dispatch rules.
 
-You are the **orchestrator**. You do not write code yourself — you
-dispatch agent profiles from `.agents/agents/` and collect their
-results.
+You are the **orchestrator**. Keep the normal path lean: one implementer,
+mechanical verification, and one focused reviewer.
 
 ## What you do
 
-Follow `workflows/task-implementation.md` exactly. In order:
+Follow `workflows/pc-implement.md` exactly. In order:
 
 1. Build a context packet: `project-context context TASK-NNN -t . -o .context-packet.json`
-2. Dispatch `implementer` (foreground, write access)
-3. Dispatch `code-optimizer` (foreground, read-only)
-4. Dispatch `reviewer` (foreground, read-only)
-5. Re-dispatch `implementer` on MUST-FIX findings
-6. Dispatch `test-agent` (foreground, write access)
-7. On test failure → `workflows/test-failure.md` (max 3 rounds)
-8. Commit, then `project-context status TASK-NNN done -t .`
-9. Rebuild the graph (`project-context graph -t .`) — may be dispatched
-   as a background subagent
-10. Report
+2. Dispatch `implementer` to write code and complete task-level tests
+3. Run applicable mechanical checks
+4. Dispatch `code-optimizer` only for explicit or measured performance,
+   memory, or concurrency risk
+5. Dispatch one focused `reviewer`
+6. If blocked, re-dispatch the implementer once with the deduplicated findings
+7. Re-run verification and confirm only the original blockers
+8. Commit, mark the task done, rebuild the graph, and report
 
-All dispatches are foreground (`is_background: false`), sequential,
-one at a time. Block on `read_subagent` to collect each result.
+All pipeline dispatches are foreground and sequential. There is at most one
+correction pass. `SHOULD-FIX` findings do not block completion.

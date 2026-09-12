@@ -134,50 +134,54 @@ implementer loads them at implementation time.
 
 ## Subagent profiles
 
-`implementer`, `reviewer`, `code-optimizer`, `test-agent`, and
-`task-writer` are **custom subagent profiles** under `.agents/agents/`.
+`planning-brain`, `spec-writer`, `plan-writer`, `task-writer`,
+`workstream-analyst`, `implementer`, `reviewer`, `code-optimizer`, and
+`test-agent` are custom profiles under `.agents/agents/`.
 They are pinned to specific models via the `model:` field in their
 profile so they don't all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
+| `planning-brain` | `gpt-5.6-sol-medium` | Scope and architecture decisions | Twice during planning |
+| `spec-writer` | `glm-5.2-high` | Write spec from decision brief | After spec framing |
+| `plan-writer` | `glm-5.2-high` | Write plan from architecture brief | After plan framing |
 | `task-writer` | `glm-5.2-high` | Write task MDs + JSONL build order from approved plan | After plan committed |
-| `implementer` | `swe-2-high` | Write code + initial tests | Task implementation |
+| `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
+| `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
 | `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
 | `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
-| `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
+| `test-agent` | `swe-1.7-medium` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
 
-There is no orchestrator or planner profile. The planner IS the
-top-level agent on whatever model you pick in the model picker (SOL is
-fine for planning). Subagents are pinned to cheaper models via `model:`
-— none use SOL, none inherit the parent's model. Implementers should
-only ever be `swe-2-high` or `glm-5.2-high`.
+The top-level agent is a lightweight orchestrator. Planning decisions run in the
+custom `planning-brain` profile pinned to `gpt-5.6-sol-medium`; writers and
+reviewers use their own cheaper pins. Never rely on parent-model inheritance.
 
 Do not use the built-in `subagent_general` profile for pipeline work —
 it inherits the parent's model (which may be SOL/expensive). Always
 use the custom profiles above, which are pinned to cheaper models.
 
-Subagents run **sequentially**, not in parallel. Each one finishes
-before the next starts. One task at a time — no parallel lanes.
+Writers, reviewers, and implementers run sequentially. During task creation only,
+up to four pinned read-only `workstream-analyst` agents may run in parallel. Their
+reports are collected before the single task-writer mutates state.
 
 ### Dispatch protocol — FOREGROUND, not background
 
-All subagents in the implementation pipeline (implementer,
-code-optimizer, reviewer, test-agent) must run as **foreground**
-subagents. This is mandatory.
+All dispatched pipeline subagents must run as **foreground** subagents.
 
 When you dispatch a subagent with `run_subagent`, you MUST set:
 - `is_background: false` — the subagent blocks the orchestrator until it finishes
 - `profile:` — the subagent profile name (e.g. `implementer`, `reviewer`)
 
-**Never** set `is_background: true` for pipeline subagents. Background
-subagents return immediately and you cannot collect their results. The
-pipeline is sequential — each subagent must complete and return its
-findings before the next one starts.
+Set `is_background: true` only for pinned read-only `workstream-analyst` agents
+during task creation, and collect every result before dispatching the writer.
+All other pipeline agents are foreground.
 
-The only exception is the graph-update utility (step 10 of
-pc-implement), which can run in the background because it doesn't
-affect the pipeline.
+Background agents cannot request new permissions. If a required read is denied,
+resume that analyst in the foreground or continue without its report. Custom
+profiles are experimental in Devin, so `upgrade` keeps both supported project
+locations synchronized.
+
+Graph update may run in the background because it does not affect the pipeline.
 
 Template for dispatching a pipeline subagent:
 ```
@@ -194,8 +198,8 @@ the result. Do not poll — block until it finishes.
 
 ### Language skill matrix
 
-When a task is code-heavy, the `test-agent`, `code-optimizer`, and
-`reviewer` load language-specific skills based on the repo's manifests:
+When a task is code-heavy, the implementer, optional `test-agent`, optional
+`code-optimizer`, and `reviewer` load language-specific skills based on manifests:
 
 | Language | Detected by | test-agent | code-optimizer | reviewer |
 |---|---|---|---|---|
@@ -208,40 +212,40 @@ Each specialized agent loads its own column. The implementer loads the task's pr
 
 ## CLI commands
 
-All skills use the `project-context` CLI at
-`/Users/brian/code/project-context/bin/cli.js`:
+All skills use the installed `project-context` CLI:
 
 ```bash
 # Generate a deterministic v5 UUID from an ID
-node /Users/brian/code/project-context/bin/cli.js uuid SPEC-001
+project-context uuid SPEC-001
 
 # Build a minimal context packet for a spec/plan/task (JSON output)
-node /Users/brian/code/project-context/bin/cli.js context TASK-012 -t .
+project-context context TASK-012 -t .
 
 # Read project state and print specs/plans/tasks with status
-node /Users/brian/code/project-context/bin/cli.js inspect -t .
+project-context inspect -t .
 
 # Refresh project overview from workflow markdown files
-node /Users/brian/code/project-context/bin/cli.js overview -t .
+project-context overview -t .
 
 # Build graph nodes and edges from source files
-node /Users/brian/code/project-context/bin/cli.js graph -t .
+project-context graph -t .
 
 # Scaffold a new .{reponame}-manager workspace
-node /Users/brian/code/project-context/bin/cli.js init -t . --discover
+project-context init -t . --discover
 
 # Add a spec/plan/task (creates MD file, appends to JSONL for tasks)
-node /Users/brian/code/project-context/bin/cli.js add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
-node /Users/brian/code/project-context/bin/cli.js add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
-node /Users/brian/code/project-context/bin/cli.js add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
+project-context add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
+project-context add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
+project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
+project-context update TASK-001 --skills "<skills>" --triggers "<triggers>" -t .
 
 # Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
-node /Users/brian/code/project-context/bin/cli.js status TASK-001 done -t .
+project-context status TASK-001 done -t .
 
 # Archive done/superseded records (moves MD to archive/, appends JSONL event)
-node /Users/brian/code/project-context/bin/cli.js archive TASK-014 -t .
-node /Users/brian/code/project-context/bin/cli.js archive --status done -t .
-node /Users/brian/code/project-context/bin/cli.js inspect -t . --include-archived
+project-context archive TASK-014 -t .
+project-context archive --status done -t .
+project-context inspect -t . --include-archived
 ```
 
 ## Context packets
@@ -250,7 +254,7 @@ Subagents must not receive conversation history. Instead, the
 orchestrator builds a context packet and feeds it to the subagent:
 
 ```bash
-node /Users/brian/code/project-context/bin/cli.js context TASK-012 -t . -o .context-packet.json
+project-context context TASK-012 -t . -o .context-packet.json
 ```
 
 The packet contains:
@@ -274,7 +278,7 @@ PLAN → /pc-plan workflow (adhd once → write spec → review → [user approv
   ↓
 TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task MDs + JSONL → review)
   ↓
-IMPLEMENT → /pc-implement workflow (implementer → code-optimizer → reviewer → test-agent, sequential)
+IMPLEMENT → /pc-implement workflow (implementer + tests → verify → focused reviewer)
   ↓
 REVIEW → /pc-review workflow (mechanical → dispatch reviewer → apply → PR)
   ↓
@@ -288,23 +292,22 @@ each one finishes before the next starts.
 
 1. **Read AGENTS.md first.** It has the project workflow protocol.
 2. **Read this file first.** It has the shared instructions.
-3. **JSONL is the task state.** MD files are documents. Status for
-   specs/plans is in the MD files. Status for tasks is in
-   `data/tasks.jsonl`.
-4. **Subagents run sequentially.** No parallel lanes. One task at a
-   time. Each subagent finishes before the next starts.
+3. **JSONL is append-only task history.** Add events; never rewrite old events.
+   Markdown specs, plans, and tasks are living documents and may be edited.
+4. **Parallel analysis, serial mutation.** Only pinned read-only workstream
+   analysts may run in parallel during task creation. Everything else is serial.
 5. **Pipeline subagents are FOREGROUND.** Always set `is_background:
-   false` when dispatching implementer, code-optimizer, reviewer, or
-   test-agent. Never background them. Block on `read_subagent` to
+   false` when dispatching implementer, optional code-optimizer, or
+   reviewer. Never background them. Block on `read_subagent` to
    collect results before proceeding.
 6. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
    `project-context uuid <ID>`.
 7. **Update state through the CLI.** Never edit JSONL files directly.
-   Use `project-context add` to register specs/plans/tasks and
-   `project-context status` to update status.
+   Use `project-context add` to register records, `project-context update` to
+   append metadata changes, and `project-context status` to update status.
 8. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-9. **One task at a time.** No parallel lanes. The build order in JSONL
-   determines the sequence.
+9. **One implementation task at a time.** Parallel analysis never changes the
+   build order; JSONL event order determines implementation sequence.
 10. **Hard gates.** Stop and wait for the user after spec review and
     after plan review. Never auto-progress.

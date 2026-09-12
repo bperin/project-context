@@ -70,7 +70,9 @@ async function syncCommand(options) {
 
     let newStatus = String(p.status || 'draft');
     if (total === 0) {
-      newStatus = 'draft';
+      // A reviewed plan is committed before its tasks are created. With no
+      // children there is no derived progress, so preserve its explicit state.
+      continue;
     } else if (done === total) {
       newStatus = 'done';
     } else if (done > 0) {
