@@ -133,9 +133,11 @@ revision, escalate to the user.
 
 ## Model rotation
 
-Custom subagent profiles are pinned to specific models via the `model:`
-field in their definition files. Profiles are discovered from
-`.agents/agents/` in the workspace.
+Custom subagent profiles are pinned to specific models via the `model:` field in
+their definition files. The root `.agents` symlink exposes the canonical
+workspace profiles from `.agents/agents/`. Project-context does not duplicate
+them under `.devin/agents/`; that directory remains available for unrelated
+user-owned Devin profiles.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|

@@ -157,28 +157,26 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Copy subagent profiles (implementer, reviewer, code-optimizer, test-agent)
+  // Keep one canonical discovery path for generated subagent profiles. The root
+  // .agents symlink exposes workspace/.agents/agents to Devin, so duplicating the
+  // same names under .devin/agents causes ambiguous profile discovery.
   if (fs.existsSync(srcAgents)) {
+    const profileFiles = fs.readdirSync(srcAgents).filter((f) => f.endsWith('.md'));
     const dstAgentsDir = path.join(agentsDir, 'agents');
     fs.mkdirSync(dstAgentsDir, { recursive: true });
-    for (const f of fs.readdirSync(srcAgents)) {
-      if (!f.endsWith('.md')) continue;
+    for (const f of profileFiles) {
       copyWithHeader(path.join(srcAgents, f), path.join(dstAgentsDir, f));
     }
 
-    // Also copy to .devin/agents/ at the project root so the Devin host
-    // discovers custom subagent profiles. The host scans .devin/agents/
-    // and .agents/agents/ — not .ai-trust/.agents/agents/.
+    // Older upgrades copied project-context profiles here too. Remove only the
+    // managed filenames; preserve unrelated user-owned Devin profiles.
     const devinAgentsDir = path.join(targetDir, '.devin', 'agents');
-    fs.mkdirSync(devinAgentsDir, { recursive: true });
-    for (const f of fs.readdirSync(srcAgents)) {
-      if (!f.endsWith('.md')) continue;
-      // Copy without the generated header — the host reads frontmatter
-      // directly and a header comment could interfere with YAML parsing.
-      const content = fs.readFileSync(path.join(srcAgents, f), 'utf8');
-      fs.writeFileSync(path.join(devinAgentsDir, f), content);
+    if (fs.existsSync(devinAgentsDir)) {
+      for (const f of profileFiles) {
+        const duplicatePath = path.join(devinAgentsDir, f);
+        if (fs.existsSync(duplicatePath)) fs.rmSync(duplicatePath, { force: true });
+      }
     }
-    console.log(`Copied subagent profiles to ${devinAgentsDir}`);
   }
 
   // Language skills are NOT copied by upgrade. The target repo's

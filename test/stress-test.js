@@ -9,6 +9,7 @@ const addCommand = require('../src/commands/add');
 const setStatusCommand = require('../src/commands/set-status');
 const syncCommand = require('../src/commands/sync');
 const updateCommand = require('../src/commands/update');
+const upgradeCommand = require('../src/commands/upgrade');
 const {
   readSpecs,
   readPlans,
@@ -49,6 +50,16 @@ async function stressTest() {
   fs.writeFileSync(path.join(dir3, 'package.json'), '{"name":"test"}\n');
   const ws3 = '.full-manager';
   await initCommand({ target: dir3, workspace: ws3, discover: false });
+
+  // Upgrade removes old duplicate managed profiles from .devin/agents while
+  // preserving unrelated user profiles.
+  const legacyAgentsDir = path.join(dir3, '.devin', 'agents');
+  fs.mkdirSync(legacyAgentsDir, { recursive: true });
+  fs.writeFileSync(path.join(legacyAgentsDir, 'reviewer.md'), 'old generated reviewer\n');
+  fs.writeFileSync(path.join(legacyAgentsDir, 'personal.md'), 'user profile\n');
+  await upgradeCommand({ target: dir3, workspace: ws3 });
+  assert(!fs.existsSync(path.join(legacyAgentsDir, 'reviewer.md')), 'upgrade kept duplicate managed reviewer');
+  assert(fs.existsSync(path.join(legacyAgentsDir, 'personal.md')), 'upgrade removed unrelated user profile');
 
   // Add spec, plan, task via CLI
   await addCommand({ type: 'spec', title: 'Core Engine', target: dir3, workspace: ws3 });
