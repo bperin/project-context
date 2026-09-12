@@ -1,7 +1,7 @@
 ---
 name: implementer
-description: "Implementer — write access. Writes code and initial tests for a task. Pinned to gpt (non-SOL) to avoid expensive model for subagent work."
-model: gpt
+description: "Implementer — write access. Writes code and initial tests for a task. Pinned to swe-2-high."
+model: swe-2-high
 allowed-tools:
   - read
   - edit

@@ -108,19 +108,23 @@ When a user describes what they want built (register via the CLI):
 
 ## Writing tasks
 
-After the plan is committed, a task-writer (different agent, not the
-orchestrator):
+After the plan is committed, the orchestrator dispatches the
+task-writer subagent (`task-writer` profile — a different, cheaper
+agent, not the orchestrator):
 
-1. Reads the agreed spec and plan.
-2. Thinks through implementation approaches for each workstream.
-3. Consults the project graph for file placement.
-4. Writes `TASK-NNN.md` files — one per workstream. Records each task's
-   skills and triggers in the MD file.
-5. Registers each task via the CLI in build order. The `skills` and
-   `triggers` are stored in `data/tasks.jsonl` so the implementer knows
-   what to load later. The task-writer does not load them.
-6. Dispatches the reviewer. Revises based on findings.
-7. Commits.
+1. Dispatches the task-writer (foreground, `is_background: false`).
+   The task-writer reads the agreed spec and plan.
+2. The task-writer thinks through implementation approaches for each
+   workstream and consults the project graph for file placement.
+3. The task-writer writes `TASK-NNN.md` files — one per workstream.
+   Records each task's skills and triggers in the MD file.
+4. The task-writer registers each task via the CLI in build order. The
+   `skills` and `triggers` are stored in `data/tasks.jsonl` so the
+   implementer knows what to load later. The task-writer does not load
+   them.
+5. The orchestrator dispatches the reviewer. If MUST-FIX findings
+   remain, the orchestrator re-dispatches the task-writer to revise.
+6. Commits.
 
 ## During implementation
 

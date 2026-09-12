@@ -121,23 +121,24 @@ implementer loads them at implementation time.
 
 ## Subagent profiles
 
-`implementer`, `reviewer`, `code-optimizer`, and `test-agent` are
-**custom subagent profiles** under `.agents/agents/`. They are pinned to
-specific models via the `model:` field in their profile so they don't
-all run on the expensive orchestrator model.
+`implementer`, `reviewer`, `code-optimizer`, `test-agent`, and
+`task-writer` are **custom subagent profiles** under `.agents/agents/`.
+They are pinned to specific models via the `model:` field in their
+profile so they don't all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `implementer` | `gpt` | Write code + initial tests | Task implementation |
+| `task-writer` | `glm-5.2-high` | Write task MDs + JSONL build order from approved plan | After plan committed |
+| `implementer` | `swe-2-high` | Write code + initial tests | Task implementation |
 | `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
 | `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
 | `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
 
-The orchestrator runs on the model you pick in the model picker. All
-subagents are pinned to cheaper models via the `model:` field in their
-profile — **none use SOL** and none inherit the parent's model. This
-keeps subagent cost low regardless of what model the orchestrator runs
-on.
+There is no orchestrator or planner profile. The planner IS the
+top-level agent on whatever model you pick in the model picker (SOL is
+fine for planning). Subagents are pinned to cheaper models via `model:`
+— none use SOL, none inherit the parent's model. Implementers should
+only ever be `swe-2-high` or `glm-5.2-high`.
 
 Do not use the built-in `subagent_general` profile for pipeline work —
 it inherits the parent's model (which may be SOL/expensive). Always
