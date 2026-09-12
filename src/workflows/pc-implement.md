@@ -2,61 +2,69 @@
 
 ## When
 
-When a task moves from `draft` to `in_progress`. One task at a time.
+When one or more ready tasks move from `draft` to `in_progress`.
 
-## Default pipeline
+## Implementation waves
+
+Run up to three tasks in one background wave. A task is eligible only when:
+
+- every declared task dependency is `done`;
+- its declared files and symbols do not overlap another task in the wave; and
+- its acceptance criteria can be verified independently.
+
+If ownership overlaps or is unclear, run those tasks sequentially. Background
+implementers share the working tree; they are not isolated branches.
 
 ```text
-Implement + complete tests → mechanical verification → focused review → commit
+select ≤3 ready tasks → start statuses → background implementers
+→ collect all → integrated verification → focused review → one commit
 ```
-
-The default path uses two subagent calls: one implementer and one reviewer.
-Dispatch the optional optimizer only when the task or measured evidence identifies
-performance, memory, or concurrency risk.
 
 ## Steps
 
-1. **Build a context packet:**
+1. Inspect task state and select a wave of at most three eligible tasks. Preserve
+   JSONL build order when multiple candidates are equally ready.
+2. Build a separate context packet for each task:
    ```bash
-   project-context context TASK-NNN -t . -o .context-packet.json
+   project-context context TASK-NNN -t . -o .context-TASK-NNN.json
    ```
-2. **Dispatch the implementer** (foreground, write access). It loads applicable
-   skills, implements the change, writes the complete task-level test suite, and
-   runs the task's verification commands.
-3. **Run mechanical verification.** Run only commands supported by detected
-   manifests or named by the task. Failures go directly back to the implementer
-   and count as the correction pass.
-4. **Optionally dispatch the code-optimizer** only when the task concerns
-   performance, memory, or concurrency; measured evidence identifies such a risk;
-   or the user requests optimization review. Do not dispatch it for routine work.
-5. **Dispatch one focused reviewer** (foreground, read-only). Give it the task,
-   acceptance criteria, AGENTS.md, diff, verification output, and any optimizer
-   findings. It reviews only changed lines and directly affected behavior.
-6. **Apply at most one correction pass.** Re-dispatch the implementer once with
-   the complete, deduplicated `MUST-FIX` list. A blocker must demonstrate an
-   acceptance-criteria failure, regression, security defect, data-loss risk, or
-   failing required check. Suggestions do not block completion.
-7. **Re-run verification and a confirmation review.** The confirmation checks
-   only the original blockers and obvious regressions introduced by the correction;
-   it must not expand scope. If a blocker remains, stop and ask the user.
-8. **Commit, then update state:**
-   ```bash
-   project-context status TASK-NNN done -t .
-   project-context graph -t .
-   ```
+3. Append each `in_progress` status serially before dispatch. Do not let subagents
+   edit manager state.
+4. Dispatch one pinned `implementer` (`swe-2-high`) per task with
+   `is_background: true`. Give each an explicit exclusive file/symbol boundary.
+   Implementers write code and complete task-level tests but do not commit, change
+   task status, or spawn subagents. The orchestrator must not edit source files
+   while the wave is running.
+5. Wait for completion notifications and collect every result. Background agents
+   cannot request new permissions; if one is denied, resume only that agent in the
+   foreground. If an agent fails, keep the wave tasks `in_progress` and stop before
+   commit.
+6. Check the combined diff against declared ownership, then run applicable
+   project-level mechanical verification once over the integrated wave.
+7. Optionally dispatch one pinned `code-optimizer` only for explicit or measured
+   performance, memory, or concurrency risk.
+8. Dispatch one pinned `reviewer` over the combined wave diff. Review changed
+   behavior against each task's acceptance criteria.
+9. Apply at most one correction pass. Independent corrections may return to their
+   original pinned implementers in parallel, again capped at three. Confirmation
+   checks only the original blockers and obvious correction regressions; it cannot
+   expand scope. If a blocker remains, stop and ask the user.
+10. Commit the verified wave once, then append each `done` status serially and
+    rebuild the graph:
+    ```bash
+    project-context status TASK-NNN done -t .
+    project-context graph -t .
+    ```
 
-## Test failure routing
+## Blocking standard
 
-- A test-only correction returns to mechanical verification.
-- An implementation correction returns to verification and the focused
-  confirmation review before commit.
-- Environment failures do not consume the correction pass unless repository files
-  change.
+A finding blocks only for an acceptance-criteria failure, regression, security
+defect, data-loss risk, ownership violation, or failing required check. Suggestions
+do not start a correction pass.
 
 ## Constraints
 
-- One task at a time. Agents run sequentially.
-- One correction pass maximum per task.
-- Review changed scope, not the entire repository.
-- The orchestrator may make trivial metadata or formatting corrections, but code
-  changes return to the implementer.
+- Maximum three simultaneous implementation agents.
+- Never parallelize tasks with overlapping or unknown write sets.
+- No per-agent commits and no concurrent JSONL or Markdown state writes.
+- One integrated commit and one correction pass per wave.

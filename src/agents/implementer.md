@@ -37,6 +37,12 @@ orchestrator.
 7. Run verification (build, vet, test, lint). All must pass.
 8. Report what you implemented and any issues.
 
+## Parallel wave rules
+
+When dispatched in the background, stay within the exact files and symbols assigned
+by the parent. Other implementers share the same working tree. Do not edit manager
+documents or JSONL, change task status, run git commit, or spawn subagents.
+
 ## What you do NOT do
 
 - Review or optimize code — that is the code-optimizer and reviewer's

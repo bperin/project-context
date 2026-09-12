@@ -93,8 +93,8 @@ graph LR
     REVIEW -->|squash merge| DONE["**DONE**<br/>tag + record in JSONL"]
 ```
 
-Everything is linear. One task at a time. Subagents run sequentially —
-each one finishes before the next starts.
+Planning and review remain gated and serial. Task analysis and implementation may
+use the bounded parallel waves described below.
 
 ## Planning workflow
 
@@ -180,9 +180,10 @@ graph TD
     ORCH -->|"after review"| TEST
 ```
 
-Writers, reviewers, and implementation agents run sequentially. Task creation may
-fan out up to four pinned read-only workstream analysts in parallel; one writer
-collects their reports and serializes all Markdown and JSONL changes.
+Task creation may fan out up to four pinned read-only analysts. Implementation may
+run up to three pinned `swe-2-high` implementers in the background when tasks are
+dependency-ready and have disjoint write sets. Reviews, commits, and project-state
+updates remain serial.
 Subagents receive context packets (not conversation history) built by
 the CLI. Each packet contains the target entity, parent, children,
 modules, components, and cascaded skills.

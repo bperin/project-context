@@ -133,26 +133,26 @@ agent, not the orchestrator):
 Follow the pc-implement workflow
 (`workflows/pc-implement.md`). Summary:
 
-1. Build a context packet for the task with the CLI.
-2. Dispatch the implementer (foreground, write access). It loads the
-   primary skill, writes code + complete task-level tests, and runs verification.
-3. Run the mechanical checks supported by the project.
+1. Select up to three dependency-ready tasks with disjoint write sets and build
+   a separate context packet for each.
+2. Append their `in_progress` states serially, then dispatch one pinned
+   implementer per task in the background. Collect every result.
+3. Check ownership and run integrated mechanical checks.
 4. Dispatch the code-optimizer only for explicit or measured performance,
    memory, or concurrency risk.
 5. Dispatch one focused reviewer. Review changed scope only.
 6. Apply at most one correction pass, then re-run verification and confirm
    only the original blockers. Escalate if one remains.
-7. When all required checks pass, commit.
-8. Update the task status to `done` via the CLI:
+7. When all required checks pass, create one integrated commit.
+8. Update each task status to `done` serially via the CLI:
    ```bash
    project-context status TASK-NNN done -t .
    ```
 
-**One implementation task at a time.** During task creation only, up to four
-pinned read-only workstream analysts may run in parallel. All writers, reviewers,
-implementation agents, and state mutations remain sequential.
+**Bounded parallelism.** Task creation may use up to four pinned read-only
+analysts. Implementation may run up to three pinned implementers for ready tasks
+with disjoint write sets. Reviews, commits, and manager-state mutations are serial.
 
 **The orchestrator coordinates.** It builds context packets, dispatches
-implementers, code-optimizers, reviewers, and testers, collects
-results, and decides next steps. If code needs fixing, re-dispatch the
-implementer. If tests need fixing, re-dispatch the testing agent.
+implementers, optional optimizers, and reviewers, collects results, and decides
+next steps. Implementers never commit or change manager state themselves.

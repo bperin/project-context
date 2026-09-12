@@ -160,9 +160,10 @@ Do not use the built-in `subagent_general` profile for pipeline work —
 it inherits the parent's model (which may be SOL/expensive). Always
 use the custom profiles above, which are pinned to cheaper models.
 
-Writers, reviewers, and implementers run sequentially. During task creation only,
-up to four pinned read-only `workstream-analyst` agents may run in parallel. Their
-reports are collected before the single task-writer mutates state.
+During task creation, up to four pinned read-only `workstream-analyst` agents may
+run in parallel. During implementation, up to three pinned `implementer` agents
+may run in parallel only for ready tasks with disjoint write sets. Reviews,
+commits, and manager-state mutations remain serial.
 
 ### Dispatch protocol — FOREGROUND, not background
 
@@ -172,9 +173,10 @@ When you dispatch a subagent with `run_subagent`, you MUST set:
 - `is_background: false` — the subagent blocks the orchestrator until it finishes
 - `profile:` — the subagent profile name (e.g. `implementer`, `reviewer`)
 
-Set `is_background: true` only for pinned read-only `workstream-analyst` agents
-during task creation, and collect every result before dispatching the writer.
-All other pipeline agents are foreground.
+Set `is_background: true` only for pinned read-only `workstream-analyst` agents or
+for a wave of at most three pinned `implementer` agents with exclusive file/symbol
+ownership. Collect every result before verification or state changes. All other
+pipeline agents are foreground.
 
 Background agents cannot request new permissions. If a required read is denied,
 resume that analyst in the foreground or continue without its report. Custom
@@ -285,8 +287,8 @@ REVIEW → /pc-review workflow (mechanical → dispatch reviewer → apply → P
 ARCHIVE → /pc-archive (move done/superseded records to archive/, append JSONL event)
 ```
 
-Everything is linear. One task at a time. Subagents run sequentially —
-each one finishes before the next starts.
+Planning and review remain gated and serial. Task analysis and implementation may
+use only the bounded parallel waves defined by their workflows.
 
 ## Rules for all skills
 
@@ -294,12 +296,12 @@ each one finishes before the next starts.
 2. **Read this file first.** It has the shared instructions.
 3. **JSONL is append-only task history.** Add events; never rewrite old events.
    Markdown specs, plans, and tasks are living documents and may be edited.
-4. **Parallel analysis, serial mutation.** Only pinned read-only workstream
-   analysts may run in parallel during task creation. Everything else is serial.
-5. **Pipeline subagents are FOREGROUND.** Always set `is_background:
-   false` when dispatching implementer, optional code-optimizer, or
-   reviewer. Never background them. Block on `read_subagent` to
-   collect results before proceeding.
+4. **Bounded parallel work.** Up to four pinned read-only analysts may fan out
+   during task creation. Up to three pinned implementers may run for ready,
+   non-overlapping tasks. Reviews and state mutations are serial.
+5. **Background is explicit.** Only eligible analyst or implementer waves use
+   `is_background: true`. Optional optimizer and reviewer stay foreground. Always
+   collect all background results before proceeding.
 6. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
    `project-context uuid <ID>`.
 7. **Update state through the CLI.** Never edit JSONL files directly.
@@ -307,7 +309,7 @@ each one finishes before the next starts.
    append metadata changes, and `project-context status` to update status.
 8. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-9. **One implementation task at a time.** Parallel analysis never changes the
-   build order; JSONL event order determines implementation sequence.
+9. **Maximum three implementation tasks.** Dependencies and disjoint ownership
+   determine wave eligibility; JSONL event order breaks ties.
 10. **Hard gates.** Stop and wait for the user after spec review and
     after plan review. Never auto-progress.

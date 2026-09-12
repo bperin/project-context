@@ -37,8 +37,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    CTX["Context packet"] --> P["Implementer + complete tests"]
-    P --> V["Mechanical verification"]
+    CTX["Select ≤3 ready, disjoint tasks"] --> P["Background implementer wave"]
+    P --> V["Integrated mechanical verification"]
     V --> CR["Focused reviewer"]
     CR -->|"MUST-FIX: one pass"| P
     CR -->|pass| COM["Commit + done"]
@@ -68,10 +68,11 @@ TASK:    draft → in_progress → done → superseded
 
 ### Concurrency
 
-1. One implementation task at a time.
+1. Up to three dependency-ready implementation tasks with disjoint write sets.
 2. Task creation may use up to four pinned read-only analysts in parallel; one
    task-writer serializes every Markdown and JSONL change.
-3. All other subagents run sequentially.
+3. Implementers may run as a bounded background wave; reviews and state changes
+   remain sequential.
 4. One review pass per artifact. If MUST-FIX after one revision,
    escalate.
 
