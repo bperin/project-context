@@ -134,6 +134,7 @@ async function addCommand(options) {
       title,
       plan: planId,
       status: 'draft',
+      dependencies: dependencies || '',
       skills: skills || '',
       triggers: triggers || '',
     });

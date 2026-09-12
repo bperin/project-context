@@ -61,6 +61,7 @@ node bin/cli.js overview -t <target>
 node bin/cli.js uuid <ID>
 node bin/cli.js context <ID> -t <target> [-o <output.json>]
 node bin/cli.js add --type <spec|plan|task> --title <title> [options] -t <target>
+node bin/cli.js ready -t <target> [--limit 3]
 node bin/cli.js status <ID> <status> -t <target>
 node bin/cli.js sync -t <target>
 node bin/cli.js archive <ID> -t <target> [--force]

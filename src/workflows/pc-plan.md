@@ -34,7 +34,8 @@ Never use an unpinned or general subagent in this workflow.
 
 7. Dispatch pinned `planning-brain` again with the approved spec and graph. Ask
    for a concise architecture brief covering approach, boundaries, dependencies,
-   workstream order, risks, migration, and verification strategy.
+   dependency DAG, critical path, candidate parallel waves of at most three,
+   risks, migration, and verification strategy.
 8. Dispatch pinned `plan-writer` in the foreground with the approved spec,
    architecture brief, graph, root `AGENTS.md`, and template.
 9. Dispatch pinned `reviewer` once for fidelity, feasibility, dependency order,

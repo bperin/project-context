@@ -20,5 +20,10 @@ generated file. Include ordered workstreams, concrete files or discovery steps,
 dependencies, verification, and objective completion criteria. Do not create
 tasks, spawn subagents, or implement code.
 
+Shape workstreams to minimize the implementation critical path. Identify shared
+foundations, then group independent workstreams into candidate waves of at most
+three with disjoint expected write sets. Do not invent dependencies simply to
+match document order.
+
 When re-dispatched, apply only the supplied reviewer findings. There is at most
 one correction pass.

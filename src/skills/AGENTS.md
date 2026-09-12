@@ -241,6 +241,9 @@ project-context add --type plan --title "<title>" --parent "SPEC-001" --skills "
 project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
 project-context update TASK-001 --skills "<skills>" --triggers "<triggers>" -t .
 
+# Select the next ready implementation wave (maximum three active tasks)
+project-context ready --limit 3 -t .
+
 # Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
 project-context status TASK-001 done -t .
 

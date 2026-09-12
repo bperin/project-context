@@ -55,12 +55,15 @@ it into concrete, executable tasks with a build order.
    - Thinks through 2-3 implementation approaches per workstream, picks
      one (no `adhd` — the plan already decided the high-level approach)
    - Consults `graph/nodes/` and `graph/edges/` for file placement
-   - **Registers each task via the CLI in build order FIRST.** The CLI
+   - Builds a dependency DAG that minimizes the critical path and exposes up to
+     three safe implementation tasks per wave. It does not add dependencies merely
+     to force a serial ID order.
+   - **Registers each task via the CLI in topological order FIRST.** The CLI
      `add` command creates the MD file from the template AND appends
      the JSONL `created` event + plan timeline `queued` event in one
      step:
      ```bash
-     project-context add --type task --title "<title>" --parent PLAN-NNN --status draft --skills "<skills>" --triggers "<triggers>" -t .
+     project-context add --type task --title "<title>" --parent PLAN-NNN --dependencies "<TASK-NNN,... or none>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
      ```
      The `skills` and `triggers` are stored in the JSONL record so the
      implementer knows what to load later. The task-writer does not

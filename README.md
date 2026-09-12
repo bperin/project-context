@@ -226,6 +226,7 @@ project-context add --type plan --title "Title" --parent SPEC-001 -t .
 
 # Update status (updates MD file, appends to JSONL for tasks)
 project-context status PLAN-003 committed -t .
+project-context ready --limit 3 -t .             # select ready, non-overlapping tasks
 
 # Sync task→plan and plan→spec status rollups
 project-context sync -t .

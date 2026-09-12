@@ -25,7 +25,7 @@ orchestrator.
    `add` command creates the MD file from the template AND appends the
    JSONL `created` event + plan timeline `queued` event in one step:
    ```bash
-   project-context add --type task --title "<title>" --parent PLAN-NNN --status draft --skills "<skills>" --triggers "<triggers>" -t .
+   project-context add --type task --title "<title>" --parent PLAN-NNN --dependencies "<TASK-NNN,... or none>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
    ```
    Register ALL tasks before editing any files. The JSONL order IS the
    build order — register tasks in the order they must be built. The
@@ -43,6 +43,10 @@ orchestrator.
    - Verification (commands to run)
    - Do-not-touch (files/symbols that must not change)
 5. Report the tasks created, their IDs, and the build order.
+
+Order tasks as a dependency DAG, not a single chain. Minimize the critical path:
+put shared foundations first, expose up to three independent tasks per wave, and
+avoid artificial dependencies between tasks with disjoint write sets.
 
 ## Critical: CLI first, edit second
 

@@ -22,8 +22,13 @@ select ≤3 ready tasks → start statuses → background implementers
 
 ## Steps
 
-1. Inspect task state and select a wave of at most three eligible tasks. Preserve
-   JSONL build order when multiple candidates are equally ready.
+1. Ask the scheduler for a wave of at most three eligible tasks:
+   ```bash
+   project-context ready --limit 3 -t .
+   ```
+   It subtracts active tasks from the three-task budget, checks dependencies,
+   rejects overlapping write sets, and preserves JSONL order for equal candidates.
+   Never launch a task listed under `waiting`.
 2. Build a separate context packet for each task:
    ```bash
    project-context context TASK-NNN -t . -o .context-TASK-NNN.json
@@ -39,6 +44,9 @@ select ≤3 ready tasks → start statuses → background implementers
    cannot request new permissions; if one is denied, resume only that agent in the
    foreground. If an agent fails, keep the wave tasks `in_progress` and stop before
    commit.
+   If no task is ready while agents are active, block on `read_subagent` for an
+   active agent. Do not sleep or repeatedly poll. After completion, update state
+   and run `project-context ready` again to backfill the open slot.
 6. Check the combined diff against declared ownership, then run applicable
    project-level mechanical verification once over the integrated wave.
 7. Optionally dispatch one pinned `code-optimizer` only for explicit or measured

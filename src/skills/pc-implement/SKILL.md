@@ -36,7 +36,7 @@ with disjoint declared write sets. Fall back to one task when ownership is uncle
 
 Follow `workflows/pc-implement.md` exactly. In order:
 
-1. Select at most three ready, non-overlapping tasks and build separate packets
+1. Run `project-context ready --limit 3 -t .`; select only its ready tasks
 2. Append their `in_progress` statuses serially
 3. Dispatch one pinned `implementer` per task in the background; collect all results
 4. Check file ownership and run integrated mechanical checks
@@ -49,3 +49,7 @@ Follow `workflows/pc-implement.md` exactly. In order:
 Background implementers share the working tree. Assign exclusive files/symbols,
 do not edit while they run, and never let them commit or mutate manager state.
 Review and state transitions remain serial. `SHOULD-FIX` does not block.
+
+When no task is ready but an implementer is active, block on `read_subagent` and
+wait for its completion notification. Do not poll. When a slot opens, run `ready`
+again and backfill it if another task has become eligible.

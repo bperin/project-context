@@ -69,6 +69,7 @@ async function testAgentProtocolsAndFixtures() {
   assert(implementWorkflow.includes('Maximum three simultaneous implementation agents'), 'implementation wave is not capped at three');
   assert(implementWorkflow.includes('do not overlap another task'), 'parallel implementation lacks an ownership gate');
   assert(implementWorkflow.includes('do not commit'), 'background implementers may commit independently');
+  assert(implementWorkflow.includes('project-context ready --limit 3'), 'implementation workflow does not use the ready-wave scheduler');
 
   // 4. Verify old workflows are NOT present
   assert(!fs.existsSync(path.join(workflowsDir, 'spec-creation.md')), 'spec-creation.md should be deleted');

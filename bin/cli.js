@@ -16,6 +16,7 @@ const syncCommand = require('../src/commands/sync');
 const archiveCommand = require('../src/commands/archive');
 const upgradeCommand = require('../src/commands/upgrade');
 const updateCommand = require('../src/commands/update');
+const readyCommand = require('../src/commands/ready');
 
 const program = new Command();
 
@@ -170,6 +171,22 @@ program
     try {
       options.workspace = resolveWorkspace(options);
       await addCommand(options);
+    } catch (err) {
+      console.error('Error:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('ready')
+  .description('Select the next dependency-ready, non-overlapping implementation wave')
+  .option('--limit <count>', 'Maximum total active tasks (hard-capped at 3)', '3')
+  .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
+  .option('-t, --target <path>', 'Target project directory', '.')
+  .action((options) => {
+    try {
+      options.workspace = resolveWorkspace(options);
+      readyCommand(options);
     } catch (err) {
       console.error('Error:', err.message);
       process.exit(1);
