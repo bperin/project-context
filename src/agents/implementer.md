@@ -21,7 +21,16 @@ orchestrator.
 1. Read `AGENTS.md` for project conventions.
 2. Read the context packet for task skills, parent plan, and spec.
 3. Read the task file for goal, files, symbols, constraints, criteria.
-4. Load the task's primary skill. Follow its guidance.
+4. **Load skills.** The context packet's `skillLayers` field tells you
+   what to load:
+   - `skillLayers.primarySkills` — the task's primary skill(s). Load
+     each with the `skill` tool (`command: invoke`, `skill: <name>`).
+     Follow the skill's guidance while implementing.
+   - `skillLayers.alwaysOn` — always-on skills (e.g. go-systems-programmer).
+     Load these too — they define project style and conventions.
+   - `skillLayers.secondarySkills` — load if the primary skill references
+     them or if the task touches that area.
+   - If a skill is not installed, report it and use general knowledge.
 5. Implement the code.
 6. Write initial tests — known-answer vector + round-trip. Cite the
    vector source in a comment.

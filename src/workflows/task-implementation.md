@@ -23,26 +23,30 @@ implementer with the findings, then re-run from that point.
    ```
 
 2. **Dispatch the implementer** (foreground, write access, `is_background: false`). Give it
-   the context packet, task file, primary skill path, and AGENTS.md.
-   It implements code + initial tests, runs verification. Re-dispatch
+   the context packet (JSON), task file path, and AGENTS.md path. It
+   reads `skillLayers` from the packet to discover and load skills,
+   implements code + initial tests, runs verification. Re-dispatch
    if it reports issues.
 
 3. **Dispatch the code-optimizer** (foreground, read-only, `is_background: false`). Give it
-   AGENTS.md, the task file, source files, and the diff. It checks for
-   inefficiencies, OOM risks, concurrency bugs, error handling gaps,
-   style.
+   the context packet, AGENTS.md, the task file, source files, and the
+   diff. It reads `skillLayers` to load language-specific performance
+   skills, then checks for inefficiencies, OOM risks, concurrency bugs,
+   error handling gaps, style.
 
 4. **Dispatch the reviewer** (foreground, read-only, `is_background: false`). Give it
-   AGENTS.md, the task file, and the diff. It checks correctness and
-   rule compliance.
+   the context packet, AGENTS.md, the task file, and the diff. It reads
+   `skillLayers` to load language-specific review skills, then checks
+   correctness and rule compliance.
 
 5. **Apply findings.** If code-optimizer or reviewer report MUST-FIX,
    re-dispatch the implementer with the findings. Do not fix code
    yourself.
 
 6. **Dispatch the test-agent** (foreground, write access, `is_background: false`). Give it
-   source files, task file, AGENTS.md, testing skill path. It writes
-   the full test suite and runs verification.
+   the context packet, source files, task file, AGENTS.md. It reads
+   `skillLayers` to load language-specific testing skills, writes the
+   full test suite and runs verification.
 
 7. **If tests fail → test-failure workflow.** Max 3 rounds, escalate
    to the user if unresolved.
