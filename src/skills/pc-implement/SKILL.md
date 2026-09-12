@@ -50,26 +50,30 @@ at a time. No `adhd`. One task at a time.
    ```
 
 2. **Dispatch the implementer** (foreground, write access, `agent:
-   implementer`). Give it the context packet, task file, primary skill
-   path, and `AGENTS.md`. It loads the primary skill, implements code +
-   initial tests, runs verification. Re-dispatch if it reports issues.
+   implementer`, `is_background: false`). Give it the context packet,
+   task file, primary skill path, and `AGENTS.md`. It loads the primary
+   skill, implements code + initial tests, runs verification. Re-dispatch
+   if it reports issues. Block on `read_subagent` to collect results.
 
 3. **Dispatch the code-optimizer** (foreground, read-only, `agent:
-   code-optimizer`). Give it `AGENTS.md`, the task file, source files,
-   and the diff. It checks for inefficiencies, OOM risks, concurrency
-   bugs, error handling gaps, and style.
+   code-optimizer`, `is_background: false`). Give it `AGENTS.md`, the
+   task file, source files, and the diff. It checks for inefficiencies,
+   OOM risks, concurrency bugs, error handling gaps, and style. Block
+   on `read_subagent` to collect results.
 
-4. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`).
-   Give it `AGENTS.md`, the task file, and the diff. It checks the code
-   against project rules.
+4. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`,
+   `is_background: false`). Give it `AGENTS.md`, the task file, and the
+   diff. It checks the code against project rules. Block on
+   `read_subagent` to collect results.
 
 5. **Apply findings.** If the code-optimizer or reviewer reports
    MUST-FIX findings, re-dispatch the implementer with the findings.
 
 6. **Dispatch the test-agent** (foreground, write access, `agent:
-   test-agent`). Give it the source files, task file, `AGENTS.md`
-   (testing rules), and the testing skill path. It writes the full test
-   suite and runs verification.
+   test-agent`, `is_background: false`). Give it the source files, task
+   file, `AGENTS.md` (testing rules), and the testing skill path. It
+   writes the full test suite and runs verification. Block on
+   `read_subagent` to collect results.
 
 7. **If tests fail → run the test-failure workflow**
    (`workflows/test-failure.md`). Max 3 rounds, escalate to the user if

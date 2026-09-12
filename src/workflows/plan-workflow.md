@@ -46,7 +46,7 @@ artifact, not the intent.
    behaviors, success criteria, and out-of-scope. The spec is
    high-level — it should not read like an implementation plan.
 
-3. **Dispatch the reviewer** (foreground, `reviewer` profile). Give it:
+3. **Dispatch the reviewer** (foreground, `reviewer` profile, `is_background: false`). Give it:
    - The spec file path
    - `AGENTS.md` path
    - A 1-2 sentence context summary (what this spec is for, key user
@@ -89,7 +89,7 @@ artifact, not the intent.
    - Include completion criteria that are objectively verifiable.
    - Include an honest Out of Scope section.
 
-7. **Dispatch the reviewer** again (foreground, `reviewer` profile).
+7. **Dispatch the reviewer** again (foreground, `reviewer` profile, `is_background: false`).
    Give it the plan file, the spec file, `AGENTS.md`, and a context
    summary. The reviewer checks:
    - **Spec coverage**: does every spec desired behavior have a

@@ -71,7 +71,7 @@ executable tasks with a build order.
    implementer knows what to load later. The task-writer does not load
    them.
 
-6. **Dispatch the reviewer** (foreground, `reviewer` profile). Give it:
+6. **Dispatch the reviewer** (foreground, `reviewer` profile, `is_background: false`). Give it:
    - The task file paths
    - The parent plan path
    - The spec path

@@ -37,8 +37,8 @@ Read the full workflow at `workflows/code-review.md` before starting. Follow it 
 
 2. **Diff review.** Run `git diff <protected>...<feature>` to see all changes.
 
-3. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`).
-   Feed it:
+3. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`,
+   `is_background: false`). Feed it:
    - The diff
    - AGENTS.md path
    - The project's code-review skill (if installed)

@@ -64,11 +64,12 @@ reviewer subagent (cheaper model) to check each artifact.
    node /Users/brian/code/project-context/bin/cli.js context SPEC-NNN -t . -o .context-packet.json
    ```
 
-5. **Dispatch the reviewer** (foreground, `reviewer` profile, read-only).
-   Give it the spec file path, `AGENTS.md` path, and a 1-2 sentence
-   context summary. It checks correctness, rule compliance, template
-   compliance, dependency compliance. One pass — if MUST-FIX issues
-   remain after one revision, escalate to the user.
+5. **Dispatch the reviewer** (foreground, `reviewer` profile, read-only,
+   `is_background: false`). Give it the spec file path, `AGENTS.md` path,
+   and a 1-2 sentence context summary. It checks correctness, rule
+   compliance, template compliance, dependency compliance. One pass —
+   if MUST-FIX issues remain after one revision, escalate to the user.
+   Block on `read_subagent` to collect results.
 
 6. **Revise the spec** based on reviewer findings.
 
@@ -99,10 +100,11 @@ reviewer subagent (cheaper model) to check each artifact.
     node /Users/brian/code/project-context/bin/cli.js context PLAN-NNN -t . -o .context-packet.json
     ```
 
-11. **Dispatch the reviewer** again (foreground, `reviewer` profile).
-    Give it the plan file, the spec file, `AGENTS.md`, and a context
-    summary. One pass — if MUST-FIX issues remain after one revision,
-    escalate to the user.
+11. **Dispatch the reviewer** again (foreground, `reviewer` profile,
+    `is_background: false`). Give it the plan file, the spec file,
+    `AGENTS.md`, and a context summary. One pass — if MUST-FIX issues
+    remain after one revision, escalate to the user. Block on
+    `read_subagent` to collect results.
 
 12. **Revise the plan** based on findings.
 

@@ -140,6 +140,38 @@ orchestrator's model.
 Subagents run **sequentially**, not in parallel. Each one finishes
 before the next starts. One task at a time — no parallel lanes.
 
+### Dispatch protocol — FOREGROUND, not background
+
+All subagents in the implementation pipeline (implementer,
+code-optimizer, reviewer, test-agent) must run as **foreground**
+subagents. This is mandatory.
+
+When you dispatch a subagent with `run_subagent`, you MUST set:
+- `is_background: false` — the subagent blocks the orchestrator until it finishes
+- `profile:` — the subagent profile name (e.g. `implementer`, `reviewer`)
+
+**Never** set `is_background: true` for pipeline subagents. Background
+subagents return immediately and you cannot collect their results. The
+pipeline is sequential — each subagent must complete and return its
+findings before the next one starts.
+
+The only exception is the graph-update utility (step 10 of
+pc-implement), which can run in the background because it doesn't
+affect the pipeline.
+
+Template for dispatching a pipeline subagent:
+```
+run_subagent(
+  title: "Review TASK-NNN implementation",
+  task: "<detailed task with context packet, file paths, AGENTS.md path>",
+  profile: "reviewer",
+  is_background: false
+)
+```
+
+After dispatching, call `read_subagent` with `block: true` to wait for
+the result. Do not poll — block until it finishes.
+
 ### Language skill matrix
 
 When a task is code-heavy, the `test-agent`, `code-optimizer`, and
@@ -241,14 +273,18 @@ each one finishes before the next starts.
    `data/tasks.jsonl`.
 4. **Subagents run sequentially.** No parallel lanes. One task at a
    time. Each subagent finishes before the next starts.
-5. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
+5. **Pipeline subagents are FOREGROUND.** Always set `is_background:
+   false` when dispatching implementer, code-optimizer, reviewer, or
+   test-agent. Never background them. Block on `read_subagent` to
+   collect results before proceeding.
+6. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
    `project-context uuid <ID>`.
-6. **Update state through the CLI.** Never edit JSONL files directly.
+7. **Update state through the CLI.** Never edit JSONL files directly.
    Use `project-context add` to register specs/plans/tasks and
    `project-context status` to update status.
-7. **Skills cascade.** A task inherits skills from its plan and spec.
+8. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-8. **One task at a time.** No parallel lanes. The build order in JSONL
+9. **One task at a time.** No parallel lanes. The build order in JSONL
    determines the sequence.
-9. **Hard gates.** Stop and wait for the user after spec review and
-   after plan review. Never auto-progress.
+10. **Hard gates.** Stop and wait for the user after spec review and
+    after plan review. Never auto-progress.

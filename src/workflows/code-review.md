@@ -12,7 +12,7 @@ reviews the cumulative diff of all tasks in the plan.
 
 2. **Generate the diff:** `git diff protected...feature`.
 
-3. **Dispatch the reviewer** (foreground, read-only). Give it the
+3. **Dispatch the reviewer** (foreground, read-only, `is_background: false`). Give it the
    diff, the plan file, AGENTS.md. It checks:
    - Documentation on all exports.
    - Security: no `math/rand`, no logged secrets, constant-time

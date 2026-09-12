@@ -22,17 +22,17 @@ implementer with the findings, then re-run from that point.
    node bin/cli.js context TASK-NNN -t . -o .context-packet.json
    ```
 
-2. **Dispatch the implementer** (foreground, write access). Give it
+2. **Dispatch the implementer** (foreground, write access, `is_background: false`). Give it
    the context packet, task file, primary skill path, and AGENTS.md.
    It implements code + initial tests, runs verification. Re-dispatch
    if it reports issues.
 
-3. **Dispatch the code-optimizer** (foreground, read-only). Give it
+3. **Dispatch the code-optimizer** (foreground, read-only, `is_background: false`). Give it
    AGENTS.md, the task file, source files, and the diff. It checks for
    inefficiencies, OOM risks, concurrency bugs, error handling gaps,
    style.
 
-4. **Dispatch the reviewer** (foreground, read-only). Give it
+4. **Dispatch the reviewer** (foreground, read-only, `is_background: false`). Give it
    AGENTS.md, the task file, and the diff. It checks correctness and
    rule compliance.
 
@@ -40,7 +40,7 @@ implementer with the findings, then re-run from that point.
    re-dispatch the implementer with the findings. Do not fix code
    yourself.
 
-6. **Dispatch the test-agent** (foreground, write access). Give it
+6. **Dispatch the test-agent** (foreground, write access, `is_background: false`). Give it
    source files, task file, AGENTS.md, testing skill path. It writes
    the full test suite and runs verification.
 

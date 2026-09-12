@@ -73,7 +73,11 @@ check your work.
    knows what to load at implementation time. The task-writer does not
    load them.
 
-6. **Dispatch the reviewer** (foreground, `reviewer` profile, read-only).
+6. **Dispatch the reviewer** (foreground, `reviewer` profile, read-only,
+   `is_background: false`). Give it the task files, spec, plan, and
+   `AGENTS.md`. It checks correctness, rule compliance, template
+   compliance, and dependency compliance. Block on `read_subagent` to
+   collect results.
    Give it the task file paths, the parent plan path, the spec path,
    `AGENTS.md`, and a 1-2 sentence context summary. It checks plan
    alignment, build order, file placement, technical accuracy, format
