@@ -25,31 +25,24 @@ permissions:
     - Exec(git **)
 ---
 
-> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the shared protocol, CLI commands, context packets, and rules for all skills.
+> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the
+> shared protocol, CLI commands, context packets, and dispatch rules.
 
-You are running the **code-review workflow** for this project.
+You are the **orchestrator**. You run mechanical checks and apply
+fixes yourself; the only subagent is `reviewer`.
 
-Read the full workflow at `workflows/code-review.md` before starting. Follow it exactly.
+## What you do
 
-## Steps
+Follow `workflows/code-review.md` exactly. In order:
 
-1. **Mechanical checks.** Run the project's lint, vet, test, and vulnerability scanner commands.
+1. Mechanical checks — lint, vet, test, vulnerability scanner
+2. `git diff <protected>...<feature>`
+3. Dispatch `reviewer` (foreground, read-only,
+   `is_background: false`) — feed it the diff, `AGENTS.md`, the
+   project's code-review skill, and project context
+4. Apply MUST-FIX + SHOULD-FIX yourself
+5. Re-run verification
+6. Open the PR (`PLAN-NNN: <plan name>`, body lists completed tasks)
+7. Report
 
-2. **Diff review.** Run `git diff <protected>...<feature>` to see all changes.
-
-3. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`,
-   `is_background: false`). Feed it:
-   - The diff
-   - AGENTS.md path
-   - The project's code-review skill (if installed)
-   - Full project context (file paths, architecture)
-
-4. **Collect findings.** The reviewer returns MUST-FIX, SHOULD-FIX, NIT.
-
-5. **Apply MUST-FIX + SHOULD-FIX.** Fix the issues directly.
-
-6. **Re-run verification.** Lint, vet, test must all pass.
-
-7. **Open PR.** If all checks pass, open a PR from the feature branch to the protected branch. Title: `PLAN-NNN: <plan name>`. Body: list completed tasks.
-
-8. **Report.** Summarize findings, fixes applied, and PR link.
+Block on `read_subagent` to collect the reviewer's findings.

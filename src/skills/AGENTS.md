@@ -5,6 +5,19 @@
 > together. Individual SKILL.md files define the skill-specific steps
 > — this file defines the common ground.
 
+## Three concepts — do not conflate them
+
+| Concept | Lives in | What it is |
+|---------|----------|------------|
+| **Workflow** | `workflows/*.md` | The process — steps, order, gates, checks. The source of truth for HOW work flows. |
+| **Skill** | `.agents/skills/pc-*/SKILL.md` | A thin entry point — invoked by the user or model, points at a workflow, lists which agent profiles to dispatch. |
+| **Agent** | `.agents/agents/*.md` | A subagent profile — `model:` + `allowed-tools:` + system prompt. Dispatched via `run_subagent`. |
+
+Skills are not workflows — a skill never contains process steps beyond
+"follow `workflows/X.md`". Workflows are not agents — they describe a
+process, they don't have a model or tools. Agents are not skills — they
+are dispatched, not invoked.
+
 ## Project model
 
 This project uses `project-context` to manage AI agent context. The

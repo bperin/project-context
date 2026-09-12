@@ -1,6 +1,6 @@
 ---
 name: pc-implement
-description: "Run the task-implementation workflow — dispatch implementer, code-optimizer, reviewer, test-agent sequentially"
+description: "Run the task-implementation workflow for a task — orchestrator dispatches implementer, code-optimizer, reviewer, test-agent sequentially"
 argument-hint: "<TASK-NNN>"
 triggers:
   - user
@@ -27,84 +27,27 @@ permissions:
 ---
 
 > **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the
-> shared protocol, CLI commands, context packets, and rules for all
-> skills.
+> shared protocol, CLI commands, context packets, and dispatch rules.
 
-You are running the **task-implementation workflow** for this project.
+You are the **orchestrator**. You do not write code yourself — you
+dispatch agent profiles from `.agents/agents/` and collect their
+results.
 
-Read the full workflow at `workflows/task-implementation.md` before
-starting. Follow it exactly.
+## What you do
 
-## What you are doing
+Follow `workflows/task-implementation.md` exactly. In order:
 
-Implementing a single task. You are the orchestrator — you coordinate
-the pipeline by dispatching specialized subagents sequentially:
-implementer → code-optimizer → reviewer → test-agent. Each runs one
-at a time. No `adhd`. One task at a time.
+1. Build a context packet: `project-context context TASK-NNN -t . -o .context-packet.json`
+2. Dispatch `implementer` (foreground, write access)
+3. Dispatch `code-optimizer` (foreground, read-only)
+4. Dispatch `reviewer` (foreground, read-only)
+5. Re-dispatch `implementer` on MUST-FIX findings
+6. Dispatch `test-agent` (foreground, write access)
+7. On test failure → `workflows/test-failure.md` (max 3 rounds)
+8. Commit, then `project-context status TASK-NNN done -t .`
+9. Rebuild the graph (`project-context graph -t .`) — may be dispatched
+   as a background subagent
+10. Report
 
-## Steps
-
-1. **Build a context packet** for the task:
-   ```bash
-   node /Users/brian/code/project-context/bin/cli.js context TASK-NNN -t . -o .context-packet.json
-   ```
-
-2. **Dispatch the implementer** (foreground, write access, `agent:
-   implementer`, `is_background: false`). Give it the context packet
-   (JSON), task file path, and `AGENTS.md` path. It reads the context
-   packet's `skillLayers` to discover and load skills, implements code +
-   initial tests, runs verification. Re-dispatch if it reports issues.
-   Block on `read_subagent` to collect results.
-
-3. **Dispatch the code-optimizer** (foreground, read-only, `agent:
-   code-optimizer`, `is_background: false`). Give it the context packet,
-   `AGENTS.md` path, the task file path, and the diff. It reads
-   `skillLayers` to load language-specific performance skills, then
-   checks for inefficiencies, OOM risks, concurrency bugs, error
-   handling gaps, and style. Block on `read_subagent` to collect results.
-
-4. **Dispatch the reviewer** (foreground, read-only, `agent: reviewer`,
-   `is_background: false`). Give it the context packet, `AGENTS.md` path,
-   the task file path, and the diff. It reads `skillLayers` to load
-   language-specific review skills, then checks the code against
-   project rules. Block on `read_subagent` to collect results.
-
-5. **Apply findings.** If the code-optimizer or reviewer reports
-   MUST-FIX findings, re-dispatch the implementer with the findings.
-
-6. **Dispatch the test-agent** (foreground, write access, `agent:
-   test-agent`, `is_background: false`). Give it the context packet,
-   source files, task file path, and `AGENTS.md` path. It reads
-   `skillLayers` to load language-specific testing skills, writes the
-   full test suite, and runs verification. Block on `read_subagent` to
-   collect results.
-
-7. **If tests fail → run the test-failure workflow**
-   (`workflows/test-failure.md`). Max 3 rounds, escalate to the user if
-   unresolved.
-
-8. **Commit.** Humanize the commit message (use `content-humanizer`
-   skill if available). Cite the governing standard in the body if
-   applicable.
-
-9. **Update the task status via the CLI.** Do not edit JSONL files
-   directly. Run:
-   ```bash
-   node /Users/brian/code/project-context/bin/cli.js status TASK-NNN done -t .
-   ```
-
-10. **Update the project graph.** Rebuild graph nodes and edges to
-    reflect the new/changed files. This can be dispatched as a
-    background subagent — it's a utility task:
-    ```bash
-    node /Users/brian/code/project-context/bin/cli.js graph -t .
-    ```
-
-11. **Report.** Summarize what was implemented, what tests pass, and
-    what the commit is.
-
-## One task at a time
-
-No parallel lanes. The next task does not start until the current one
-is done. The build order in the JSONL record determines the sequence.
-Subagents run sequentially — each one finishes before the next starts.
+All dispatches are foreground (`is_background: false`), sequential,
+one at a time. Block on `read_subagent` to collect each result.

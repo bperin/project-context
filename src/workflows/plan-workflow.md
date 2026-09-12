@@ -45,6 +45,10 @@ artifact, not the intent.
    WHAT the system does and WHY, not HOW. Include scope, desired
    behaviors, success criteria, and out-of-scope. The spec is
    high-level — it should not read like an implementation plan.
+   Register it via the CLI (record skills for later — do not load):
+   ```bash
+   node /Users/brian/code/project-context/bin/cli.js add --type spec --title "<title>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
+   ```
 
 3. **Dispatch the reviewer** (foreground, `reviewer` profile, `is_background: false`). Give it:
    - The spec file path
@@ -88,6 +92,10 @@ artifact, not the intent.
      skills needed, dependencies, and test vectors.
    - Include completion criteria that are objectively verifiable.
    - Include an honest Out of Scope section.
+   Register it via the CLI, parented to the spec:
+   ```bash
+   node /Users/brian/code/project-context/bin/cli.js add --type plan --title "<title>" --parent SPEC-NNN --status draft --skills "<skills>" -t .
+   ```
 
 7. **Dispatch the reviewer** again (foreground, `reviewer` profile, `is_background: false`).
    Give it the plan file, the spec file, `AGENTS.md`, and a context
