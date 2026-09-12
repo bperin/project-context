@@ -9,7 +9,9 @@ function uuidCommand(options) {
     console.error('Usage: project-context uuid <ID>');
     process.exit(1);
   }
-  console.log(v5(id, NAMESPACE));
+  const generated = v5(id, NAMESPACE);
+  console.log(generated);
+  return generated;
 }
 
 module.exports = uuidCommand;

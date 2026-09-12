@@ -6,6 +6,8 @@ const addCommand = require('../src/commands/add');
 const setStatusCommand = require('../src/commands/set-status');
 const uuidCommand = require('../src/commands/uuid');
 const contextCommand = require('../src/commands/context');
+const inspectCommand = require('../src/commands/inspect');
+const archiveCommand = require('../src/commands/archive');
 const {
   readSpecs,
   readPlans,
@@ -41,7 +43,7 @@ async function runTests() {
   const specs = readSpecs(path.join(targetDir, ws));
   assert(specs.length === 1, 'expected 1 spec');
   assert.strictEqual(specs[0].id, 'SPEC-001');
-  assert.strictEqual(specs[0].title, 'Test Spec');
+  assert.strictEqual(specs[0].title, 'SPEC-001: Test Spec');
 
   // --- add plan ---
   console.log('Testing add plan...');
@@ -103,6 +105,85 @@ async function runTests() {
   assert.strictEqual(packet.parent.id, 'PLAN-001');
   assert.strictEqual(packet.grandparent.id, 'SPEC-001');
   assert(Array.isArray(packet.allSkills));
+
+  // --- archive: refuse non-terminal task ---
+  console.log('Testing archive (refuse non-terminal)...');
+  // TASK-001 is in_progress; archiving should fail without --force
+  let archiveErr = null;
+  try {
+    await archiveCommand({ id: 'TASK-001', target: targetDir, workspace: ws });
+  } catch (e) { archiveErr = e; }
+  assert(archiveErr, 'expected archive of non-terminal task to fail');
+  assert.match(archiveErr.message, /terminal/i, 'wrong error message');
+  // MD file should still be in active dir
+  assert(fs.existsSync(path.join(targetDir, ws, 'tasks', 'TASK-001.md')), 'task MD should not have moved');
+
+  // --- archive: mark task done, then archive ---
+  console.log('Testing archive (terminal task)...');
+  await setStatusCommand({ id: 'TASK-001', status: 'done', target: targetDir, workspace: ws });
+  await archiveCommand({ id: 'TASK-001', target: targetDir, workspace: ws });
+  // MD file moved to archive/tasks/
+  assert(!fs.existsSync(path.join(targetDir, ws, 'tasks', 'TASK-001.md')), 'task MD should have moved');
+  assert(fs.existsSync(path.join(targetDir, ws, 'archive', 'tasks', 'TASK-001.md')), 'task MD should be in archive');
+  // JSONL history preserved + archived event appended
+  const taskEvents3 = readJSONL(path.join(targetDir, ws, 'data', 'tasks.jsonl'));
+  const archivedEvents = taskEvents3.filter(e => e.event === 'archived' && e.id === 'TASK-001');
+  assert(archivedEvents.length === 1, 'archived event not in JSONL');
+  const createdEventsStill = taskEvents3.filter(e => e.event === 'created' && e.id === 'TASK-001');
+  assert(createdEventsStill.length === 1, 'created event should still be in JSONL (append-only)');
+  // Plan timeline stays in active plans/ (it only moves when the PLAN is archived)
+  assert(fs.existsSync(path.join(targetDir, ws, 'plans', 'PLAN-001.timeline.jsonl')), 'plan timeline should stay until plan archived');
+
+  // --- archive: refuse plan with active children, then archive spec ---
+  console.log('Testing archive (refuse plan with active children)...');
+  // PLAN-001 is still draft and has no active children (TASK-001 archived), but it's non-terminal
+  let planArchiveErr = null;
+  try {
+    await archiveCommand({ id: 'PLAN-001', target: targetDir, workspace: ws });
+  } catch (e) { planArchiveErr = e; }
+  assert(planArchiveErr, 'expected archive of non-terminal plan to fail');
+
+  // Mark PLAN-001 done and archive it
+  await setStatusCommand({ id: 'PLAN-001', status: 'done', target: targetDir, workspace: ws });
+  await archiveCommand({ id: 'PLAN-001', target: targetDir, workspace: ws });
+  assert(fs.existsSync(path.join(targetDir, ws, 'archive', 'plans', 'PLAN-001.md')), 'plan MD should be in archive');
+  // Now the plan timeline should have moved to archive/timelines/
+  assert(!fs.existsSync(path.join(targetDir, ws, 'plans', 'PLAN-001.timeline.jsonl')), 'plan timeline should have moved when plan archived');
+  assert(fs.existsSync(path.join(targetDir, ws, 'archive', 'timelines', 'PLAN-001.timeline.jsonl')), 'plan timeline should be in archive after plan archived');
+
+  // Mark SPEC-001 done and archive it
+  await setStatusCommand({ id: 'SPEC-001', status: 'done', target: targetDir, workspace: ws });
+  await archiveCommand({ id: 'SPEC-001', target: targetDir, workspace: ws });
+  assert(fs.existsSync(path.join(targetDir, ws, 'archive', 'specs', 'SPEC-001.md')), 'spec MD should be in archive');
+
+  // --- archive: already archived ---
+  console.log('Testing archive (already archived)...');
+  let alreadyErr = null;
+  try {
+    await archiveCommand({ id: 'TASK-001', target: targetDir, workspace: ws });
+  } catch (e) { alreadyErr = e; }
+  assert(alreadyErr, 'expected archive of already-archived task to fail');
+  assert.match(alreadyErr.message, /already archived/i, 'wrong error message');
+
+  // --- inspect hides archived by default ---
+  console.log('Testing inspect hides archived...');
+  let inspectOut = '';
+  const origLog2 = console.log;
+  console.log = (msg) => { inspectOut += msg + '\n'; };
+  await inspectCommand({ target: targetDir, workspace: ws });
+  console.log = origLog2;
+  assert(!inspectOut.includes('TASK-001'), 'inspect should hide archived TASK-001 by default');
+  assert(!inspectOut.includes('PLAN-001'), 'inspect should hide archived PLAN-001 by default');
+  assert(!inspectOut.includes('SPEC-001'), 'inspect should hide archived SPEC-001 by default');
+
+  // --- inspect --include-archived shows them ---
+  console.log('Testing inspect --include-archived...');
+  let inspectOut2 = '';
+  console.log = (msg) => { inspectOut2 += msg + '\n'; };
+  await inspectCommand({ target: targetDir, workspace: ws, includeArchived: true });
+  console.log = origLog2;
+  assert(inspectOut2.includes('TASK-001'), 'inspect --include-archived should show archived TASK-001');
+  assert(inspectOut2.includes('archived'), 'inspect --include-archived should mark it archived');
 
   fs.rmSync(targetDir, { recursive: true, force: true });
   console.log('=== COMMANDS TESTS PASSED ===');

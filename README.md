@@ -217,6 +217,14 @@ project-context status PLAN-003 committed -t .
 # Sync task→plan and plan→spec status rollups
 project-context sync -t .
 
+# Archive a done/superseded record (moves MD to archive/, appends JSONL event)
+project-context archive TASK-014 -t .
+project-context archive --status done -t .        # archive all terminal records
+project-context archive PLAN-003 -t . --force      # override safeguards
+
+# Inspect (archived records hidden by default)
+project-context inspect -t . --include-archived
+
 # Safe asset synchronization (workflows, templates, skills, agent profiles)
 project-context upgrade -t . \
   --source /path/to/project-context/src \
@@ -247,6 +255,36 @@ prevent unwanted side effects:
 skill directories (unprefixed names), old agent profiles
 (`spec-optimizer.md`, `plan-optimizer.md`, `task-optimizer.md`), and
 stale templates.
+
+## Archive
+
+Old specs, plans, and tasks accumulate over time. `archive` moves
+terminal records (`done` / `superseded`) out of the active
+`specs/`, `plans/`, and `tasks/` directories into an `archive/` tree,
+keeping active work focused on what's in flight.
+
+```text
+.{reponame}-manager/
+└── archive/
+    ├── specs/        # archived SPEC-NNN.md
+    ├── plans/        # archived PLAN-NNN.md
+    ├── tasks/        # archived TASK-NNN.md
+    ├── timelines/   # archived PLAN-NNN.timeline.jsonl
+    └── archive.jsonl # append-only audit log of archive events
+```
+
+Behavior:
+
+- **Terminal-only by default.** Only `done` or `superseded` records
+  can be archived. Use `--force` to override.
+- **Children first.** A spec/plan with active children is refused
+  until the children are archived (or `--force`).
+- **Append-only history.** `data/tasks.jsonl` is never rewritten.
+  Archiving a task appends an `archived` event. Plan timelines move
+  to `archive/timelines/` when their plan is archived.
+- **Hidden from active views.** `inspect` hides archived records by
+  default; `--include-archived` surfaces them. `sync` skips archived
+  records so they don't roll up into parent status.
 
 ## Directory structure
 

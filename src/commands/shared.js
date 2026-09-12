@@ -188,6 +188,7 @@ function getTaskStates(aiDir) {
     if (ev.event === 'created') existing.status = 'draft';
     else if (ev.event === 'started') existing.status = 'in_progress';
     else if (ev.event === 'done') existing.status = 'done';
+    else if (ev.event === 'archived') existing.status = 'archived';
     else if (ev.status) existing.status = ev.status;
     existing.ts = ev.ts || existing.ts;
     states.set(ev.id, existing);
@@ -215,8 +216,12 @@ function appendTimelineEvent(aiDir, planId, event) {
 }
 
 // readTimeline reads a plan's timeline JSONL.
+// Falls back to archive/timelines/ if the plan has been archived.
 function readTimeline(aiDir, planId) {
-  return readJSONL(path.join(aiDir, 'plans', `${planId}.timeline.jsonl`));
+  const active = path.join(aiDir, 'plans', `${planId}.timeline.jsonl`);
+  if (fs.existsSync(active)) return readJSONL(active);
+  const archived = path.join(aiDir, 'archive', 'timelines', `${planId}.timeline.jsonl`);
+  return readJSONL(archived);
 }
 
 // ---------------------------------------------------------------------------

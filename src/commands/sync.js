@@ -37,7 +37,7 @@ async function syncCommand(options) {
   const tasks = taskFiles.map(tf => {
     const state = taskStates.get(tf.id);
     return state ? { ...tf, status: state.status, plan: state.plan } : tf;
-  });
+  }).filter(t => String(t.status || '').toLowerCase() !== 'archived');
 
   const warnings = [];
   const changes = [];

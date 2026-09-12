@@ -13,6 +13,7 @@ const contextCommand = require('../src/commands/context');
 const setStatusCommand = require('../src/commands/set-status');
 const addCommand = require('../src/commands/add');
 const syncCommand = require('../src/commands/sync');
+const archiveCommand = require('../src/commands/archive');
 const upgradeCommand = require('../src/commands/upgrade');
 
 const program = new Command();
@@ -79,6 +80,7 @@ program
   .description('Read project state and report specs/plans/tasks status')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
+  .option('--include-archived', 'Include archived records in the report')
   .action(async (options) => {
     try {
       options.workspace = resolveWorkspace(options);
@@ -199,6 +201,24 @@ program
     try {
       options.workspace = resolveWorkspace(options);
       await syncCommand(options);
+    } catch (err) {
+      console.error('Error:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('archive [id]')
+  .description('Archive a done/superseded spec/plan/task (moves MD to archive/, appends JSONL event)')
+  .option('--status <status>', 'Archive all active records with terminal status (done|superseded)')
+  .option('--force', 'Archive even if non-terminal or has active children')
+  .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
+  .option('-t, --target <path>', 'Target project directory', '.')
+  .action(async (id, options) => {
+    try {
+      options.workspace = resolveWorkspace(options);
+      options.id = id;
+      await archiveCommand(options);
     } catch (err) {
       console.error('Error:', err.message);
       process.exit(1);

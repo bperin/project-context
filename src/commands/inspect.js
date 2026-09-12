@@ -5,7 +5,40 @@ const {
   readPlans,
   readTaskFiles,
   getTaskStates,
+  parseMarkdownStatus,
+  parseMarkdownField,
 } = require('./shared');
+
+// readArchived reads archived MD files from archive/<dir>/ with the same shape
+// as readSpecs/readPlans/readTaskFiles. Used only when --include-archived is set.
+function readArchived(aiDir, dirName, prefix) {
+  const arcDir = path.join(aiDir, 'archive', dirName);
+  if (!fs.existsSync(arcDir)) return [];
+  return fs.readdirSync(arcDir)
+    .filter(f => f.endsWith('.md') && f.startsWith(prefix))
+    .sort()
+    .map(f => {
+      const fp = path.join(arcDir, f);
+      const id = f.replace('.md', '');
+      const titleMatch = fs.readFileSync(fp, 'utf8').match(/^#\s+(.*)/m);
+      const base = {
+        id,
+        title: titleMatch ? titleMatch[1] : id,
+        status: 'archived',
+        filePath: fp,
+      };
+      if (prefix === 'SPEC-') {
+        return { ...base, dependencies: parseMarkdownField(fp, 'Dependencies'), skills: parseMarkdownField(fp, 'Skills'), triggers: parseMarkdownField(fp, 'Triggers') };
+      }
+      return {
+        ...base,
+        parent: parseMarkdownField(fp, 'Parent'),
+        dependencies: parseMarkdownField(fp, 'Dependencies'),
+        skills: parseMarkdownField(fp, 'Skills'),
+        triggers: parseMarkdownField(fp, 'Triggers'),
+      };
+    });
+}
 
 async function inspectCommand(options) {
   const targetDir = path.resolve(options.target);
@@ -18,16 +51,26 @@ async function inspectCommand(options) {
 
   console.log(`Inspecting workspace at ${aiDir}...\n`);
 
-  const specs = readSpecs(aiDir);
-  const plans = readPlans(aiDir);
+  let specs = readSpecs(aiDir);
+  let plans = readPlans(aiDir);
   const taskFiles = readTaskFiles(aiDir);
   const taskStates = getTaskStates(aiDir);
 
   // Merge task MD metadata with JSONL state
-  const tasks = taskFiles.map(tf => {
+  let tasks = taskFiles.map(tf => {
     const state = taskStates.get(tf.id);
     return state ? { ...tf, status: state.status } : tf;
   });
+
+  // Hide archived tasks by default; --include-archived surfaces archived records
+  // from the archive/ tree (their MD files were moved out of the active dirs).
+  if (!options.includeArchived) {
+    tasks = tasks.filter(t => String(t.status || '').toLowerCase() !== 'archived');
+  } else {
+    specs = specs.concat(readArchived(aiDir, 'specs', 'SPEC-'));
+    plans = plans.concat(readArchived(aiDir, 'plans', 'PLAN-'));
+    tasks = tasks.concat(readArchived(aiDir, 'tasks', 'TASK-'));
+  }
 
   const allRows = [
     ...specs.map(s => ({ ...s, _type: 'SPEC' })),

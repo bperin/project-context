@@ -13,7 +13,7 @@ project-context/
 ├── bin/cli.js                    # CLI entry point
 ├── src/
 │   ├── agents/                  # Custom subagent profiles (implementer, reviewer, code-optimizer, test-agent)
-│   ├── commands/                # init, inspect, graph, overview, uuid, context, status, add, sync, upgrade
+│   ├── commands/                # init, inspect, graph, overview, uuid, context, status, add, sync, archive, upgrade
 │   ├── skills/                  # Source skill templates copied to .agents/skills/
 │   │   ├── AGENTS.md            # Shared instructions for generated skills
 │   │   ├── pc-context/
@@ -62,6 +62,9 @@ node bin/cli.js uuid <ID>
 node bin/cli.js context <ID> -t <target> [-o <output.json>]
 node bin/cli.js add --type <spec|plan|task> --title <title> [options] -t <target>
 node bin/cli.js status <ID> <status> -t <target>
+node bin/cli.js sync -t <target>
+node bin/cli.js archive <ID> -t <target> [--force]
+node bin/cli.js archive --status <done|superseded> -t <target>
 node bin/cli.js upgrade -t <target>
 ```
 
@@ -79,9 +82,14 @@ node bin/cli.js upgrade -t <target>
 
 ## State machines
 
-- **Spec**: `draft → committed → done → superseded`
-- **Plan**: `draft → committed → in_progress → done → superseded`
-- **Task**: `draft → in_progress → done → superseded`
+- **Spec**: `draft → committed → done → superseded → archived`
+- **Plan**: `draft → committed → in_progress → done → superseded → archived`
+- **Task**: `draft → in_progress → done → superseded → archived`
+
+`archive` moves terminal records (`done`/`superseded`) into `archive/`
+and (for tasks) appends an `archived` event to `data/tasks.jsonl`.
+Archived records are hidden from `inspect` and skipped by `sync` by
+default. JSONL history is never rewritten.
 
 Plans and specs show progress as a percentage of children done.
 
