@@ -128,14 +128,20 @@ all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `implementer` | `gpt-5.6-sol-medium` | Write code + initial tests | Task implementation |
+| `implementer` | `gpt` | Write code + initial tests | Task implementation |
 | `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
 | `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
 | `test-agent` | `swe-1.7-medium` | Test suite writing | After implementation review |
 
-The orchestrator runs on `gpt-5.6-sol-high`. All subagents are pinned to
-different models via the `model:` field in their profile — none use the
-orchestrator's model.
+The orchestrator runs on the model you pick in the model picker. All
+subagents are pinned to cheaper models via the `model:` field in their
+profile — **none use SOL** and none inherit the parent's model. This
+keeps subagent cost low regardless of what model the orchestrator runs
+on.
+
+Do not use the built-in `subagent_general` profile for pipeline work —
+it inherits the parent's model (which may be SOL/expensive). Always
+use the custom profiles above, which are pinned to cheaper models.
 
 Subagents run **sequentially**, not in parallel. Each one finishes
 before the next starts. One task at a time — no parallel lanes.
