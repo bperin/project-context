@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-function walkDir(dir, fileList = [], skipDirs = new Set(['.git', 'node_modules', '.ai', 'dist', 'build'])) {
+function walkDir(dir, fileList = [], skipDirs = new Set(['.git', 'node_modules', '.ai', 'dist', 'build', '.venv', '__pycache__', '.next'])) {
   if (!fs.existsSync(dir)) return fileList;
   const files = fs.readdirSync(dir);
   for (const file of files) {
@@ -135,7 +135,7 @@ async function graphCommand(options) {
     fs.unlinkSync(path.join(edgesDir, f));
   }
 
-  const allFiles = walkDir(targetDir, [], new Set(['.git', 'node_modules', '.ai', 'dist', 'build', options.workspace]));
+  const allFiles = walkDir(targetDir, [], new Set(['.git', 'node_modules', '.ai', 'dist', 'build', '.venv', '__pycache__', '.next', options.workspace]));
   const nodes = [];
 
   // First pass: create nodes
