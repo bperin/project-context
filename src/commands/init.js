@@ -168,7 +168,9 @@ async function initCommand(options) {
   }
 
   // Copy bundled language skills from skills/ (at package root)
-  if (fs.existsSync(bundledSkills)) {
+  // Skip if --no-bundled-skills is set. Language skills belong at the
+  // user level (~/.agents/skills/) or repo root, not in every workspace.
+  if (options.bundledSkills !== false && fs.existsSync(bundledSkills)) {
     for (const skillName of fs.readdirSync(bundledSkills)) {
       const srcSkillDir = path.join(bundledSkills, skillName);
       if (!fs.statSync(srcSkillDir).isDirectory()) continue;

@@ -2,133 +2,42 @@
 
 ## When
 
-When the test suite fails during task implementation (after the testing
-agent writes tests, or during verification), or when a previously green
-suite goes red after a code change. This workflow is the structured
-retry loop — not a free-form "go back and fix."
-
-## Trigger
-
-```
-Testing agent reports: "test failed against approved code"
-    OR
-Primary runs verification: npm test / go test / cargo test → failures
-    OR
-Code review or PR review finds test failures
-```
+When tests fail during implementation or verification.
 
 ## Loop
 
 ```
-Tests fail
-    → Triage (orchestrator, with context) — classify each failure
-        → Is it a code bug or a test bug?
-            → Code bug → re-dispatch implementer to fix the code
-            → Test bug → re-dispatch testing agent to fix the test
-            → Design issue → escalate to user
-    → Fix
-    → Re-run full suite
-    → If still failing → loop again (max 3 rounds)
-    → If still failing after round 3 → escalate to user
+Tests fail → Triage → Fix → Re-run full suite → (max 3 rounds) → Escalate
 ```
-
-## Roles
-
-### Role 1: Orchestrator (you, with context)
-
-- Has full conversation context — knows what was implemented and why.
-- Triages failures: reads each failing test, classifies the cause.
-- Re-dispatches the implementer to fix code bugs.
-- Re-dispatches the testing agent to fix test bugs.
-- Escalates to the user if the failure reveals a design issue.
-
-### Role 2: Testing agent (subagent, foreground, write access)
-
-- Sees the source files, the failing test files, `AGENTS.md`
-  (testing rules), and a failure summary from the orchestrator.
-- Fixes test bugs directly — wrong assertions, missing setup,
-  flaky timing, incorrect mocks.
-- Does NOT fix code bugs — reports them to the orchestrator.
-- Runs verification after fixing.
 
 ## Steps
 
-1. **Capture the failure.** Run the test command, capture the full
-   output. Do not skip this — you need the exact failure messages.
+1. **Capture the failure.** Run the test command, capture full output.
 
-2. **Triage each failure.** For each failing test:
-   - Read the test.
-   - Read the code under test.
-   - Classify:
-     - **Code bug**: the code does the wrong thing. The test is
-       correct. Re-dispatch the implementer to fix the code.
-     - **Test bug**: the test expects the wrong thing, has a setup
-       error, or tests an implementation detail that changed. Re-dispatch
-       the testing agent to fix the test.
-     - **Design issue**: the failure reveals that the spec or plan
-       was wrong — the code works as designed but the design itself
-       is flawed. Escalate to the user. Do not fix blindly.
-     - **Environment issue**: missing dependency, wrong Node/Go/Rust
-       version, missing testdata. Fix the environment, not the code
-       or test.
+2. **Triage each failure:**
+   - **Code bug** → re-dispatch the implementer to fix the code.
+   - **Test bug** → re-dispatch the test-agent to fix the test.
+   - **Design issue** → escalate to the user. Do not patch around it.
+   - **Environment issue** → fix the environment, not the code or test.
 
-3. **Fix.**
-   - Code bugs: re-dispatch the implementer with the failing test path
-     and failure output. It fixes the code and re-runs the specific
-     failing test first for fast feedback, then the full suite.
-   - Test bugs: re-dispatch the testing agent with the failing test
-     path, the failure output, and a one-line classification ("test
-     bug: assertion expects wrong status code"). It fixes the test file
-     directly and re-runs verification.
-   - Design issues: stop. Use `ask_user_question` to present the
-     failure and the design conflict. Do not patch around it.
+3. **Fix.** Re-dispatch the implementer (code bugs) or test-agent
+   (test bugs). Do not fix code or tests yourself.
 
-4. **Re-run the full suite.** Not just the failing test — the full
-   suite. A fix for one test can break another.
+4. **Re-run the full suite.** Not just the failing test.
 
-5. **Round counter.** This is round 1. If tests still fail, go back
-   to step 1. Max 3 rounds. Each round, try a different approach —
-   if the same fix attempt fails twice, the diagnosis is wrong.
+5. **Round counter.** Max 3 rounds. If the same fix fails twice, the
+   diagnosis is wrong — re-triage from scratch.
 
-6. **Escalate.** If still failing after round 3, use
-   `ask_user_question` to present:
-   - The failing tests and their output.
-   - What was tried in each round.
-   - Your assessment of the root cause.
-   - Suggested options (fix the code, fix the test, change the spec,
-     drop the feature).
+6. **Escalate.** If still failing after round 3, present the failures,
+   what was tried, and your assessment to the user.
 
-7. **When all tests pass.** Commit with a message noting the
-   failure loop: "fix <X> — test failure round N: <root cause>".
-   Update the task status to `done`.
-
-## Inputs
-
-- The failing test output (full, not truncated)
-- The test file(s)
-- The source file(s) under test
-- `AGENTS.md` (testing rules)
-- The task file (for acceptance criteria)
-
-## Outputs
-
-- All tests passing
-- A commit noting the failure loop and root cause
-- Task status updated to `done`
+7. **When all tests pass.** Commit with a message noting the failure
+   loop. Update task status to `done`.
 
 ## Constraints
 
-- Max 3 rounds. Escalate to the user if unresolved.
-- Never skip a failing test. Never `t.Skip`, `it.skip`, `#[ignore]`,
-  or comment out a test to go green.
-- Never weaken a test to make it pass. If the assertion is too
-  strict, fix the assertion — but document why. If the assertion is
-  correct, fix the code.
-- Re-run the full suite after every fix, not just the failing test.
-- If the same fix attempt fails twice, the diagnosis is wrong —
-  re-triage from scratch.
-- Design issues are escalated, not patched. If the code works as
-  designed but the design is wrong, the spec or plan needs to change,
-  not the code.
-- The orchestrator coordinates. It does not fix code or tests directly
-  — it re-dispatches the implementer or testing agent.
+- Max 3 rounds. Escalate if unresolved.
+- Never skip a failing test. Never weaken a test to make it pass.
+- Re-run the full suite after every fix.
+- Design issues are escalated, not patched.
+- The orchestrator coordinates. It does not fix code or tests directly.
