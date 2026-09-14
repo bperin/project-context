@@ -313,7 +313,20 @@ async function buildPacket(aiDir, targetId, options = {}) {
       primarySkills,
       secondarySkills,
     },
-    allSkills: [...new Set([...alwaysOn, ...projectLocal, ...userLocal, ...matrixSkills, ...targetSkills, ...parentSkills, ...grandparentSkills])],
+    // allSkills is the minimal set the implementer should load.
+    // Only always-on (filtered by workflow), project-local, matched
+    // user-local (by trigger), matrix primary/secondary for this
+    // task's triggers, and the task's own declared skills. Not the
+    // full parent/grandparent cascade — those are for context, not
+    // for loading.
+    allSkills: [...new Set([
+      ...alwaysOn,
+      ...projectLocal,
+      ...userLocal,
+      ...primarySkills,
+      ...secondarySkills,
+      ...targetSkills,
+    ])],
   };
 
   return packet;

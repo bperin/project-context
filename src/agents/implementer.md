@@ -23,7 +23,10 @@ If you are about to write a sentence that is not a tool call or the final report
 ## Steps
 
 1. Read the task file. Skim `AGENTS.md` only if you need a rule you don't know.
-2. Load skills from the context packet's `skillLayers` via `skill invoke <name>`.
+2. Load ONLY the skills listed in the context packet's `skillLayers`.
+   Do not load any other skill. Do not browse `~/.agents/skills/` or
+   `.agents/skills/` for more. The packet tells you exactly what to
+   load — nothing else.
 3. Write the code. Stay within the task's declared files and symbols.
 4. Load `pc-optimize`. Fix any issues it finds.
 5. Write tests: success, failure, boundary cases per acceptance criteria.

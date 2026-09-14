@@ -59,6 +59,8 @@ select ≤3 ready tasks → start statuses → background implementers
      task: "Read AGENTS.md at <path> for project conventions.
    Read the context packet at <path> for skillLayers, parent plan, spec.
    Read the task file at <path> for goal, files, symbols, criteria.
+   Load ONLY the skills listed in the context packet's allSkills field.
+   Do not load any other skill. Do not browse for skills.
    Implement TASK-NNN. Stay within these files only: <exclusive list>.
    Do not touch: <do-not-touch list>. Load pc-optimize before verification.
    Run <verification commands>. do not commit or change task status.",

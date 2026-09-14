@@ -317,7 +317,10 @@ The packet contains:
 - **modules**: project modules from the graph
 - **skillLayers**: alwaysOn, projectLocal, userLocal, matrixSkills,
   primarySkills, secondarySkills
-- **allSkills**: deduplicated cascade of all applicable skills
+- **allSkills**: minimal set of skills the implementer should load —
+  always-on (filtered by workflow), project-local, matched user-local
+  (by trigger), matrix primary/secondary for the task's triggers, and
+  the task's own declared skills. Not the full parent/grandparent cascade.
 
 The subagent reads the packet + AGENTS.md + the document file. Nothing
 else. This keeps subagent context lean and prevents conversation history
