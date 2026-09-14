@@ -24,8 +24,13 @@ Never use an unpinned or general subagent in this workflow.
    rejected alternatives, criteria, and open questions.
 3. Dispatch pinned `spec-writer` in the foreground with the brief, root
    `AGENTS.md`, and template. It registers and writes the specification.
-4. Dispatch pinned `reviewer` once for fidelity, testability, contradictions, and
-   required sections—not prose preferences.
+4. Dispatch pinned `reviewer` once. Give it only the spec file and this
+   exact criteria list:
+   - Every desired behavior maps to a measurable success criterion
+   - Out of Scope is present and honest
+   - No internal contradictions
+   - All template sections present
+   Nothing else. No AGENTS.md, no codebase access.
 5. If objectively blocked, re-dispatch `spec-writer` once, then confirm only the
    original findings. If one remains, ask the user instead of looping.
 6. **Hard stop:** present the specification and wait for approval.
@@ -38,8 +43,13 @@ Never use an unpinned or general subagent in this workflow.
    risks, migration, and verification strategy.
 8. Dispatch pinned `plan-writer` in the foreground with the approved spec,
    architecture brief, graph, root `AGENTS.md`, and template.
-9. Dispatch pinned `reviewer` once for fidelity, feasibility, dependency order,
-   coverage, and objective completion criteria.
+9. Dispatch pinned `reviewer` once. Give it only the plan file and spec
+   file and this exact criteria list:
+   - Every spec behavior has a workstream
+   - Workstreams ordered so none depends on a later one
+   - Completion criteria are objectively verifiable
+   - No forbidden dependencies
+   Nothing else.
 10. If objectively blocked, re-dispatch `plan-writer` once, then confirm only the
     original findings. If one remains, ask the user.
 11. **Hard stop:** present the plan and wait for approval.

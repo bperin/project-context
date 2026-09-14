@@ -49,8 +49,11 @@ select ≤3 ready tasks → start statuses → background implementers
    and run `project-context ready` again to backfill the open slot.
 6. Check the combined diff against declared ownership, then run applicable
    project-level mechanical verification once over the integrated wave.
-7. Dispatch one pinned `reviewer` over the combined wave diff. Review changed
-   behavior against each task's acceptance criteria.
+7. Dispatch one pinned `reviewer`. Give it only the combined diff and
+   each task's acceptance criteria. The reviewer checks only:
+   - Does the diff satisfy each task's acceptance criteria?
+   - Any security defects, data-loss risks, or forbidden imports?
+   Nothing else.
 8. Apply at most one correction pass. Independent corrections may return to their
    original pinned implementers in parallel, again capped at three. Confirmation
    checks only the original blockers and obvious correction regressions; it cannot

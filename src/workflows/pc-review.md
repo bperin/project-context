@@ -12,9 +12,11 @@ cumulative review; per-task reviews stay focused on task diffs.
    ./...` and `go vet ./...` for Go, `pytest` for Python, or `cargo test` for Rust.
    Run security tooling only when installed/configured or when risk warrants it.
 2. **Generate the cumulative diff** against the actual protected base branch.
-3. **Dispatch one reviewer** (foreground, read-only) with the plan, completed task
-   list, AGENTS.md, cumulative diff, and verification output. Load the detected
-   language review skill. Add security review only for security-sensitive changes.
+3. **Dispatch one reviewer** (foreground, read-only). Give it only the
+   cumulative diff and the plan's completion criteria. The reviewer checks only:
+   - Does the diff satisfy the plan's completion criteria?
+   - Any security defects, data-loss risks, or forbidden dependencies?
+   Nothing else.
 4. **Apply one bounded correction pass** for deduplicated `MUST-FIX` findings.
    `SHOULD-FIX` items are non-blocking follow-up candidates. Re-run applicable
    verification and confirm only the original blockers.

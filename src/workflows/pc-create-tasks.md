@@ -79,28 +79,13 @@ it into concrete, executable tasks with a build order.
    Block on `read_subagent` to collect its report.
 
 4. **Dispatch the reviewer** (foreground, `reviewer` profile,
-   `is_background: false`). Give it:
-   - The task file paths
-   - The parent plan path
-   - The spec path
-   - `AGENTS.md` path
-   - A 1-2 sentence context summary
-   - The reviewer checks:
-     - **Plan alignment**: does each task implement its workstream? All
-       deliverables covered?
-     - **Build order**: does the JSONL build order match the plan's
-       workstream ordering?
-     - **File placement**: do the cited file paths respect the project
-       graph and dependency rules?
-     - **Technical accuracy**: are cited APIs real? Are constraints
-       correct?
-     - **Format consistency**: does each task follow
-       `TASK-NNN.template.md`? All required sections present?
-     - **Rule compliance**: respects AGENTS.md constraints — no
-       interface inflation, no skipped tests, documentation on exports,
-       dependency rules?
-     - **Internal consistency**: does the task contradict itself?
-   Block on `read_subagent` to collect results.
+   `is_background: false`). Give it only the task file paths and the
+   plan file. The reviewer checks only:
+   - Each task maps to a plan workstream
+   - JSONL build order matches plan workstream order
+   - Cited file paths respect dependency rules
+   - All template sections present
+   Nothing else. Block on `read_subagent` to collect results.
 
 5. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
    the task-writer (foreground, `is_background: false`) with the
