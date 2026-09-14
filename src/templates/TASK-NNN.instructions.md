@@ -1,17 +1,20 @@
 # TASK-NNN Instructions
 
-You are writing a task. This is the most granular artifact — the
-implementer reads this and writes code from it. Ambiguity means bugs.
-Be technically precise: exact file paths, symbol names, signatures,
-types, test cases. No prose.
+You are writing a task. This is almost pure engineering — granular,
+code-level. The implementer reads this and writes code from it.
+Ambiguity means bugs. Every field should be specific enough that
+the implementer doesn't need to make design decisions. Name exact
+file paths, symbol names, signatures, types, test cases. Almost no
+prose — this is an engineering spec, not a document.
 
 ## What a task is
 
-A single unit of work that one implementer can complete independently.
-It defines exactly what files to touch, what symbols to create or
-modify, what tests to write, and how to verify. The implementer
-should not need to make design decisions — the task already made
-them.
+A single unit of work that one implementer can complete
+independently. It defines exactly what files to touch, what symbols
+to create or modify, what tests to write, and how to verify. The
+implementer should not need to make design decisions — the task
+already made them. This is the most granular artifact in the
+hierarchy.
 
 ## How to fill each section
 
@@ -52,7 +55,8 @@ func Verify(pub ed25519.PublicKey, msg, sig []byte) bool"
 ### Required Change
 
 Numbered, concrete steps. Each unambiguous and independently
-verifiable.
+verifiable. This is the engineering checklist — the implementer
+follows these steps.
 
 Bad: "1. Implement signing."
 Good: "1. internal/sign/ed25519.go: add Sign() using

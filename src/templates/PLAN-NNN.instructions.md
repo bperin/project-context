@@ -1,16 +1,18 @@
 # PLAN-NNN Instructions
 
 You are writing a plan. This defines HOW the system is built — the
-architecture, not the what/why. The spec already defined the problem.
-Be technically precise — name specific modules, interfaces, data
-flows, algorithms. No prose padding.
+implementation architecture. Some text for design decisions, but
+mostly structure: system map, workstreams, dependencies, file
+layout. The spec already defined the problem. Be technically
+precise — name specific modules, interfaces, data flows, algorithms.
 
 ## What a plan is
 
 The plan designs the implementation. It maps every spec behavior to
 a workstream. It defines the architecture, the dependency order, and
 the verification strategy. It does NOT write the code — that's the
-task phase.
+task phase. Less narrative than the spec — this is engineering
+design, not storytelling.
 
 ## How to fill each section
 
@@ -28,7 +30,8 @@ the features.
 
 ASCII diagram of the major components and their relationships. Show
 every process boundary, transport, and data flow. Not optional —
-draw it.
+draw it. This is the most important section — the implementer reads
+this to understand the whole system.
 
 ### Architecture
 
@@ -59,9 +62,8 @@ For algorithm workstreams, list:
 Bad: "W1: Crypto stuff."
 Good: "W1: Ed25519 signing. Algorithms: ed25519. Primary skill:
 implementing-digital-signatures-with-ed25519. Test vectors: RFC
-8032 §5.1 Test 1. Negative tests: tampered signature, wrong key,
-high-S (not applicable to Ed25519 but test rejection). Files:
-internal/sign/ed25519.go, internal/sign/ed25519_test.go."
+8032 §5.1 Test 1. Negative tests: tampered signature, wrong key.
+Files: internal/sign/ed25519.go, internal/sign/ed25519_test.go."
 
 ### Dependencies
 
@@ -83,5 +85,5 @@ rationale.
 - Duplicating spec content — the spec defines what/why, don't repeat
 - Vague workstreams — name the algorithms, skills, vectors, files
 - No system map — draw it, always
-- Prose padding — dense technical specification, not pages of words
+- Too much narrative — this is engineering design, not storytelling
 - Missing dependency order — workstreams must be ordered

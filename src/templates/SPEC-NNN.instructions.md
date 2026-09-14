@@ -1,26 +1,34 @@
 # SPEC-NNN Instructions
 
-You are writing a spec. This defines WHAT and WHY, not HOW. The plan
-phase decides implementation. Be technically precise — name specific
-protocols, interfaces, data structures. No prose padding.
+You are writing a spec. This defines WHAT and WHY, not HOW. Less
+textual than the epic — focused on the specific problem this spec
+solves. The plan phase decides implementation. Be technically
+precise — name specific protocols, interfaces, data structures. No
+prose padding, but enough detail that the plan has clear boundaries.
 
 ## What a spec is
 
-The spec defines the problem and the desired behavior. It does NOT
-design the solution. A reader should understand what to build and
-why, but not be constrained on how to build it.
+The spec defines the problem and the desired behavior for one
+capability from the epic. It does NOT design the solution. A reader
+should understand what to build and why, but not be constrained on
+how to build it. It's more focused and less narrative than the epic
+— the epic told the story, the spec defines the requirements.
 
 ## How to fill each section
 
 ### What
 
-One paragraph. What the system does at a high level. Name the
-capability, the interfaces, the protocols.
+One to two paragraphs. What the system does at a high level. Name
+the capability, the interfaces, the protocols. More focused than
+the epic vision — this is about THIS spec's scope, not the whole
+project.
 
 Bad: "A system for managing users."
 Good: "An OIDC provider that issues Ed25519-signed identity tokens
 for organizations, with WebAuthn-based registration and
-cross-chain credential verification via EIP-712."
+cross-chain credential verification via EIP-712. The provider
+supports multi-tenant org isolation and key rotation without
+token invalidation."
 
 ### Why
 
@@ -30,12 +38,14 @@ remove? Name the concrete outcome, not the abstract benefit.
 Bad: "Improves security."
 Good: "Eliminates password-based auth, reducing credential stuffing
 risk. Enables org-controlled keys so Trakt never holds private
-material."
+material. Allows credential portability across chains without
+re-issuance."
 
 ### Requirements
 
 Functional: what the system must DO. Each must be testable.
 Non-functional: performance, security, compatibility, compliance.
+Name the metric, not the aspiration.
 
 Bad: "Must be fast."
 Good: "Token verification < 1ms p99. Supports 10K concurrent
@@ -45,7 +55,7 @@ checks."
 ### Desired Behavior
 
 Observable behavior from the user's perspective. What would a user
-manual say? Not what a code doc would say.
+manual say? Not what a code doc would say. Group by feature area.
 
 ### Scope
 
@@ -84,5 +94,6 @@ List algorithms by registry ID, required skills, attack surfaces.
 - Implementation detail — that belongs in the plan
 - Vague requirements — each must be testable
 - No out-of-scope — without it, scope creeps
-- Prose padding — dense technical specification, not pages of words
+- Too much narrative — the epic told the story, the spec defines
+  the requirements
 - Missing constraints — without them, the plan has no guardrails
