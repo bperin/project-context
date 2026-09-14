@@ -107,12 +107,11 @@ When a user describes a high-level vision with multiple features:
 
 1. Dispatch pinned `planning-brain` (SOL) with the vision and repo
    context. The planning-brain loads `adhd` for divergent ideation,
-   then returns a roadmap brief: vision, ordered items, why this order.
-2. Dispatch pinned `planning-brain` (GLM) with the brief. It writes
-   `EPIC-NNN.md`. Items can be vague — a few sentences each.
-3. Dispatch pinned `reviewer` (SWE). Revise based on findings.
-4. **Stop. Wait for the user to approve the epic.**
-5. Register and commit.
+   then writes `EPIC-NNN.md` directly. Items can be vague — a few
+   sentences each.
+2. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+3. **Stop. Wait for the user to approve the epic.**
+4. Register and commit.
 
 When the user is ready to build an item from the epic, use `/pc-spec`.
 The planning-brain takes the epic item + the epic for context and
@@ -124,25 +123,22 @@ the epic ID (e.g. `EPIC-001`).
 When a user describes what they want built:
 
 1. Dispatch pinned `planning-brain` (SOL) with the request and repo
-   context. The planning-brain loads `adhd` for divergent ideation,
-   then returns a specification decision brief.
-2. Dispatch pinned `planning-brain` (GLM) with the brief. It writes the
-   spec. Record what skills the tasks will need, but do not load them —
-   they load at implementation time.
-3. Dispatch pinned `reviewer` (SWE). Revise based on findings.
-4. **Stop. Wait for the user to approve the spec.** Do not proceed to
+   context. The planning-brain loads `adhd` for divergent ideation about
+   the problem, then writes the spec directly. Record what skills the
+   tasks will need, but do not load them — they load at implementation
+   time.
+2. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+3. **Stop. Wait for the user to approve the spec.** Do not proceed to
    the plan until the user says to.
-5. Dispatch pinned `planning-brain` (SOL) again for the architecture
-   brief. **Pass the full spec content and the phase 1 decision brief
-   in the task prompt** — the planning-brain is a fresh subagent with
-   no memory of phase 1. Do not make it re-read the spec file.
-6. Dispatch pinned `planning-brain` (GLM) with the brief. **Pass the spec
-   content and the architecture brief in the task prompt.** It writes
-   the plan.
-7. Dispatch pinned `reviewer` (SWE). Revise based on findings.
-8. **Stop. Wait for the user to approve the plan.** Do not proceed to
+4. Re-dispatch pinned `planning-brain` (SOL) for the architecture brief
+   and plan. **Pass the full spec content in the task prompt** — the
+   planning-brain is a fresh subagent with no memory of phase 1. It
+   **loads `adhd` again** for divergent ideation about the
+   implementation approach, then writes the plan directly.
+5. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+6. **Stop. Wait for the user to approve the plan.** Do not proceed to
    task creation until the user says to.
-9. Commit spec + plan together.
+7. Commit spec + plan together.
 
 ## Writing tasks
 

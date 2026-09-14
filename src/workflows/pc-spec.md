@@ -46,8 +46,8 @@ Never use an unpinned or general subagent in this workflow.
 
 5. Re-dispatch the same `planning-brain` (foreground) for the architecture
    brief and plan. It has the spec in context from phase 1 — no re-reading
-   needed. It thinks through the architecture, then writes the plan directly.
-   Register via CLI, edit the generated file.
+   needed. It **loads `adhd` again** for implementation approach ideation,
+   then writes the plan directly. Register via CLI, edit the generated file.
 6. Dispatch pinned `reviewer` once. Give it only the plan file and spec
    file and this exact criteria list:
    - Every spec behavior has a workstream
@@ -64,7 +64,9 @@ Never use an unpinned or general subagent in this workflow.
 
 ## Constraints
 
-- `adhd` is loaded by `planning-brain`, not the orchestrator. Never again after planning.
+- `adhd` is loaded by `planning-brain`, not the orchestrator. Loaded
+  in phase 1 (spec ideation) and phase 2 (implementation approach
+  ideation). Not loaded during task writing — tasks are concrete.
 - `planning-brain` writes specs and plans directly — no separate writer subagents.
 - Pinned SWE reviews without expanding scope.
 - Subagents run sequentially and in the foreground.

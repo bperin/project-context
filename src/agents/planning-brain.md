@@ -34,10 +34,16 @@ return a brief for someone else to write — you write it.
 
 ## Phase 2: Plan
 
-You have the spec in context from phase 1. Think through the
-architecture: approach, boundaries, dependency direction, workstream
-order, risks, migration, verification strategy. Then **write the plan
-directly**. Register via CLI, edit the generated file.
+You have the spec in context from phase 1. **Load `adhd` again** —
+this time for implementation approach. Think from multiple cognitive
+frames about how to build it: architecture, boundaries, dependency
+direction, workstream order, risks, migration, verification strategy.
+The ADHD skill spawns parallel `run_subagent` calls with
+`is_background: true` — collect all results via `read_subagent` before
+converging.
+
+After ideation, converge and **write the plan directly**. Register via
+CLI, edit the generated file.
 
 ## Phase 3: Tasks
 

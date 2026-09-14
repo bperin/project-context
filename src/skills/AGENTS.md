@@ -132,14 +132,17 @@ task-writing, but they are not loaded until implementation. The
 planner and planning-brain record what skills will be needed; the
 implementer loads them at implementation time.
 
-- **Plan workflow**: the `planning-brain` subagent loads `adhd` for
-  divergent ideation, then converges on the decision brief. No other
-  skill is loaded during planning. Skills needed for implementation
-  are recorded in the spec/plan metadata.
+- **Spec workflow**: the `planning-brain` subagent loads `adhd` for
+  divergent ideation about the problem, then writes the spec. No other
+  skill is loaded. Skills needed for implementation are recorded in
+  the spec/plan metadata.
+- **Plan workflow**: the `planning-brain` loads `adhd` again for
+  divergent ideation about the implementation approach, then writes
+  the plan. No other skill is loaded.
 - **Task workflow**: the planning-brain does not load `adhd` or any
-  skills. It reads the spec and plan, thinks through implementations,
-  writes tasks, and records each task's skills + triggers in the MD
-  file and JSONL record.
+  skills. It has the spec and plan in context, thinks through concrete
+  implementations, writes tasks, and records each task's skills +
+  triggers in the MD file and JSONL record.
 - **Task implementation**: the implementer reads the task's skills
   and triggers from the JSONL record and loads them.
 
