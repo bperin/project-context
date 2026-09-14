@@ -62,6 +62,8 @@ async function upgradeCommand(options) {
     path.join(wsDir, 'templates', 'architecture.template.md'),
     path.join(wsDir, 'templates', 'identity.template.md'),
     path.join(wsDir, 'templates', 'ADR-NNN.template.md'),
+    // Renamed: pc-plan.md → pc-spec.md
+    path.join(wsDir, 'workflows', 'pc-plan.md'),
   ];
   const obsoleteSkillDirs = [
     // Old workflow names (pre-pc- prefix)
@@ -71,6 +73,8 @@ async function upgradeCommand(options) {
     // Old non-prefixed skill names (renamed to pc-*)
     'code-optimizer', 'context', 'implement', 'implementer',
     'inspect-project', 'plan', 'review', 'reviewer', 'test', 'uuid',
+    // Renamed: pc-plan → pc-spec
+    'pc-plan',
   ];
   const obsoleteAgentProfiles = [
     'spec-optimizer.md', 'plan-optimizer.md', 'task-optimizer.md',

@@ -1,5 +1,5 @@
 ---
-name: pc-plan
+name: pc-spec
 description: "SOL planning-brain loads ADHD for ideation, then pinned GLM writers and a pinned SWE reviewer for spec and plan artifacts"
 argument-hint: "<description of what to build>"
 triggers:
@@ -26,17 +26,17 @@ You are the lightweight orchestrator. Dispatch pinned subagents for
 decisions, writing, and review. The planning-brain loads ADHD itself —
 you do not load it. Do not rely on the root session's selected model.
 
-Follow `workflows/pc-plan.md` exactly:
+Follow `workflows/pc-spec.md` exactly:
 
-1. Dispatch pinned `planning-brain` (`gpt-5.6-sol-medium`) with the request
+1. Dispatch pinned `planning-brain` (`gpt-5.6-terra-high`) with the request
    and repository context. The planning-brain loads `adhd` for divergent
    ideation, then returns the specification decision brief.
 2. Dispatch pinned `spec-writer` (`glm-5.2-high`) with that brief.
-3. Dispatch pinned `reviewer` (`swe-1.7-medium`); allow one correction pass.
+3. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
 4. **Stop and wait for explicit specification approval.**
 5. Dispatch pinned `planning-brain` again for the architecture brief.
 6. Dispatch pinned `plan-writer` (`glm-5.2-high`).
-7. Dispatch pinned `reviewer` (`swe-1.7-medium`); allow one correction pass.
+7. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
 8. **Stop and wait for explicit plan approval.**
 9. After approval, commit and hand off to `/pc-create-tasks`.
 

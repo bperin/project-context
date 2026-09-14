@@ -141,20 +141,20 @@ user-owned Devin profiles.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planning-brain` | `gpt-5.6-sol-medium` | Scope and architecture decisions | Planning only |
+| `planning-brain` | `gpt-5.6-terra-high` | Scope and architecture decisions | Planning only |
 | `spec-writer` | `glm-5.2-high` | Write spec from SOL decision brief | Specification phase |
 | `plan-writer` | `glm-5.2-high` | Write plan from SOL architecture brief | Plan phase |
 | `task-writer` | `glm-5.2-high` | Serialize task documents and event history | Task creation |
 | `workstream-analyst` | `glm-5.2-high` | Read-only workstream analysis | Optional bounded parallel fan-out |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
+| `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
 | `code-optimizer` | `glm-5.2-high` | Performance, memory, and concurrency review | Only when task risk or measurements warrant it |
-| `test-agent` | `swe-1.7-medium` | Test-only specialist | Optional isolated test repair |
+| `test-agent` | `swe-2-high` | Test-only specialist | Optional isolated test repair |
 
 The root agent is a lightweight orchestrator. A custom `planning-brain` profile
-is explicitly pinned to `gpt-5.6-sol-medium`; document writers use
+is explicitly pinned to `gpt-5.6-terra-high`; document writers use
 `glm-5.2-high`, implementation uses `swe-2-high`, and review uses
-`swe-1.7-medium`. The workflow never uses `subagent_general`, which would inherit
+`swe-2-high`. The workflow never uses `subagent_general`, which would inherit
 the root model.
 
 ## Subagent architecture
@@ -164,12 +164,12 @@ graph TD
     ORCH["**Orchestrator** (main agent)<br/>coordinates pinned profiles"]
 
     subgraph "Custom profiles (.agents/agents/)"
-        BRAIN["planning-brain.md<br/>model: gpt-5.6-sol-medium<br/>scope + architecture"]
+        BRAIN["planning-brain.md<br/>model: gpt-5.6-terra-high<br/>scope + architecture"]
         WRITERS["spec/plan/task writers<br/>model: glm-5.2-high"]
         IMPL["implementer.md<br/>model: swe-2-high<br/>write access, with context"]
-        REV["reviewer.md<br/>model: swe-1.7-medium<br/>read-only, with context"]
+        REV["reviewer.md<br/>model: swe-2-high<br/>read-only, with context"]
         CODEOPT["code-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
-        TEST["test-agent.md<br/>model: swe-1.7-medium<br/>write access"]
+        TEST["test-agent.md<br/>model: swe-2-high<br/>write access"]
     end
 
     ORCH -->|"planning decisions"| BRAIN
@@ -196,7 +196,7 @@ workflow. They live in `.agents/skills/` and are discovered by Devin.
 | Command | Purpose |
 |---------|---------|
 | `/pc-epic` | Write a high-level epic from a vision — planning-brain loads adhd, spec-writer writes, review |
-| `/pc-plan` | Run the planning workflow — adhd once, write spec, review, write plan, review |
+| `/pc-spec` | Run the planning workflow — adhd once, write spec, review, write plan, review |
 | `/pc-create-tasks` | Run the task-writer workflow — read spec+plan, write task MDs + JSONL |
 | `/pc-implement` | Implement + complete tests → verify → one focused review; optimizer only when warranted |
 | `/pc-review` | Run the PR review workflow — mechanical checks, dispatch reviewer, open PR |
@@ -377,10 +377,10 @@ project-context/
 ├── bin/cli.js                      # CLI entry point
 ├── src/
 │   ├── agents/                     # subagent profile source
-│   │   ├── reviewer.md             #   model: swe-1.7-medium
+│   │   ├── reviewer.md             #   model: swe-2-high
 │   │   ├── code-optimizer.md       #   model: glm-5.2-high
-│   │   ├── implementer.md          #   model: gpt-5.6-sol-medium
-│   │   └── test-agent.md           #   model: swe-1.7-medium
+│   │   ├── implementer.md          #   model: gpt-5.6-terra-high
+│   │   └── test-agent.md           #   model: swe-2-high
 │   ├── commands/                   # CLI commands
 │   │   ├── init.js
 │   │   ├── inspect.js

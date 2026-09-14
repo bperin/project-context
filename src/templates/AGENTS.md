@@ -85,7 +85,7 @@ flowchart that renders in GitHub and IDE preview.
 | Workflow | File | When |
 |----------|------|------|
 | Epic | `workflows/pc-epic.md` | When a user describes a high-level vision with multiple features |
-| Plan | `workflows/pc-plan.md` | When a user describes what to build, or refining an epic item |
+| Plan | `workflows/pc-spec.md` | When a user describes what to build, or refining an epic item |
 | Task | `workflows/pc-create-tasks.md` | After a plan is committed — task-writer creates tasks + JSONL build order |
 | Implement | `workflows/pc-implement.md` | When a task moves to `in_progress` |
 | Test failure | `workflows/test-failure.md` | When tests fail during implementation or verification |
@@ -114,7 +114,7 @@ When a user describes a high-level vision with multiple features:
 4. **Stop. Wait for the user to approve the epic.**
 5. Register and commit.
 
-When the user is ready to build an item from the epic, use `/pc-plan`.
+When the user is ready to build an item from the epic, use `/pc-spec`.
 The planning-brain takes the epic item + the epic for context and
 produces a concrete spec. The spec's `Dependencies` field points to
 the epic ID (e.g. `EPIC-001`).

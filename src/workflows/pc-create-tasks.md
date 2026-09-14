@@ -2,7 +2,7 @@
 
 ## When
 
-After the plan is reviewed and committed. The pc-plan workflow exits here.
+After the plan is reviewed and committed. The pc-spec workflow exits here.
 The orchestrator dispatches a different agent — the task-writer
 subagent (`task-writer` profile, `glm-5.2-high`) — to pick up with the
 agreed spec and plan in hand. It has full context of the plan (it reads

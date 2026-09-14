@@ -6,7 +6,7 @@
 flowchart TD
     INPUT["User input"] --> EPIC{"High-level vision?<br/>Multiple features?"}
     EPIC -->|yes| ROADW["pc-epic<br/>planning-brain(adhd) → spec-writer → review → [approve]"]
-    EPIC -->|no| PLANW["pc-plan<br/>planning-brain(adhd) → spec → review → plan → review"]
+    EPIC -->|no| PLANW["pc-spec<br/>planning-brain(adhd) → spec → review → plan → review"]
     ROADW -->|item ready| PLANW
     PLANW -->|committed| TASKW["pc-create-tasks<br/>task-writer → task MDs + JSONL → review"]
     TASKW -->|committed| IMPL["pc-implement<br/>implement + tests → verify → focused review"]
@@ -54,7 +54,7 @@ flowchart TD
 | Skill | When |
 |-------|------|
 | `/pc-epic` | User describes a high-level vision with multiple features |
-| `/pc-plan` | User describes what to build, or refining a epic item |
+| `/pc-spec` | User describes what to build, or refining a epic item |
 | `/pc-create-tasks` | After plan committed |
 | `/pc-implement` | Task moves to `in_progress` |
 | `/pc-review` | All tasks done, PR ready |

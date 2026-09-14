@@ -27,7 +27,7 @@ async function testAgentProtocolsAndFixtures() {
   const agentsMd = fs.readFileSync(path.join(aiDir, 'AGENTS.md'), 'utf8');
   assert(agentsMd.includes('Session start'), 'AGENTS.md missing Session start checklist');
   assert(agentsMd.includes('Workflows'), 'AGENTS.md missing Workflows table');
-  assert(agentsMd.includes('pc-plan'), 'AGENTS.md missing pc-plan reference');
+  assert(agentsMd.includes('pc-spec'), 'AGENTS.md missing pc-spec reference');
   assert(agentsMd.includes('pc-epic'), 'AGENTS.md missing pc-epic reference');
   assert(agentsMd.includes('pc-create-tasks'), 'AGENTS.md missing pc-create-tasks reference');
   assert(agentsMd.includes('Communication budget'), 'AGENTS.md missing communication budget');
@@ -37,7 +37,7 @@ async function testAgentProtocolsAndFixtures() {
 
   // 3. Verify workflow files are present and match expectations
   const workflowsDir = path.join(aiDir, 'workflows');
-  assert(fs.existsSync(path.join(workflowsDir, 'pc-plan.md')), 'pc-plan.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'pc-spec.md')), 'pc-spec.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-epic.md')), 'pc-epic.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-create-tasks.md')), 'pc-create-tasks.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-implement.md')), 'pc-implement.md workflow missing');

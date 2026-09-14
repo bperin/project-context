@@ -1,22 +1,34 @@
 # pc-epic
 
-Write a high-level epic from a user's vision. The epic lists
-ordered items — each item becomes a SPEC when its turn comes.
+Write a verbose epic from a user's vision or an input document. The
+epic lists ordered items — each item becomes a SPEC when its turn
+comes. Epics are intentionally verbose to preserve fidelity downstream.
 
 ## What this skill does
 
 You are the orchestrator. Follow `workflows/pc-epic.md`. Dispatch
 the `planning-brain` and `spec-writer` subagents as described there.
 
+## Input
+
+Accepts either:
+- **Text** — the user describes their vision in the prompt
+- **An .md file** — the user provides a path to a markdown file
+  containing the vision, requirements, or notes
+
+If an .md file is provided, read it and pass its content to the
+planning-brain as the vision input. The file may be rough notes,
+a product brief, a design doc, or any markdown the user has.
+
 ## When to use
 
 - The user describes a high-level vision with multiple features/phases
+- The user provides an .md file with notes or requirements to turn into an epic
 - The user wants to plan out what needs doing in order
-- The items can be vague — detail comes when each is refined into a spec
 
 ## When NOT to use
 
-- Single feature — use `/pc-plan` directly
+- Single feature — use `/pc-spec` directly
 - Implementation work — use `/pc-implement`
 - Task creation — use `/pc-create-tasks`
 

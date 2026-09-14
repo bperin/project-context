@@ -306,7 +306,7 @@ from leaking into reviews.
 ```
 EPIC → /pc-epic workflow (planning-brain loads adhd → spec-writer → review → [user approves])
   ↓
-PLAN → /pc-plan workflow (planning-brain loads adhd → spec-writer → review → [user approves] → planning-brain → plan-writer → review → [user approves])
+PLAN → /pc-spec workflow (planning-brain loads adhd → spec-writer → review → [user approves] → planning-brain → plan-writer → review → [user approves])
   ↓
 TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task MDs + JSONL → review)
   ↓

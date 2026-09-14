@@ -20,7 +20,7 @@ project-context/
 │   │   ├── pc-create-tasks/
 │   │   ├── pc-implement/
 │   │   ├── pc-inspect-project/
-│   │   ├── pc-plan/
+│   │   ├── pc-spec/
 │   │   ├── pc-review/
 │   │   └── pc-uuid/
 │   ├── templates/               # Document templates (SPEC, PLAN, TASK, AGENTS.md)
