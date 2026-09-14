@@ -186,8 +186,10 @@ When you dispatch a subagent with `run_subagent`, you MUST set:
 
 Set `is_background: true` only for pinned read-only `workstream-analyst` agents or
 for a wave of at most three pinned `implementer` agents with exclusive file/symbol
-ownership. Collect every result before verification or state changes. All other
-pipeline agents are foreground.
+ownership. Background agents open in their own session tabs — the orchestrator
+continues and collects results via `read_subagent` when notified. Collect every
+result before verification or state changes. All other pipeline agents are
+foreground.
 
 Background agents cannot request new permissions. If a required read is denied,
 resume that analyst in the foreground or continue without its report. Custom

@@ -38,7 +38,7 @@ Follow `workflows/pc-implement.md` exactly. In order:
 
 1. Run `project-context ready --limit 3 -t .`; select only its ready tasks
 2. Append their `in_progress` statuses serially
-3. Dispatch one pinned `implementer` per task in the background; collect all results
+3. Dispatch one pinned `implementer` per task with `is_background: true` — each opens in its own session tab. Collect all results.
 4. Check file ownership and run integrated mechanical checks
 5. Dispatch one focused reviewer over the combined diff
 6. Allow one correction wave, capped at three, for original blockers only

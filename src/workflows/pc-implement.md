@@ -36,10 +36,21 @@ select ≤3 ready tasks → start statuses → background implementers
 3. Append each `in_progress` status serially before dispatch. Do not let subagents
    edit manager state.
 4. Dispatch one pinned `implementer` (`swe-2-high`) per task with
-   `is_background: true`. Give each an explicit exclusive file/symbol boundary.
-   Implementers write code and complete task-level tests but do not commit, change
-   task status, or spawn subagents. The orchestrator must not edit source files
-   while the wave is running.
+   `is_background: true`. Each implementer opens in its own session tab.
+   Give each an explicit exclusive file/symbol boundary. Implementers write
+   code and complete task-level tests but do not commit, change task status, or
+   spawn subagents. The orchestrator must not edit source files while the wave
+   is running.
+
+   Template for dispatching each implementer:
+   ```
+   run_subagent(
+     title: "Implement TASK-NNN",
+     task: "<context packet path, task file path, AGENTS.md path, exclusive file/symbol boundary>",
+     profile: "implementer",
+     is_background: true
+   )
+   ```
 5. Wait for completion notifications and collect every result. Background agents
    cannot request new permissions; if one is denied, resume only that agent in the
    foreground. If an agent fails, keep the wave tasks `in_progress` and stop before
