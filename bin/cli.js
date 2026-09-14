@@ -25,19 +25,25 @@ program
   .description('Scaffold and manage project-context-{repo} workspace for AI agents')
   .version(pkg.version);
 
-// Auto-detect the workspace directory: look for .{reponame}-manager in the target.
+// Auto-detect the workspace directory: look for .{reponame}-manager or
+// .ai-workspace-{reponame} in the target.
 function resolveWorkspace(options) {
   if (options.workspace) {
     return options.workspace;
   }
   const targetDir = path.resolve(options.target || '.');
   const repoName = path.basename(targetDir);
-  const expected = `.${repoName}-manager`;
   const entries = fs.readdirSync(targetDir);
-  if (entries.includes(expected) && fs.statSync(path.join(targetDir, expected)).isDirectory()) {
-    return expected;
+  const candidates = [
+    `.${repoName}-manager`,
+    `.ai-workspace-${repoName}`,
+  ];
+  for (const expected of candidates) {
+    if (entries.includes(expected) && fs.statSync(path.join(targetDir, expected)).isDirectory()) {
+      return expected;
+    }
   }
-  return expected;
+  return candidates[0];
 }
 
 program

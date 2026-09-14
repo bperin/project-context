@@ -235,7 +235,7 @@ path and pass the workspace name with `-w <workspace>`:
 ```
 
 The workspace name is the `.{reponame}-manager` directory (e.g.
-`.trust-manager`, `.ai-workspace-trakt2`, `.smart-job-search-manager`).
+`.trust-manager`, `.trakt2-manager`, `.smart-job-search-manager`).
 Check the root `AGENTS.md` for the exact workspace name. Do not guess.
 
 ```bash
