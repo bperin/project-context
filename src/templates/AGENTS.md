@@ -174,16 +174,18 @@ Follow the pc-implement workflow
 1. Select up to three dependency-ready tasks with disjoint write sets and build
    a separate context packet for each.
 2. Append their `in_progress` states serially, then dispatch one pinned
-   implementer per task in the background. Collect every result.
-3. Check ownership and run integrated mechanical checks.
-4. Dispatch one focused reviewer. Review changed scope only.
-5. Apply at most one correction pass, then re-run verification and confirm
-   only the original blockers. Escalate if one remains.
-6. When all required checks pass, create one integrated commit.
-7. Update each task status to `done` serially via the CLI:
+   implementer per task in the background. Each implementer writes code,
+   writes tests, and **self-reviews** by dispatching its own reviewer.
+3. Collect every result. Check ownership and run integrated mechanical checks.
+4. When all required checks pass, create one integrated commit.
+5. Update each task status to `done` serially via the CLI:
    ```bash
    project-context status TASK-NNN done -t .
    ```
+6. **When all tasks in the plan are done**, dispatch one reviewer with
+   the plan file, spec file, and full diff. This is the plan review —
+   it checks that every spec behavior was implemented and every plan
+   workstream is complete. One review, not per-wave.
 
 **Bounded parallelism.** Task creation may use up to four pinned read-only
 analysts. Implementation may run up to three pinned implementers for ready tasks

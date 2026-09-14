@@ -29,8 +29,9 @@ If ownership overlaps or is unclear, run those tasks sequentially. Background
 implementers share the working tree; they are not isolated branches.
 
 ```text
-select ≤3 ready tasks → start statuses → background implementers
-→ collect all → integrated verification → focused review → one commit
+select ≤3 ready tasks → start statuses → background implementers (self-review)
+→ collect all → integrated verification → one commit
+→ when all tasks in plan done → plan review
 ```
 
 ## Steps
@@ -50,28 +51,30 @@ select ≤3 ready tasks → start statuses → background implementers
    edit manager state.
 4. Dispatch one pinned `implementer` (`swe-2-high`) per task with
    `is_background: true`. Each implementer has its own clean context —
-   no conversation history, no prior session state. The `task:` prompt
-   must contain everything the implementer needs:
+   no conversation history. The `task:` prompt must contain everything:
 
    ```
    run_subagent(
      title: "Implement TASK-NNN",
      task: "Read AGENTS.md at <path> for project conventions.
    Read the context packet at <path> for skillLayers, parent plan, spec.
-   Read the task file at <path> for goal, files, symbols, criteria.
+   Read the task file at <path> for goal, files, symbols, criteria, tests.
    Load ONLY the skills listed in the context packet's allSkills field.
    Do not load any other skill. Do not browse for skills.
    Implement TASK-NNN. Stay within these files only: <exclusive list>.
    Do not touch: <do-not-touch list>. Load pc-optimize before verification.
-   Run <verification commands>. do not commit or change task status.",
+   Write the tests defined in the task file.
+   Run <verification commands>. Self-review: dispatch a reviewer with
+   your diff and the task's acceptance criteria. Fix MUST-FIX issues.
+   do not commit or change task status.",
      profile: "implementer",
      is_background: true
    )
    ```
 
-   Implementers write code and complete task-level tests but do not
-   commit, change task status, or spawn subagents. The orchestrator
-   must not edit source files while the wave is running.
+   Each implementer writes code, writes tests, and self-reviews by
+   dispatching its own reviewer. The orchestrator does not review —
+   the implementer handles it.
 5. Wait for completion notifications and collect every result. Background agents
    cannot request new permissions; if one is denied, resume only that agent in the
    foreground. If an agent fails, keep the wave tasks `in_progress` and stop before
@@ -81,32 +84,34 @@ select ≤3 ready tasks → start statuses → background implementers
    and run `./tools/project-context ready` again to backfill the open slot.
 6. Check the combined diff against declared ownership, then run applicable
    project-level mechanical verification once over the integrated wave.
-7. Dispatch one pinned `reviewer`. Give it only the combined diff and
-   each task's acceptance criteria. The reviewer checks only:
-   - Does the diff satisfy each task's acceptance criteria?
-   - Any security defects, data-loss risks, or forbidden imports?
-   Nothing else.
-8. Apply at most one correction pass. Independent corrections may return to their
-   original pinned implementers in parallel, again capped at three. Confirmation
-   checks only the original blockers and obvious correction regressions; it cannot
-   expand scope. If a blocker remains, stop and ask the user.
-9. Commit the verified wave once, then append each `done` status serially and
-    rebuild the graph:
-    ```bash
-    ./tools/project-context status TASK-NNN done -w <workspace> -t .
-    ./tools/project-context graph -w <workspace> -t .
-    rm -f .context-TASK-NNN.json
-    ```
+7. Commit the verified wave once, then append each `done` status serially and
+   rebuild the graph:
+   ```bash
+   ./tools/project-context status TASK-NNN done -w <workspace> -t .
+   ./tools/project-context graph -w <workspace> -t .
+   rm -f .context-TASK-NNN.json
+   ```
 
-## Blocking standard
+## Plan review
 
-A finding blocks only for an acceptance-criteria failure, regression, security
-defect, data-loss risk, ownership violation, or failing required check. Suggestions
-do not start a correction pass.
+When all tasks in a plan are `done`, dispatch one `reviewer` with the
+plan file, spec file, and the full diff. The reviewer checks:
+- Every spec behavior was implemented
+- Every plan workstream is complete
+- No regressions introduced
+- All checks pass
+
+This replaces per-wave reviews and PR reviews. One review at plan
+completion. If MUST-FIX issues remain, re-dispatch the implementer(s)
+for the affected tasks. One correction pass. Then commit and open the
+PR.
 
 ## Constraints
 
 - Maximum three simultaneous implementation agents.
 - Never parallelize tasks with overlapping or unknown write sets.
 - No per-agent commits and no concurrent JSONL or Markdown state writes.
-- One integrated commit and one correction pass per wave.
+- One integrated commit per wave.
+- Implementers self-review — the orchestrator does not dispatch a
+  separate reviewer per wave.
+- One plan review when all tasks in the plan are done.

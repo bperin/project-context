@@ -40,9 +40,9 @@ has full context — no re-reading, no context transfer.
 2. **Dispatch the planning-brain** (foreground, `planning-brain` profile,
    `is_background: false`). **Pass the spec content, plan content, and
    architecture brief in the task prompt** — the planning-brain wrote
-   them but this is a fresh dispatch. Also pass the context packet path,
-   `AGENTS.md` path, and the instruction to write and register tasks.
-   The planning-brain:
+   them but this is a fresh dispatch. Tell it **Phase: TASKS**. Also
+   pass the context packet path, `AGENTS.md` path, and the
+   instruction to write and register tasks. The planning-brain:
    - Has the spec, plan, and architecture brief in its task prompt
    - **May dispatch up to four `workstream-analyst` subagents**
      (`is_background: true`, one per workstream) for parallel
@@ -81,6 +81,9 @@ has full context — no re-reading, no context transfer.
    - Each workstream traces back to a spec requirement
    - JSONL build order matches plan workstream order
    - Cited file paths respect dependency rules
+   - Each task defines tests (success, failure, boundary)
+   - Each task has acceptance criteria and verification commands
+   - Do-not-touch list present
    - All template sections present
    Nothing else. Block on `read_subagent` to collect results.
 

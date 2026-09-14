@@ -11,32 +11,37 @@ continuous context.
 | Work | Who | Model |
 |---|---|---|
 | ADHD ideation + write spec | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
-| Architecture brief + write plan | `planning-brain` subagent (same session) | `gpt-5.6-terra-high` |
-| Review either artifact | `reviewer` subagent | `swe-2-high` |
+| ADHD ideation + write plan | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
+| Review spec | `reviewer` subagent (spec criteria) | `swe-2-high` |
+| Review plan | `reviewer` subagent (plan criteria) | `swe-2-high` |
 
 Never use an unpinned or general subagent in this workflow.
 
 ## Phase 1: Specification
 
-1. Dispatch pinned `planning-brain` in the foreground with the request and
-   repository context. The planning-brain loads `adhd` for divergent ideation,
-   then writes the spec directly. It registers via CLI and edits the generated
-   file.
+1. Dispatch pinned `planning-brain` in the foreground with:
+   - **Phase: SPEC** — tell it this is the spec phase
+   - The request and repository context
+   - **If refining an epic item:** the epic file and the specific item
 
-   **If refining an epic item:** include the epic file and the specific
-   item to refine. The planning-brain uses the epic for context and the
-   item as the scope. The resulting spec's `Dependencies` field points to
-   the epic ID (e.g. `EPIC-001`).
-2. Dispatch pinned `reviewer` once. Give it only the spec file and this
-   exact criteria list:
-   - Every desired behavior maps to a measurable success criterion
-   - Out of Scope is present and honest
-   - No internal contradictions
-   - All template sections present
+   The planning-brain loads `adhd` for divergent ideation about the
+   problem, then writes the spec directly. Register via CLI, edit the
+   generated file.
+
+2. Dispatch pinned `reviewer` with **spec review criteria**:
+   - Is the problem clear? What we're building and why?
+   - Are the users identified?
+   - Is the scope honest? Is out-of-scope present?
+   - Are there contradictions?
+   - Are success criteria measurable?
+   - Is anything obviously missing that a 10-year-old would notice?
+   - All template sections present?
    Nothing else. No AGENTS.md, no codebase access.
-3. If objectively blocked, re-dispatch `planning-brain` once with the
-   findings, then confirm only the original findings. If one remains,
-   ask the user instead of looping.
+
+3. If MUST-FIX issues remain, re-dispatch `planning-brain` once with
+   the findings, then confirm only the original findings. If one
+   remains, ask the user.
+
 4. **Hard stop:** present the specification and wait for approval.
 
    **If refining an epic item:** after approval, update the epic MD:
@@ -44,31 +49,41 @@ Never use an unpinned or general subagent in this workflow.
 
 ## Phase 2: Implementation plan
 
-5. Re-dispatch the same `planning-brain` (foreground) for the architecture
-   brief and plan. It has the spec in context from phase 1 — no re-reading
-   needed. It **loads `adhd` again** for implementation approach ideation,
-   then writes the plan directly. Register via CLI, edit the generated file.
-6. Dispatch pinned `reviewer` once. Give it only the plan file and spec
-   file and this exact criteria list:
-   - Every spec behavior has a workstream
+5. Re-dispatch `planning-brain` (foreground) with:
+   - **Phase: PLAN** — tell it this is the plan phase
+   - The full spec content in the task prompt (fresh subagent, no memory)
+   - The architecture brief from phase 1 if available
+
+   The planning-brain loads `adhd` again for divergent ideation about
+   the implementation approach, then writes the plan directly.
+   Register via CLI, edit the generated file.
+
+6. Dispatch pinned `reviewer` with **plan review criteria**:
+   - Every spec behavior maps to a workstream
    - Workstreams ordered so none depends on a later one
    - Completion criteria are objectively verifiable
    - No forbidden dependencies
+   - Risks identified
+   - Verification strategy present
+   - All template sections present?
    Nothing else.
-7. If objectively blocked, re-dispatch `planning-brain` once with the
-   findings, then confirm only the original findings. If one remains,
-   ask the user.
+
+7. If MUST-FIX issues remain, re-dispatch `planning-brain` once with
+   the findings, then confirm only the original findings. If one
+   remains, ask the user.
+
 8. **Hard stop:** present the plan and wait for approval.
+
 9. After approval, mark and commit the spec and plan. Task creation is a
    separate `/pc-create-tasks` invocation.
 
 ## Constraints
 
-- `adhd` is loaded by `planning-brain`, not the orchestrator. Loaded
-  in phase 1 (spec ideation) and phase 2 (implementation approach
-  ideation). Not loaded during task writing — tasks are concrete.
+- `adhd` is loaded by `planning-brain` in both spec and plan phases.
+  Not loaded during task writing — tasks are concrete.
 - `planning-brain` writes specs and plans directly — no separate writer subagents.
-- Pinned SWE reviews without expanding scope.
+- Reviewer gets different criteria per artifact type — spec review is
+  high-level, plan review verifies spec coverage.
 - Subagents run sequentially and in the foreground.
 - One correction pass per artifact.
 - No implementation or task creation during planning.

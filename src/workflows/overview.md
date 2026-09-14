@@ -5,17 +5,16 @@
 ```mermaid
 flowchart TD
     INPUT["User input"] --> EPIC{"High-level vision?<br/>Multiple features?"}
-    EPIC -->|yes| ROADW["pc-epic<br/>planning-brain(adhd) → planning-brain → review → [approve]"]
-    EPIC -->|no| PLANW["pc-spec<br/>planning-brain(adhd) → spec → review → plan → review"]
+    EPIC -->|yes| ROADW["pc-epic<br/>planning-brain(adhd) → write epic → review → [approve]"]
+    EPIC -->|no| PLANW["pc-spec<br/>planning-brain(adhd) → write spec → review → [approve]<br/>planning-brain(adhd) → write plan → review → [approve]"]
     ROADW -->|item ready| PLANW
     PLANW -->|committed| TASKW["pc-create-tasks<br/>planning-brain → task MDs + JSONL → review"]
-    TASKW -->|committed| IMPL["pc-implement<br/>implement + tests → verify → focused review"]
-    IMPL -->|one correction needed| TF["bounded correction<br/>one pass"]
-    TF -->|fixed| IMPL
-    TF -->|unresolved| ESC["Escalate to user"]
-    IMPL -->|all tasks done| PR["PR readiness check"]
+    TASKW -->|committed| IMPL["pc-implement<br/>implementer writes code + tests → self-review"]
+    IMPL -->|all tasks done| PLANREV["Plan review<br/>reviewer checks spec coverage"]
+    PLANREV -->|pass| PR["Open PR"]
+    PLANREV -->|MUST-FIX| IMPL
     PR -->|checks pass| MERGE["squash-merge"]
-    PLANW -->|MUST-FIX after revision| ESC
+    PLANW -->|MUST-FIX after revision| ESC["Escalate to user"]
     TASKW -->|MUST-FIX after revision| ESC
 ```
 
@@ -23,13 +22,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ADHD["planning-brain<br/>loads adhd"] --> WRITESPEC["planning-brain<br/>Write spec"]
-    WRITESPEC --> REV1["Dispatch reviewer"]
+    ADHD1["planning-brain<br/>loads adhd — problem ideation"] --> WRITESPEC["Write spec"]
+    WRITESPEC --> REV1["Dispatch reviewer<br/>spec criteria: high-level"]
     REV1 --> FIX1{"MUST-FIX?"}
     FIX1 -->|yes| REVISE1["Revise"] --> REV1
     FIX1 -->|no| GATE1["STOP — user approves spec"]
-    GATE1 --> WRITEPLAN["Write plan"]
-    WRITEPLAN --> REV2["Dispatch reviewer"]
+    GATE1 --> ADHD2["planning-brain<br/>loads adhd — approach ideation"]
+    ADHD2 --> WRITEPLAN["Write plan"]
+    WRITEPLAN --> REV2["Dispatch reviewer<br/>plan criteria: spec coverage"]
     REV2 --> FIX2{"MUST-FIX?"}
     FIX2 -->|yes| REVISE2["Revise"] --> REV2
     FIX2 -->|no| GATE2["STOP — user approves plan"]
@@ -40,11 +40,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    CTX["Select ≤3 ready, disjoint tasks"] --> P["Background implementer wave"]
+    CTX["Select ≤3 ready, disjoint tasks"] --> P["Background implementer wave<br/>each writes code + tests + self-reviews"]
     P --> V["Integrated mechanical verification"]
-    V --> CR["Focused reviewer"]
-    CR -->|"MUST-FIX: one pass"| P
-    CR -->|pass| COM["Commit + done"]
+    V --> COM["Commit + done"]
+    COM --> ALLDONE{"All tasks in plan done?"}
+    ALLDONE -->|no| CTX
+    ALLDONE -->|yes| PLANREV["Plan review<br/>reviewer checks spec coverage"]
+    PLANREV -->|MUST-FIX| P
+    PLANREV -->|pass| PR["Open PR"]
 ```
 
 ## Control Plane
@@ -57,7 +60,7 @@ flowchart TD
 | `/pc-spec` | User describes what to build, or refining a epic item |
 | `/pc-create-tasks` | After plan committed |
 | `/pc-implement` | Task moves to `in_progress` |
-| `/pc-review` | All tasks done, PR ready |
+| `/pc-review` | Plan review passed, PR ready |
 | `/pc-inspect-project` | Anytime |
 | `/pc-context` | Build a context packet |
 | `/pc-uuid` | New spec/plan/task needs UUID |
@@ -76,21 +79,22 @@ TASK:    draft → in_progress → done → superseded
 1. Up to three dependency-ready implementation tasks with disjoint write sets.
 2. Task creation may use up to four pinned read-only analysts in parallel; one
    planning-brain serializes every Markdown and JSONL change.
-3. Implementers may run as a bounded background wave; reviews and state changes
-   remain sequential.
+3. Implementers may run as a bounded background wave; each self-reviews.
 4. One review pass per artifact. If MUST-FIX after one revision,
    escalate.
 
 ### Escalation
 
 1. Plan/task workflow: one revision, then escalate.
-2. Implementation: one correction pass, then escalate.
-3. Test failure: one correction pass, then escalate.
+2. Implementation: implementer self-reviews, one correction pass, then escalate.
+3. Plan review: one correction pass, then escalate.
 4. PR readiness: checks fail or tasks not done, stop and escalate.
 
 ### Skill loading
 
-1. `adhd` is loaded by `planning-brain`, not the orchestrator. Never again after planning.
-2. Task-writer does not load `adhd` or any skills.
-3. Implementer loads the task's primary skill and `pc-optimize`.
-4. Reviewer loads the project's code-review skill.
+1. `adhd` is loaded by `planning-brain` in spec and plan phases. Not
+   during task writing — tasks are concrete.
+2. Planning-brain does not load any other skills during task writing.
+3. Implementer loads only the skills from the context packet's
+   `allSkills` field and `pc-optimize`.
+4. Reviewer uses phase-specific criteria — no skill loading.

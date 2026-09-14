@@ -106,6 +106,20 @@
 1. 
 2. 
 
+## Tests
+
+<!-- The implementer writes these tests as part of implementation. -->
+<!-- Define success, failure, and boundary cases. -->
+
+### Success cases
+- 
+
+### Failure cases
+- 
+
+### Boundary cases
+- 
+
 ## Verification
 
 <!-- Exact test command to run. -->
