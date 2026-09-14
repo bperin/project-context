@@ -1,7 +1,7 @@
 ---
 name: planning-brain
-description: "Planning + writing brain. Thinks with ADHD, then writes specs, plans, tasks, and JSONL. Pinned to gpt-5.6-terra-high."
-model: gpt-5.6-terra-high
+description: "Planning + writing brain. Thinks with ADHD, then writes specs, plans, tasks, and JSONL. Pinned to deepseek-4.1-flash-high."
+model: deepseek-4.1-flash-high
 allowed-tools:
   - read
   - edit

@@ -155,7 +155,7 @@ they don't all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planning-brain` | `gpt-5.6-terra-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
+| `planning-brain` | `deepseek-4.1-flash-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
 | `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
 | `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After planning-brain, all creation workflows |

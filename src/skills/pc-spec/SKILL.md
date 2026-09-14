@@ -28,7 +28,7 @@ No separate writer subagents. Do not rely on the root session's model.
 
 Follow `workflows/pc-spec.md` exactly:
 
-1. Dispatch pinned `planning-brain` (`gpt-5.6-terra-high`) with the
+1. Dispatch pinned `planning-brain` (`deepseek-4.1-flash-high`) with the
    request and repository context. It loads `adhd`, thinks, then writes
    the spec directly.
 2. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.

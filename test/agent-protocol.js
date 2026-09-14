@@ -51,7 +51,7 @@ async function testAgentProtocolsAndFixtures() {
   // Expensive or disruptive orchestration must use explicit pinned profiles.
   const profileDir = path.join(aiDir, '.agents', 'agents');
   const expectedPins = {
-    'planning-brain.md': 'gpt-5.6-terra-high',
+    'planning-brain.md': 'deepseek-4.1-flash-high',
     'workstream-analyst.md': 'glm-5.2-high',
     'implementer.md': 'swe-2-high',
     'reviewer.md': 'swe-2-high',

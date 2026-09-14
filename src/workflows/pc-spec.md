@@ -3,15 +3,15 @@
 ## Model separation
 
 The top-level `/pc-spec` skill is a lightweight orchestrator. It dispatches
-the `planning-brain` (`gpt-5.6-terra-high`), which loads `adhd` for
+the `planning-brain` (`deepseek-4.1-flash-high`), which loads `adhd` for
 divergent ideation, then writes the spec and plan directly. No separate
 writer subagents — the planning-brain thinks and writes in one
 continuous context.
 
 | Work | Who | Model |
 |---|---|---|
-| ADHD ideation + write spec | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
-| ADHD ideation + write plan | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
+| ADHD ideation + write spec | `planning-brain` subagent (loads `adhd`) | `deepseek-4.1-flash-high` |
+| ADHD ideation + write plan | `planning-brain` subagent (loads `adhd`) | `deepseek-4.1-flash-high` |
 | Review spec | `reviewer` subagent (spec criteria) | `swe-2-high` |
 | Review plan | `reviewer` subagent (plan criteria) | `swe-2-high` |
 
