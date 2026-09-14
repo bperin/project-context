@@ -54,7 +54,7 @@ async function testAgentProtocolsAndFixtures() {
     'planning-brain.md': 'deepseek-4.1-flash-high',
     'workstream-analyst.md': 'glm-5.2-high',
     'implementer.md': 'swe-2-high',
-    'reviewer.md': 'swe-2-high',
+    'reviewer.md': 'glm-5.2-high',
   };
   for (const [file, model] of Object.entries(expectedPins)) {
     const content = fs.readFileSync(path.join(profileDir, file), 'utf8');

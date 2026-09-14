@@ -12,8 +12,8 @@ continuous context.
 |---|---|---|
 | ADHD ideation + write spec | `planning-brain` subagent (loads `adhd`) | `deepseek-4.1-flash-high` |
 | ADHD ideation + write plan | `planning-brain` subagent (loads `adhd`) | `deepseek-4.1-flash-high` |
-| Review spec | `reviewer` subagent (spec criteria) | `swe-2-high` |
-| Review plan | `reviewer` subagent (plan criteria) | `swe-2-high` |
+| Review spec | `reviewer` subagent | `glm-5.2-high` |
+| Review plan | `reviewer` subagent | `glm-5.2-high` |
 
 Never use an unpinned or general subagent in this workflow.
 

@@ -31,12 +31,12 @@ Follow `workflows/pc-spec.md` exactly:
 1. Dispatch pinned `planning-brain` (`deepseek-4.1-flash-high`) with the
    request and repository context. It loads `adhd`, thinks, then writes
    the spec directly.
-2. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
+2. Dispatch pinned `reviewer` (`glm-5.2-high`); allow one correction pass.
 3. **Stop and wait for explicit specification approval.**
 4. Re-dispatch `planning-brain` for the architecture brief and plan.
    It has the spec in context — no re-reading. It **loads `adhd` again**
    for implementation approach ideation, then writes the plan directly.
-5. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
+5. Dispatch pinned `reviewer` (`glm-5.2-high`); allow one correction pass.
 6. **Stop and wait for explicit plan approval.**
 7. After approval, commit and hand off to `/pc-create-tasks`.
 

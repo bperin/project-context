@@ -158,7 +158,7 @@ they don't all run on the expensive orchestrator model.
 | `planning-brain` | `deepseek-4.1-flash-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
 | `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `swe-2-high` | Checks artifacts, fixes task issues directly | After planning-brain, all creation workflows |
+| `reviewer` | `glm-5.2-high` | Fast focused review, fixes issues directly | After planning-brain, all creation workflows |
 | `test-agent` | `swe-2-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
 
 Code optimization is a **skill** (`pc-optimize`), not a separate agent.
