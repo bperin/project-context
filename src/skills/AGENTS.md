@@ -130,9 +130,10 @@ task-writing, but they are not loaded until implementation. The
 planner and task-writer record what skills will be needed; the
 implementer loads them at implementation time.
 
-- **Plan workflow**: the orchestrator loads `adhd` once, before
-  writing the spec. No other skill is loaded during planning. Skills
-  needed for implementation are recorded in the spec/plan metadata.
+- **Plan workflow**: the `planning-brain` subagent loads `adhd` for
+  divergent ideation, then converges on the decision brief. No other
+  skill is loaded during planning. Skills needed for implementation
+  are recorded in the spec/plan metadata.
 - **Task workflow**: the task-writer does not load `adhd` or any
   skills. It reads the spec and plan, thinks through implementations,
   writes tasks, and records each task's skills + triggers in the MD
@@ -289,7 +290,7 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-PLAN → /pc-plan workflow (adhd once → write spec → review → [user approves] → write plan → review → [user approves])
+PLAN → /pc-plan workflow (planning-brain loads adhd → spec-writer → review → [user approves] → planning-brain → plan-writer → review → [user approves])
   ↓
 TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task MDs + JSONL → review)
   ↓
@@ -313,7 +314,7 @@ use only the bounded parallel waves defined by their workflows.
    during task creation. Up to three pinned implementers may run for ready,
    non-overlapping tasks. Reviews and state mutations are serial.
 5. **Background is explicit.** Only eligible analyst or implementer waves use
-   `is_background: true`. Optional optimizer and reviewer stay foreground. Always
+   `is_background: true`. Reviewer stays foreground. Always
    collect all background results before proceeding.
 6. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
    `project-context uuid <ID>`.

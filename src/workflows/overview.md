@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-    INPUT["User input"] --> PLANW["pc-plan<br/>adhd once → spec → review → plan → review"]
+    INPUT["User input"] --> PLANW["pc-plan<br/>planning-brain(adhd) → spec → review → plan → review"]
     PLANW -->|committed| TASKW["pc-create-tasks<br/>task-writer → task MDs + JSONL → review"]
     TASKW -->|committed| IMPL["pc-implement<br/>implement + tests → verify → focused review"]
     IMPL -->|one correction needed| TF["bounded correction<br/>one pass"]
@@ -20,7 +20,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ADHD["adhd (once)"] --> WRITESPEC["Write spec"]
+    ADHD["planning-brain<br/>loads adhd"] --> WRITESPEC["spec-writer<br/>Write spec"]
     WRITESPEC --> REV1["Dispatch reviewer"]
     REV1 --> FIX1{"MUST-FIX?"}
     FIX1 -->|yes| REVISE1["Revise"] --> REV1
@@ -85,8 +85,7 @@ TASK:    draft → in_progress → done → superseded
 
 ### Skill loading
 
-1. `adhd` runs ONCE, by the orchestrator, before the spec.
+1. `adhd` is loaded by `planning-brain`, not the orchestrator. Never again after planning.
 2. Task-writer does not load `adhd` or any skills.
-3. Implementer loads the task's primary skill.
-4. Code-optimizer loads performance skills only when conditionally dispatched.
-5. Reviewer loads the project's code-review skill.
+3. Implementer loads the task's primary skill and `pc-optimize`.
+4. Reviewer loads the project's code-review skill.

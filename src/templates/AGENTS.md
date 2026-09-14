@@ -102,20 +102,25 @@ projects.
 
 ## Building a plan
 
-When a user describes what they want built (register via the CLI):
+When a user describes what they want built:
 
-1. Load the `adhd` skill once. Think about the problem from multiple
-   angles. This is the only skill loaded during planning.
-2. Write the spec (what, why, scope). Record what skills the tasks will
-   need, but do not load them — they load at implementation time.
-3. Dispatch the reviewer. Revise based on findings.
+1. Dispatch pinned `planning-brain` (SOL) with the request and repo
+   context. The planning-brain loads `adhd` for divergent ideation,
+   then returns a specification decision brief.
+2. Dispatch pinned `spec-writer` (GLM) with the brief. It writes the
+   spec. Record what skills the tasks will need, but do not load them —
+   they load at implementation time.
+3. Dispatch pinned `reviewer` (SWE). Revise based on findings.
 4. **Stop. Wait for the user to approve the spec.** Do not proceed to
    the plan until the user says to.
-5. Write the plan (same context — do not re-read or restart).
-6. Dispatch the reviewer. Revise based on findings.
-7. **Stop. Wait for the user to approve the plan.** Do not proceed to
+5. Dispatch pinned `planning-brain` (SOL) again for the architecture
+   brief.
+6. Dispatch pinned `plan-writer` (GLM) with the brief. It writes the
+   plan.
+7. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+8. **Stop. Wait for the user to approve the plan.** Do not proceed to
    task creation until the user says to.
-8. Commit spec + plan together.
+9. Commit spec + plan together.
 
 ## Writing tasks
 
@@ -161,5 +166,7 @@ analysts. Implementation may run up to three pinned implementers for ready tasks
 with disjoint write sets. Reviews, commits, and manager-state mutations are serial.
 
 **The orchestrator coordinates.** It builds context packets, dispatches
-implementers, optional optimizers, and reviewers, collects results, and decides
-next steps. Implementers never commit or change manager state themselves.
+implementers and reviewers, collects results, and decides next steps.
+Implementers never commit or change manager state themselves. Code
+optimization is a skill (`pc-optimize`) the implementer loads while
+writing code — no separate dispatch step.
