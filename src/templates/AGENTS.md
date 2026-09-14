@@ -88,7 +88,7 @@ flowchart that renders in GitHub and IDE preview.
 | Task | `workflows/pc-create-tasks.md` | After a plan is committed — task-writer creates tasks + JSONL build order |
 | Implement | `workflows/pc-implement.md` | When a task moves to `in_progress` |
 | Test failure | `workflows/test-failure.md` | When tests fail during implementation or verification |
-| PR review | `workflows/pc-review.md` | Before any PR to the protected branch |
+| PR review | `workflows/pc-review.md` | Before any PR — run checks, verify tasks done, open PR |
 
 See [`overview.md`](workflows/overview.md) for mermaid diagrams of the
 full lifecycle and each workflow.

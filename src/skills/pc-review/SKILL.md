@@ -1,6 +1,6 @@
 ---
 name: pc-review
-description: "Explicit final PR review for a completed plan; runs only when the user invokes it"
+description: "PR readiness check for a completed plan — run checks, verify tasks done, open PR. Not a second code review."
 argument-hint: "[PLAN-NNN]"
 triggers:
   - user
@@ -11,8 +11,6 @@ allowed-tools:
   - grep
   - glob
   - exec
-  - run_subagent
-  - read_subagent
   - skill
 permissions:
   allow:
@@ -24,26 +22,18 @@ permissions:
     - Exec(git **)
 ---
 
-> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the
-> shared protocol, CLI commands, context packets, and dispatch rules.
+> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.**
 
-You are the **orchestrator**. You run mechanical checks and apply
-fixes yourself; the only subagent is `reviewer`.
+You are the orchestrator. Code was already reviewed per-wave during
+implementation. This is a PR readiness check, not a second code review.
 
-## What you do
+Follow `workflows/pc-review.md` exactly:
 
-Follow `workflows/pc-review.md` exactly. In order:
+1. Run project checks (`go test ./...`, `go vet ./...`, `npm test`, etc.)
+2. Verify all tasks in the plan are `done` via `project-context inspect -t .`
+3. Check the diff is clean — no debug code, no leftover `.context-*.json`
+4. Open the PR with the plan name and completed task list
 
-1. Detect the project stack and run only applicable configured checks
-2. `git diff <protected>...<feature>`
-3. Dispatch `reviewer` (foreground, read-only,
-   `is_background: false`) — feed it the diff, `AGENTS.md`, the
-   project's code-review skill, and project context
-4. Apply one correction pass for deduplicated MUST-FIX findings; keep
-   SHOULD-FIX as non-blocking follow-up work
-5. Re-run verification and confirm only the original blockers
-6. Open the PR (`PLAN-NNN: <plan name>`, body lists completed tasks)
-7. Report
-
-Block on `read_subagent` to collect the reviewer's findings.
-Do not start a second correction loop.
+Do not dispatch a reviewer. Do not re-review code. Do not start
+correction loops. If checks fail, tell the user to fix the issue —
+the implementation workflow handles corrections.

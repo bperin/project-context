@@ -2,31 +2,30 @@
 
 ## When
 
-After all tasks in a plan are done and before opening a PR. This is the sole
-cumulative review; per-task reviews stay focused on task diffs.
+After all tasks in a plan are done and before opening a PR. Code was
+already reviewed per-wave during implementation. This is NOT a second
+code review — it's a PR readiness check.
 
 ## Steps
 
-1. **Detect project checks.** Read manifests and repository instructions. Run only
-   configured or applicable commands—for example `npm test` for Node, `go test
-   ./...` and `go vet ./...` for Go, `pytest` for Python, or `cargo test` for Rust.
-   Run security tooling only when installed/configured or when risk warrants it.
-2. **Generate the cumulative diff** against the actual protected base branch.
-3. **Dispatch one reviewer** (foreground, read-only). Give it only the
-   cumulative diff and the plan's completion criteria. The reviewer checks only:
-   - Does the diff satisfy the plan's completion criteria?
-   - Any security defects, data-loss risks, or forbidden dependencies?
-   Nothing else.
-4. **Apply one bounded correction pass** for deduplicated `MUST-FIX` findings.
-   `SHOULD-FIX` items are non-blocking follow-up candidates. Re-run applicable
-   verification and confirm only the original blockers.
-5. If an original blocker remains, return the plan to `in_progress` and ask the
-   user. Do not start another review loop.
-6. Open the PR with the plan name and completed tasks.
+1. **Run project checks.** Read manifests and run configured commands
+   (`go test ./...`, `go vet ./...`, `npm test`, `pytest`, `cargo test`).
+   Run security tooling only if installed/configured or risk warrants it.
+2. **Verify all tasks are done.** Run `project-context inspect -t .` and
+   confirm every task in the plan is `done`. If any are not, stop.
+3. **Check the diff is clean.** No debug code, no leftover context packets
+   (`.context-*.json`), no accidental commits to manager state.
+4. **Open the PR** with the plan name and completed task list.
 
-## Blocking standard
+## Do NOT
 
-A finding blocks the PR only when it demonstrates a regression, unmet plan
-criterion, security defect, data-loss risk, forbidden dependency, or failing
-required check. Style preferences, speculative optimization, and unrelated
-pre-existing issues do not block the PR.
+- Do not re-review code. That happened per-wave during implementation.
+- Do not dispatch a reviewer. Code review is done.
+- Do not start correction loops. If checks fail, the implementation
+  workflow handles that.
+
+## Blocking
+
+A PR is blocked only if: checks fail, tasks are not all done, or the
+diff contains leftover artifacts. Style, speculative optimization, and
+pre-existing issues do not block.

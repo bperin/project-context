@@ -10,7 +10,7 @@ flowchart TD
     IMPL -->|one correction needed| TF["bounded correction<br/>one pass"]
     TF -->|fixed| IMPL
     TF -->|unresolved| ESC["Escalate to user"]
-    IMPL -->|all tasks done| PR["PR review"]
+    IMPL -->|all tasks done| PR["PR readiness check"]
     PR -->|checks pass| MERGE["squash-merge"]
     PLANW -->|MUST-FIX after revision| ESC
     TASKW -->|MUST-FIX after revision| ESC
@@ -81,7 +81,7 @@ TASK:    draft → in_progress → done → superseded
 1. Plan/task workflow: one revision, then escalate.
 2. Implementation: one correction pass, then escalate.
 3. Test failure: one correction pass, then escalate.
-4. PR review: security-critical MUST-FIX, stop and escalate.
+4. PR readiness: checks fail or tasks not done, stop and escalate.
 
 ### Skill loading
 

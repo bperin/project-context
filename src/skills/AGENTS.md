@@ -298,7 +298,7 @@ TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task 
   ↓
 IMPLEMENT → /pc-implement workflow (implementer + tests → verify → focused reviewer)
   ↓
-REVIEW → /pc-review workflow (mechanical → dispatch reviewer → apply → PR)
+REVIEW → /pc-review workflow (run checks → verify tasks done → clean diff → open PR)
   ↓
 ARCHIVE → /pc-archive (move done/superseded records to archive/, append JSONL event)
 ```
