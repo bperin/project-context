@@ -1,7 +1,7 @@
 ---
 name: test-agent
 description: "Testing agent — write access. Writes the full test suite for a task."
-model: swe-1.7-medium
+model: swe-2-high
 allowed-tools:
   - read
   - grep

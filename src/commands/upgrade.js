@@ -161,29 +161,26 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Keep one canonical discovery path for generated subagent profiles. The root
-  // .agents symlink exposes workspace/.agents/agents to Devin, so duplicating the
-  // same names under .devin/agents causes ambiguous profile discovery.
+  // Sync subagent profiles to both discovery paths. Devin supports
+  // .devin/agents/ and .agents/agents/ — keeping both populated ensures
+  // discovery regardless of which path Devin scans first.
+  // Use plain copy (not copyWithHeader) because agent profiles have YAML
+  // frontmatter that must be the first line — prepending an HTML comment
+  // breaks frontmatter parsing.
   if (fs.existsSync(srcAgents)) {
     const profileFiles = fs.readdirSync(srcAgents).filter((f) => f.endsWith('.md'));
     const dstAgentsDir = path.join(agentsDir, 'agents');
     fs.mkdirSync(dstAgentsDir, { recursive: true });
     for (const f of profileFiles) {
-      copyWithHeader(path.join(srcAgents, f), path.join(dstAgentsDir, f));
+      fs.copyFileSync(path.join(srcAgents, f), path.join(dstAgentsDir, f));
     }
 
-    // Older upgrades copied project-context profiles here too. Remove only the
-    // managed filenames; preserve unrelated user-owned Devin profiles.
-    const legacyDevinAgentDirs = [
-      path.join(targetDir, '.devin', 'agents'),
-      path.join(wsDir, '.devin', 'agents'),
-    ];
-    for (const devinAgentsDir of legacyDevinAgentDirs) {
-      if (!fs.existsSync(devinAgentsDir)) continue;
-      for (const f of profileFiles) {
-        const duplicatePath = path.join(devinAgentsDir, f);
-        if (fs.existsSync(duplicatePath)) fs.rmSync(duplicatePath, { force: true });
-      }
+    // Also sync to .devin/agents/ — Devin's primary project-specific
+    // discovery path per the subagents docs.
+    const devinAgentsDir = path.join(targetDir, '.devin', 'agents');
+    fs.mkdirSync(devinAgentsDir, { recursive: true });
+    for (const f of profileFiles) {
+      fs.copyFileSync(path.join(srcAgents, f), path.join(devinAgentsDir, f));
     }
   }
 
