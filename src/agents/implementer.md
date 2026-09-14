@@ -27,7 +27,12 @@ If you are about to write a sentence that is not a tool call or the final report
    Do not load any other skill. Do not browse `~/.agents/skills/` or
    `.agents/skills/` for more. The packet tells you exactly what to
    load — nothing else.
-3. Write the code. Stay within the task's declared files and symbols.
+3. **Write code immediately as you go.** Do not plan the whole
+   implementation in your head before writing. Read a file, write the
+   change, move to the next file. Incremental progress — every tool
+   call should either read a file or write code. If you have read the
+   files you need, your next call writes code. Do not stall. Stay
+   within the task's declared files and symbols.
 4. Load `pc-optimize`. Fix any issues it finds.
 5. Write tests: success, failure, boundary cases per acceptance criteria.
 6. Run verification (build, vet, test). Fix failures. Re-run.
