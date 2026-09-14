@@ -38,6 +38,8 @@ async function runTests() {
   assert(fs.existsSync(path.join(targetDir, ws, 'data', 'tasks.jsonl')), 'tasks.jsonl missing');
   assert(fs.existsSync(path.join(targetDir, ws, 'data', 'identity.json')), 'identity.json missing');
   assert(fs.existsSync(path.join(targetDir, ws, 'data', 'skills.json')), 'skills.json missing');
+  assert(fs.readFileSync(path.join(targetDir, '.gitignore'), 'utf8').includes('/.context-*.json'), 'root context packets are not ignored');
+  assert(fs.readFileSync(path.join(targetDir, ws, '.gitignore'), 'utf8').includes('/.context-*.json'), 'workspace context packets are not ignored');
 
   // Verify identity.json has expected fields
   const identity = readIdentity(path.join(targetDir, ws));
@@ -52,9 +54,9 @@ async function runTests() {
 
   // Verify custom subagent profiles are copied
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'reviewer.md')), 'reviewer agent profile missing');
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'code-optimizer.md')), 'code-optimizer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'implementer.md')), 'implementer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'task-writer.md')), 'task-writer agent profile missing');
+  // code-optimizer is now a skill (pc-optimize), not an agent profile
 
   // --- Test graph ---
   console.log('Testing graph...');

@@ -115,6 +115,19 @@ function copyWithHeader(src, dst) {
   fs.writeFileSync(dst, header + content);
 }
 
+function ensureContextPacketsIgnored(dir) {
+  const gitignorePath = path.join(dir, '.gitignore');
+  const rule = '/.context-*.json';
+  let content = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf8') : '';
+  const lines = content.split(/\r?\n/).map((line) => line.trim());
+  if (lines.includes(rule)) return;
+
+  if (content && !content.endsWith('\n')) content += '\n';
+  if (content && !content.endsWith('\n\n')) content += '\n';
+  content += `# project-context transient context packets\n${rule}\n`;
+  fs.writeFileSync(gitignorePath, content);
+}
+
 // ---------------------------------------------------------------------------
 // JSONL utilities
 // ---------------------------------------------------------------------------
@@ -401,6 +414,7 @@ module.exports = {
   LANGUAGE_PRESETS,
   detectLanguage,
   copyWithHeader,
+  ensureContextPacketsIgnored,
   // JSONL utilities
   readJSONL,
   appendJSONL,

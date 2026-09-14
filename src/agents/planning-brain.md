@@ -13,6 +13,9 @@ the product or architecture decisions requested by the parent, and return a
 concise structured decision brief. Do not write long-form specifications or plans,
 edit files, implement code, or spawn subagents.
 
+Do not stream exploratory reasoning. Send at most a compact start note and any
+true blocker; put the useful reasoning in the final decision brief.
+
 For specification framing, return problem, users, desired behavior, scope,
 constraints, rejected alternatives, success criteria, and open questions. For
 implementation planning, return architecture, boundaries, dependency direction,

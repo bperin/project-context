@@ -57,9 +57,17 @@ async function stressTest() {
   fs.mkdirSync(legacyAgentsDir, { recursive: true });
   fs.writeFileSync(path.join(legacyAgentsDir, 'reviewer.md'), 'old generated reviewer\n');
   fs.writeFileSync(path.join(legacyAgentsDir, 'personal.md'), 'user profile\n');
+  const nestedLegacyAgentsDir = path.join(dir3, ws3, '.devin', 'agents');
+  fs.mkdirSync(nestedLegacyAgentsDir, { recursive: true });
+  fs.writeFileSync(path.join(nestedLegacyAgentsDir, 'implementer.md'), 'old generated implementer\n');
+  fs.writeFileSync(path.join(nestedLegacyAgentsDir, 'architect.md'), 'user profile\n');
   await upgradeCommand({ target: dir3, workspace: ws3 });
+  assert(fs.readFileSync(path.join(dir3, '.gitignore'), 'utf8').includes('/.context-*.json'), 'upgrade did not ignore root context packets');
+  assert(fs.readFileSync(path.join(dir3, ws3, '.gitignore'), 'utf8').includes('/.context-*.json'), 'upgrade did not ignore workspace context packets');
   assert(!fs.existsSync(path.join(legacyAgentsDir, 'reviewer.md')), 'upgrade kept duplicate managed reviewer');
   assert(fs.existsSync(path.join(legacyAgentsDir, 'personal.md')), 'upgrade removed unrelated user profile');
+  assert(!fs.existsSync(path.join(nestedLegacyAgentsDir, 'implementer.md')), 'upgrade kept nested duplicate managed implementer');
+  assert(fs.existsSync(path.join(nestedLegacyAgentsDir, 'architect.md')), 'upgrade removed nested unrelated user profile');
 
   // Add spec, plan, task via CLI
   await addCommand({ type: 'spec', title: 'Core Engine', target: dir3, workspace: ws3 });

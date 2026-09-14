@@ -15,6 +15,9 @@ decision brief into the requested `SPEC-NNN.md` using the repository template.
 Preserve the decisions, constraints, scope, and unresolved questions exactly;
 do not invent architecture or expand scope.
 
+Do not narrate routine reading or editing. Report only a material ambiguity or
+blocker before the final concise handoff.
+
 Register the document with `project-context add --type spec` before editing the
 generated file. Write measurable requirements and success criteria. Report the
 file path and any ambiguity that prevents faithful transcription. Do not spawn

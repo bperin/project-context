@@ -21,6 +21,15 @@
    diagram in `workflows/`. See
    [`overview.md`](workflows/overview.md) for the full lifecycle.
 
+## Communication budget
+
+Keep reasoning visible but compressed. Send a brief update at the start, when a
+material decision, result, blocker, or change of direction occurs, and at
+completion. Each intermediate update should normally be one to three sentences.
+Do not narrate routine file reads, searches, commands, unchanged waits, or every
+step of an already stated plan. Put durable detail in specs, plans, tasks, code,
+or the final handoff instead of streaming it token by token.
+
 ## Source of truth
 
 JSONL files hold append-only event history: add events, never rewrite prior
@@ -138,13 +147,11 @@ Follow the pc-implement workflow
 2. Append their `in_progress` states serially, then dispatch one pinned
    implementer per task in the background. Collect every result.
 3. Check ownership and run integrated mechanical checks.
-4. Dispatch the code-optimizer only for explicit or measured performance,
-   memory, or concurrency risk.
-5. Dispatch one focused reviewer. Review changed scope only.
-6. Apply at most one correction pass, then re-run verification and confirm
+4. Dispatch one focused reviewer. Review changed scope only.
+5. Apply at most one correction pass, then re-run verification and confirm
    only the original blockers. Escalate if one remains.
-7. When all required checks pass, create one integrated commit.
-8. Update each task status to `done` serially via the CLI:
+6. When all required checks pass, create one integrated commit.
+7. Update each task status to `done` serially via the CLI:
    ```bash
    project-context status TASK-NNN done -t .
    ```

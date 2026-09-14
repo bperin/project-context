@@ -29,6 +29,9 @@ async function testAgentProtocolsAndFixtures() {
   assert(agentsMd.includes('Workflows'), 'AGENTS.md missing Workflows table');
   assert(agentsMd.includes('pc-plan'), 'AGENTS.md missing pc-plan reference');
   assert(agentsMd.includes('pc-create-tasks'), 'AGENTS.md missing pc-create-tasks reference');
+  assert(agentsMd.includes('Communication budget'), 'AGENTS.md missing communication budget');
+  assert(agentsMd.includes('one to three sentences'), 'communication budget is not bounded');
+  assert(agentsMd.includes('Do not narrate routine file reads'), 'communication budget permits routine narration');
   assert(!agentsMd.includes('/Users/brian/'), 'Generated AGENTS.md contains a machine-specific path');
 
   // 3. Verify workflow files are present and match expectations
@@ -57,6 +60,10 @@ async function testAgentProtocolsAndFixtures() {
   for (const [file, model] of Object.entries(expectedPins)) {
     const content = fs.readFileSync(path.join(profileDir, file), 'utf8');
     assert(content.includes(`model: ${model}`), `${file} is not pinned to ${model}`);
+  }
+  for (const file of fs.readdirSync(profileDir).filter((name) => name.endsWith('.md'))) {
+    const content = fs.readFileSync(path.join(profileDir, file), 'utf8');
+    assert(/stream|commentary|narrat/i.test(content), `${file} does not bound progress narration`);
   }
 
   const finalReviewSkill = fs.readFileSync(

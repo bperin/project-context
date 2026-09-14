@@ -39,6 +39,13 @@ function moveToArchive(aiDir, dir, fileName) {
   return dst;
 }
 
+function removeContextPacket(targetDir, id) {
+  const packetPath = path.join(targetDir, `.context-${String(id).toUpperCase()}.json`);
+  if (!fs.existsSync(packetPath)) return false;
+  fs.rmSync(packetPath, { force: true });
+  return true;
+}
+
 // collectActiveChildIds returns the set of active (non-archived) child IDs
 // for a given parent ID, across plans and tasks.
 function collectActiveChildIds(aiDir, parentId) {
@@ -140,6 +147,8 @@ function archiveOne(aiDir, id, options) {
     ts: new Date().toISOString(),
   });
 
+  removeContextPacket(options.targetDir, idUp);
+
   return { id: idUp, type: resolved.type, dst };
 }
 
@@ -192,7 +201,7 @@ async function archiveCommand(options) {
     process.exit(1);
   }
 
-  const opts = { force: !!options.force };
+  const opts = { force: !!options.force, targetDir };
 
   if (options.status) {
     if (String(options.status).toLowerCase() !== 'done' &&

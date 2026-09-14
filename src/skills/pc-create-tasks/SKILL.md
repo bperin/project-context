@@ -35,7 +35,7 @@ a cheaper model) and collect its results.
 
 Follow `workflows/pc-create-tasks.md` exactly. In order:
 
-1. Build a context packet: `project-context context PLAN-NNN -t . -o .context-packet.json`
+1. Build a context packet: `project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
 2. For multiple independent workstreams, optionally dispatch up to four pinned
    `workstream-analyst` agents in the background and collect every report
 3. Dispatch `task-writer` (foreground, write access to tasks/ + CLI) —

@@ -121,7 +121,10 @@ async function runTests() {
   // --- archive: mark task done, then archive ---
   console.log('Testing archive (terminal task)...');
   await setStatusCommand({ id: 'TASK-001', status: 'done', target: targetDir, workspace: ws });
+  const taskPacket = path.join(targetDir, '.context-TASK-001.json');
+  fs.writeFileSync(taskPacket, '{}\n');
   await archiveCommand({ id: 'TASK-001', target: targetDir, workspace: ws });
+  assert(!fs.existsSync(taskPacket), 'archiving a task should remove its context packet');
   // MD file moved to archive/tasks/
   assert(!fs.existsSync(path.join(targetDir, ws, 'tasks', 'TASK-001.md')), 'task MD should have moved');
   assert(fs.existsSync(path.join(targetDir, ws, 'archive', 'tasks', 'TASK-001.md')), 'task MD should be in archive');

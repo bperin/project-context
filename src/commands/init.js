@@ -11,6 +11,7 @@ const {
   readPlans,
   readTaskFiles,
   appendJSONL,
+  ensureContextPacketsIgnored,
 } = require('./shared');
 
 const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
@@ -109,6 +110,9 @@ async function initCommand(options) {
   ];
 
   for (const d of dirs) fs.mkdirSync(d, { recursive: true });
+
+  ensureContextPacketsIgnored(targetDir);
+  ensureContextPacketsIgnored(wsDir);
 
   // Copy AGENTS.md (workflow protocol)
   const agentsTemplate = path.join(__dirname, '..', 'templates', 'AGENTS.md');

@@ -49,19 +49,18 @@ select ≤3 ready tasks → start statuses → background implementers
    and run `project-context ready` again to backfill the open slot.
 6. Check the combined diff against declared ownership, then run applicable
    project-level mechanical verification once over the integrated wave.
-7. Optionally dispatch one pinned `code-optimizer` only for explicit or measured
-   performance, memory, or concurrency risk.
-8. Dispatch one pinned `reviewer` over the combined wave diff. Review changed
+7. Dispatch one pinned `reviewer` over the combined wave diff. Review changed
    behavior against each task's acceptance criteria.
-9. Apply at most one correction pass. Independent corrections may return to their
+8. Apply at most one correction pass. Independent corrections may return to their
    original pinned implementers in parallel, again capped at three. Confirmation
    checks only the original blockers and obvious correction regressions; it cannot
    expand scope. If a blocker remains, stop and ask the user.
-10. Commit the verified wave once, then append each `done` status serially and
+9. Commit the verified wave once, then append each `done` status serially and
     rebuild the graph:
     ```bash
     project-context status TASK-NNN done -t .
     project-context graph -t .
+    rm -f .context-TASK-NNN.json
     ```
 
 ## Blocking standard

@@ -40,11 +40,9 @@ Follow `workflows/pc-implement.md` exactly. In order:
 2. Append their `in_progress` statuses serially
 3. Dispatch one pinned `implementer` per task in the background; collect all results
 4. Check file ownership and run integrated mechanical checks
-5. Dispatch `code-optimizer` only for explicit or measured performance,
-   memory, or concurrency risk
-6. Dispatch one focused reviewer over the combined diff
-7. Allow one correction wave, capped at three, for original blockers only
-8. Commit once, append done statuses serially, rebuild the graph, and report
+5. Dispatch one focused reviewer over the combined diff
+6. Allow one correction wave, capped at three, for original blockers only
+7. Commit once, append done statuses serially, rebuild the graph, and report
 
 Background implementers share the working tree. Assign exclusive files/symbols,
 do not edit while they run, and never let them commit or mutate manager state.

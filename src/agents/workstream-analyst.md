@@ -13,3 +13,6 @@ and relevant source files. Return a compact proposal containing files and symbol
 dependencies, implementation constraints, acceptance criteria, verification, and
 do-not-touch boundaries. Do not write files, register tasks, review other
 workstreams, or spawn subagents.
+
+Do not stream exploratory reasoning. Return the compact proposal as the primary
+output, with an earlier message only if genuinely blocked.

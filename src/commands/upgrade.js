@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { copyWithHeader, detectLanguage, createDataFiles, readIdentity, writeJSON } = require('./shared');
+const { copyWithHeader, detectLanguage, createDataFiles, readIdentity, writeJSON, ensureContextPacketsIgnored } = require('./shared');
 
 async function upgradeCommand(options) {
   const targetDir = path.resolve(options.target || '.');
@@ -22,6 +22,9 @@ async function upgradeCommand(options) {
     console.error('Run init first.');
     process.exit(1);
   }
+
+  ensureContextPacketsIgnored(targetDir);
+  ensureContextPacketsIgnored(wsDir);
 
   console.log(`Upgrading ${workspace} workspace at ${wsDir}...`);
 
@@ -71,6 +74,7 @@ async function upgradeCommand(options) {
   ];
   const obsoleteAgentProfiles = [
     'spec-optimizer.md', 'plan-optimizer.md', 'task-optimizer.md',
+    'code-optimizer.md',
   ];
 
   for (const f of obsoleteFiles) {
@@ -170,8 +174,12 @@ async function upgradeCommand(options) {
 
     // Older upgrades copied project-context profiles here too. Remove only the
     // managed filenames; preserve unrelated user-owned Devin profiles.
-    const devinAgentsDir = path.join(targetDir, '.devin', 'agents');
-    if (fs.existsSync(devinAgentsDir)) {
+    const legacyDevinAgentDirs = [
+      path.join(targetDir, '.devin', 'agents'),
+      path.join(wsDir, '.devin', 'agents'),
+    ];
+    for (const devinAgentsDir of legacyDevinAgentDirs) {
+      if (!fs.existsSync(devinAgentsDir)) continue;
       for (const f of profileFiles) {
         const duplicatePath = path.join(devinAgentsDir, f);
         if (fs.existsSync(duplicatePath)) fs.rmSync(duplicatePath, { force: true });

@@ -15,6 +15,9 @@ spec and convert the supplied architecture brief into `PLAN-NNN.md` using the
 repository template. Preserve the chosen architecture and constraints; do not
 re-open settled decisions or add workstreams outside the specification.
 
+Do not narrate routine reading or editing. Report only a material ambiguity or
+blocker before the final concise handoff.
+
 Register the document with `project-context add --type plan` before editing the
 generated file. Include ordered workstreams, concrete files or discovery steps,
 dependencies, verification, and objective completion criteria. Do not create

@@ -1,5 +1,13 @@
 # Agent Instructions — project-context skills
 
+## Communication budget
+
+Keep reasoning visible but compressed. Report only the start, material
+decisions/results/blockers, changes of direction, and completion. Intermediate
+updates should normally be one to three sentences. Do not narrate routine tool
+calls or repeat the plan; preserve detailed reasoning in artifacts and the final
+handoff.
+
 > All skills in `.agents/skills/` must read this file first. It defines
 > the shared protocol, the tools available, and how the skills work
 > together. Individual SKILL.md files define the skill-specific steps
@@ -33,7 +41,7 @@ The directory structure is flat — no nesting:
 ├── AGENTS.md                        # Workflow protocol (read this too)
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (implementer, reviewer, code-optimizer, test-agent)
+│   ├── agents/                      # Custom subagent profiles (implementer, reviewer, test-agent)
 │   └── skills/                      # pc-* workflow + utility skills
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── specs/SPEC-NNN.md               # Spec documents
@@ -135,10 +143,10 @@ implementer loads them at implementation time.
 ## Subagent profiles
 
 `planning-brain`, `spec-writer`, `plan-writer`, `task-writer`,
-`workstream-analyst`, `implementer`, `reviewer`, `code-optimizer`, and
-`test-agent` are custom profiles under `.agents/agents/`.
-They are pinned to specific models via the `model:` field in their
-profile so they don't all run on the expensive orchestrator model.
+`workstream-analyst`, `implementer`, `reviewer`, and `test-agent`
+are custom profiles under `.agents/agents/`. They are pinned to
+specific models via the `model:` field in their profile so they don't
+all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
@@ -149,8 +157,10 @@ profile so they don't all run on the expensive orchestrator model.
 | `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
 | `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
-| `code-optimizer` | `glm-5.2-high` | Code optimization (inefficiencies, OOM, concurrency) | After implementer, before reviewer |
 | `test-agent` | `swe-1.7-medium` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
+
+Code optimization is a **skill** (`pc-optimize`), not a separate agent.
+The implementer loads it while writing code — no extra dispatch step.
 
 The top-level agent is a lightweight orchestrator. Planning decisions run in the
 custom `planning-brain` profile pinned to `gpt-5.6-sol-medium`; writers and
@@ -200,15 +210,15 @@ the result. Do not poll — block until it finishes.
 
 ### Language skill matrix
 
-When a task is code-heavy, the implementer, optional `test-agent`, optional
-`code-optimizer`, and `reviewer` load language-specific skills based on manifests:
+When a task is code-heavy, the implementer, optional `test-agent`, and
+`reviewer` load language-specific skills based on manifests:
 
-| Language | Detected by | test-agent | code-optimizer | reviewer |
+| Language | Detected by | implementer (via pc-optimize) | test-agent | reviewer |
 |---|---|---|---|---|
-| Go | `go.mod` | `golang-testing` | `golang-performance` | `go-code-review` |
-| TypeScript | `package.json` | `typescript-unit-testing` | `typescript-code-review` | `typescript-security-review` |
-| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-testing-patterns` | `python-code-style` | `python-code-style` |
-| Rust | `Cargo.toml` | `rust-testing` | `rust-performance` | `rust-security` |
+| Go | `go.mod` | `golang-performance` | `golang-testing` | `go-code-review` |
+| TypeScript | `package.json` | `typescript-code-review` | `typescript-unit-testing` | `typescript-security-review` |
+| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-code-style` | `python-testing-patterns` | `python-code-style` |
+| Rust | `Cargo.toml` | `rust-performance` | `rust-testing` | `rust-security` |
 
 Each specialized agent loads its own column. The implementer loads the task's primary skill from the algorithm registry (not from this matrix). If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing.
 
@@ -259,7 +269,7 @@ Subagents must not receive conversation history. Instead, the
 orchestrator builds a context packet and feeds it to the subagent:
 
 ```bash
-project-context context TASK-012 -t . -o .context-packet.json
+project-context context TASK-012 -t . -o .context-TASK-012.json
 ```
 
 The packet contains:

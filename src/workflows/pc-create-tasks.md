@@ -38,7 +38,7 @@ it into concrete, executable tasks with a build order.
 
 1. **Build a context packet** for the plan:
    ```bash
-   project-context context PLAN-NNN -t . -o .context-packet.json
+   project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json
    ```
 
 2. **Optional parallel analysis.** For plans with multiple independent
@@ -107,7 +107,8 @@ it into concrete, executable tasks with a build order.
    findings — it revises the task files and JSONL records. If MUST-FIX
    issues remain after one revision, escalate to the user.
 
-6. **Commit.** Commit the task files and JSONL together. Tell the user
+6. **Commit and clean up.** Commit the task files and JSONL together, then delete
+   `.context-PLAN-NNN.json`. Tell the user
    to run `/pc-implement TASK-NNN` to start implementation (one at a
    time).
 
