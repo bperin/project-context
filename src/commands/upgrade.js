@@ -140,12 +140,21 @@ async function upgradeCommand(options) {
 
   // Copy document templates (SPEC/PLAN/TASK/ADR/etc.) so the workspace
   // has the current templates without re-running init.
+  // Instructions files (.instructions.md) are copied without the GENERATED
+  // header — they get injected into generated files via XML tags, so the
+  // header would be noise inside the <instructions> block.
   if (fs.existsSync(srcTemplates)) {
     const dstTemplates = path.join(wsDir, 'templates');
     fs.mkdirSync(dstTemplates, { recursive: true });
     for (const f of fs.readdirSync(srcTemplates)) {
       if (!f.endsWith('.md')) continue;
-      copyWithHeader(path.join(srcTemplates, f), path.join(dstTemplates, f));
+      const srcFile = path.join(srcTemplates, f);
+      const dstFile = path.join(dstTemplates, f);
+      if (f.endsWith('.instructions.md')) {
+        fs.copyFileSync(srcFile, dstFile);
+      } else {
+        copyWithHeader(srcFile, dstFile);
+      }
     }
   }
 

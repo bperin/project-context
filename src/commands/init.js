@@ -140,7 +140,13 @@ async function initCommand(options) {
     fs.mkdirSync(dstTemplates, { recursive: true });
     for (const f of fs.readdirSync(srcTemplates)) {
       if (!f.endsWith('.md')) continue;
-      copyWithHeader(path.join(srcTemplates, f), path.join(dstTemplates, f));
+      const srcFile = path.join(srcTemplates, f);
+      const dstFile = path.join(dstTemplates, f);
+      if (f.endsWith('.instructions.md')) {
+        fs.copyFileSync(srcFile, dstFile);
+      } else {
+        copyWithHeader(srcFile, dstFile);
+      }
     }
   }
 
