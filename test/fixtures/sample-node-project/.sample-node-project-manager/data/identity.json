@@ -1,0 +1,12 @@
+{
+  "name": "sample-node-project",
+  "description": "Project initialized with project-context",
+  "stack": "JavaScript/Node",
+  "repository": "git@github.com:bperin/sample-node-project.git",
+  "manifests": "",
+  "primaryLanguage": "node",
+  "discoveredAt": "2026-09-14T01:08:58.363Z",
+  "repo": "git@github.com:bperin/project-context.git",
+  "gitBranch": "dev",
+  "gitCommits": 93
+}
