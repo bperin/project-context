@@ -37,8 +37,9 @@ all results via `read_subagent` before converging.
 After ideation, **write the spec directly**. Register via CLI, then
 edit the generated file. The spec covers: problem, users, desired
 behavior, scope, constraints, rejected alternatives, success
-criteria, open questions. Do not design implementation — that's the
-plan phase.
+criteria, open questions. Be technically precise — name specific
+protocols, interfaces, data structures. No prose padding. Do not
+design implementation — that's the plan phase.
 
 ## Phase: PLAN
 
@@ -54,7 +55,9 @@ converging.
 After ideation, **write the plan directly**. Register via CLI, then
 edit the generated file. Every spec behavior must map to a
 workstream. Workstreams ordered so none depends on a later one.
-Completion criteria must be objectively verifiable.
+Completion criteria must be objectively verifiable. Be technically
+precise — name specific modules, interfaces, data flows, algorithms.
+No prose padding.
 
 ## Phase: TASKS
 
@@ -74,7 +77,9 @@ then edit each generated file. **Maximize parallelism: minimize
 dependencies between tasks.** Tasks should depend on each other only
 when truly necessary — if two tasks can run independently, don't add
 a dependency just to force an order. The more tasks that can run in
-parallel, the faster implementation goes. Each task must include:
+parallel, the faster implementation goes. Be technically precise —
+exact file paths, symbol names, signatures, types, test cases. No
+prose padding. Each task must include:
 - Goal, relevant files, relevant symbols, required change
 - Constraints, acceptance criteria, verification commands
 - **Tests to write** — each task defines its own tests (success,

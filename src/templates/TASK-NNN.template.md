@@ -12,8 +12,9 @@
 <!-- Copy to tasks/TASK-NNN.md for each new task. -->
 <!-- Replace NNN with the actual monotonically increasing task ID. -->
 <!-- A task may belong to a PLAN or be a standalone one-off (no plan needed). -->
-<!-- This file contains EXACTLY the information a worker needs — nothing more. -->
-<!-- Do not paste entire source files. Reference files and symbols by path/name. -->
+<!-- Be technically precise: exact file paths, symbol names, signatures, -->
+<!-- types, test cases. No prose. The implementer reads this and writes -->
+<!-- code from it — ambiguity means bugs. -->
 
 ## Parent
 

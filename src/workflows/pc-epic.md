@@ -1,6 +1,6 @@
 # Workflow: pc-epic
 
-> Write a verbose epic from a user's vision or an input .md file. The
+> Write a technically precise epic from a user's vision or an input .md file. The
 > planning-brain thinks with ADHD and writes the epic directly. No
 > separate writer subagent.
 
@@ -43,10 +43,9 @@ root `AGENTS.md` for the exact name. Do not guess.
    Give it the vision input and repo context. The planning-brain
    loads `adhd` for divergent ideation, then writes the epic directly.
    It registers via CLI and edits the generated file. Items must be
-   verbose — each item needs enough detail that the planning-brain
+   technically precise — each item needs enough detail that the planning-brain
    can produce a concrete spec without re-reading the original
-   conversation. Fidelity is lost when items are vague. Write more,
-   not less.
+   conversation. Fidelity is lost when items lack technical detail.
 
 3. **Dispatch the reviewer** (foreground, `is_background: false`).
    Give it the epic file. The reviewer checks only:

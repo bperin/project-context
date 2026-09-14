@@ -9,10 +9,11 @@
 
 <!-- Template: EPIC-NNN → specs/SPEC-NNN.md → plans/PLAN-NNN.md → tasks/TASK-NNN.md -->
 <!-- Copy to epics/EPIC-NNN.md. Replace NNN with the real ID. -->
-<!-- The EPIC is intentionally verbose. Each item must carry enough -->
-<!-- detail that the planning-brain can produce a concrete spec without -->
-<!-- re-reading the original conversation. Fidelity is lost when items -->
-<!-- are vague — write more, not less. -->
+<!-- Be technically precise, not wordy. Each item must carry enough -->
+<!-- technical detail that the planning-brain can produce a concrete -->
+<!-- spec without re-reading the original conversation. Name specific -->
+<!-- protocols, data structures, algorithms, interfaces, constraints. -->
+<!-- Not pages of prose — dense technical specification. -->
 
 ## Status
 
@@ -37,25 +38,25 @@
 ## Items
 
 <!-- Ordered list of items. Each item is a future SPEC. -->
-<!-- BE VERBOSE. Each item must include: -->
-<!--   - What it does (the capability, not the implementation) -->
+<!-- Be technically precise. Each item must include: -->
+<!--   - What it does (the capability — name protocols, interfaces, data) -->
 <!--   - Why it matters (the outcome it delivers) -->
 <!--   - What it depends on (which prior items it needs) -->
 <!--   - What it does NOT cover (scope boundaries) -->
-<!--   - Any known constraints, risks, or open questions -->
+<!--   - Technical constraints, risks, or open questions -->
 <!-- The planning-brain uses this detail to produce a concrete spec. -->
-<!-- If an item is too vague, the spec will be vague, and the plan -->
-<!-- will be vague, and the tasks will be wrong. Fidelity starts here. -->
+<!-- If an item lacks technical detail, the spec will be vague, and -->
+<!-- the tasks will be wrong. Fidelity starts here. -->
 <!-- Add "Spec: SPEC-NNN" under an item once it's been specced. -->
 
 ### Item 1: <descriptive title>
 
-<!-- Full description of this item. Write 1-2 paragraphs covering: -->
-<!-- - What capability this item delivers -->
+<!-- Technical description of this item. Be dense and specific: -->
+<!-- - What capability this item delivers (name the interfaces, protocols) -->
 <!-- - Why it's needed and what outcome it produces -->
 <!-- - What it depends on from prior items -->
 <!-- - What it explicitly does NOT cover -->
-<!-- - Known constraints, risks, or open questions -->
+<!-- - Technical constraints, risks, or open questions -->
 
 - Status: <!-- not started | specced | planned | done -->
 - Spec: <!-- SPEC-NNN, or "none yet" -->

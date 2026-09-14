@@ -1,8 +1,8 @@
 # pc-epic
 
-Write a verbose epic from a user's vision or an input document. The
+Write a technically precise epic from a user's vision or an input document. The
 planning-brain thinks with ADHD and writes the epic directly. No
-separate writer subagent. Epics are intentionally verbose to preserve
+separate writer subagent. Epics are technically precise to preserve
 fidelity downstream.
 
 ## What this skill does
