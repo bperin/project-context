@@ -35,12 +35,12 @@ a cheaper model) and collect its results.
 
 Follow `workflows/pc-create-tasks.md` exactly. In order:
 
-1. Build a context packet: `project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
+1. Build a context packet: `./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
 2. For multiple independent workstreams, optionally dispatch up to four pinned
    `workstream-analyst` agents in the background and collect every report
 3. Dispatch `task-writer` (foreground, write access to tasks/ + CLI) —
    it reads the spec + plan, consults the graph, **registers each task
-   via `project-context add --type task` first** (creates the MD from
+   via `./tools/project-context add --type task` first** (creates the MD from
    template + JSONL record), **then edits the generated MD files** to
    fill in detailed content (goal, files, symbols, constraints,
    verification). Never `write` a TASK-NNN.md directly — the CLI `add`

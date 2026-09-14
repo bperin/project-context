@@ -227,43 +227,52 @@ Each specialized agent loads its own column. The implementer loads the task's pr
 
 ## CLI commands
 
-All skills use the installed `project-context` CLI:
+The CLI is bundled at `./tools/project-context`. Always use the full
+path and pass the workspace name with `-w <workspace>`:
+
+```bash
+./tools/project-context <command> -w <workspace> -t .
+```
+
+The workspace name is the `.{reponame}-manager` directory (e.g.
+`.trust-manager`, `.ai-workspace-trakt2`, `.smart-job-search-manager`).
+Check the root `AGENTS.md` for the exact workspace name. Do not guess.
 
 ```bash
 # Generate a deterministic v5 UUID from an ID
-project-context uuid SPEC-001
+./tools/project-context uuid SPEC-001 -w <workspace> -t .
 
 # Build a minimal context packet for a spec/plan/task (JSON output)
-project-context context TASK-012 -t .
+./tools/project-context context TASK-012 -w <workspace> -t .
 
 # Read project state and print specs/plans/tasks with status
-project-context inspect -t .
+./tools/project-context inspect -w <workspace> -t .
 
 # Refresh project overview from workflow markdown files
-project-context overview -t .
+./tools/project-context overview -t .
 
 # Build graph nodes and edges from source files
-project-context graph -t .
+./tools/project-context graph -t .
 
 # Scaffold a new .{reponame}-manager workspace
-project-context init -t . --discover
+./tools/project-context init -t . --discover
 
 # Add a spec/plan/task (creates MD file, appends to JSONL for tasks)
-project-context add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
-project-context add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
-project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
-project-context update TASK-001 --skills "<skills>" --triggers "<triggers>" -t .
+./tools/project-context add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
+./tools/project-context add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
+./tools/project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
+./tools/project-context update TASK-001 --skills "<skills>" --triggers "<triggers>" -t .
 
 # Select the next ready implementation wave (maximum three active tasks)
-project-context ready --limit 3 -t .
+./tools/project-context ready --limit 3 -t .
 
 # Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
-project-context status TASK-001 done -t .
+./tools/project-context status TASK-001 done -t .
 
 # Archive done/superseded records (moves MD to archive/, appends JSONL event)
-project-context archive TASK-014 -t .
-project-context archive --status done -t .
-project-context inspect -t . --include-archived
+./tools/project-context archive TASK-014 -t .
+./tools/project-context archive --status done -t .
+./tools/project-context inspect -t . --include-archived
 ```
 
 ## Context packets
@@ -272,7 +281,7 @@ Subagents must not receive conversation history. Instead, the
 orchestrator builds a context packet and feeds it to the subagent:
 
 ```bash
-project-context context TASK-012 -t . -o .context-TASK-012.json
+./tools/project-context context TASK-012 -t . -o .context-TASK-012.json
 ```
 
 The packet contains:

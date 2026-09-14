@@ -38,7 +38,7 @@ it into concrete, executable tasks with a build order.
 
 1. **Build a context packet** for the plan:
    ```bash
-   project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json
+   ./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json
    ```
 
 2. **Optional parallel analysis.** For plans with multiple independent
@@ -63,7 +63,7 @@ it into concrete, executable tasks with a build order.
      the JSONL `created` event + plan timeline `queued` event in one
      step:
      ```bash
-     project-context add --type task --title "<title>" --parent PLAN-NNN --dependencies "<TASK-NNN,... or none>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
+     ./tools/project-context add --type task --title "<title>" --parent PLAN-NNN --dependencies "<TASK-NNN,... or none>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
      ```
      The `skills` and `triggers` are stored in the JSONL record so the
      implementer knows what to load later. The task-writer does not
@@ -138,7 +138,7 @@ it into concrete, executable tasks with a build order.
   It reads the spec and plan files for context.
 - The reviewer is read-only. It reports findings; the task-writer
   revises.
-- Only one foreground task-writer may call `project-context add` or edit task
+- Only one foreground task-writer may call `./tools/project-context add` or edit task
   files. Parallel analysts never mutate JSONL, timelines, or Markdown.
 - One task file per workstream. If a workstream is large, split it into
   multiple tasks — but each task must be independently verifiable.

@@ -11,7 +11,7 @@ code review — it's a PR readiness check.
 1. **Run project checks.** Read manifests and run configured commands
    (`go test ./...`, `go vet ./...`, `npm test`, `pytest`, `cargo test`).
    Run security tooling only if installed/configured or risk warrants it.
-2. **Verify all tasks are done.** Run `project-context inspect -t .` and
+2. **Verify all tasks are done.** Run `./tools/project-context inspect -t .` and
    confirm every task in the plan is `done`. If any are not, stop.
 3. **Check the diff is clean.** No debug code, no leftover context packets
    (`.context-*.json`), no accidental commits to manager state.

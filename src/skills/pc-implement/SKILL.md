@@ -36,7 +36,7 @@ with disjoint declared write sets. Fall back to one task when ownership is uncle
 
 Follow `workflows/pc-implement.md` exactly. In order:
 
-1. Run `project-context ready --limit 3 -t .`; select only its ready tasks
+1. Run `./tools/project-context ready --limit 3 -t .`; select only its ready tasks
 2. Append their `in_progress` statuses serially
 3. Dispatch one pinned `implementer` per task with `is_background: true`.
    Each implementer has its own clean context — no history. The `task:`

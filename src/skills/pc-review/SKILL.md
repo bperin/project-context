@@ -30,7 +30,7 @@ implementation. This is a PR readiness check, not a second code review.
 Follow `workflows/pc-review.md` exactly:
 
 1. Run project checks (`go test ./...`, `go vet ./...`, `npm test`, etc.)
-2. Verify all tasks in the plan are `done` via `project-context inspect -t .`
+2. Verify all tasks in the plan are `done` via `./tools/project-context inspect -t .`
 3. Check the diff is clean — no debug code, no leftover `.context-*.json`
 4. Open the PR with the plan name and completed task list
 

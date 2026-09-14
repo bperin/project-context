@@ -1,5 +1,18 @@
 # Workflow: Task Implementation
 
+## CLI discovery
+
+The CLI is at `./tools/project-context`. Always use the full path and
+pass the workspace name with `-w`:
+
+```bash
+./tools/project-context <command> -w <workspace> -t .
+```
+
+If `./tools/project-context` doesn't exist, check the root `AGENTS.md`
+for the workspace name and CLI path. Do not guess. Do not search the
+filesystem.
+
 ## When
 
 When one or more ready tasks move from `draft` to `in_progress`.
@@ -24,14 +37,14 @@ select ≤3 ready tasks → start statuses → background implementers
 
 1. Ask the scheduler for a wave of at most three eligible tasks:
    ```bash
-   project-context ready --limit 3 -t .
+   ./tools/project-context ready --limit 3 -w <workspace> -t .
    ```
    It subtracts active tasks from the three-task budget, checks dependencies,
    rejects overlapping write sets, and preserves JSONL order for equal candidates.
    Never launch a task listed under `waiting`.
 2. Build a separate context packet for each task:
    ```bash
-   project-context context TASK-NNN -t . -o .context-TASK-NNN.json
+   ./tools/project-context context TASK-NNN -w <workspace> -t . -o .context-TASK-NNN.json
    ```
 3. Append each `in_progress` status serially before dispatch. Do not let subagents
    edit manager state.
@@ -63,7 +76,7 @@ select ≤3 ready tasks → start statuses → background implementers
    commit.
    If no task is ready while agents are active, block on `read_subagent` for an
    active agent. Do not sleep or repeatedly poll. After completion, update state
-   and run `project-context ready` again to backfill the open slot.
+   and run `./tools/project-context ready` again to backfill the open slot.
 6. Check the combined diff against declared ownership, then run applicable
    project-level mechanical verification once over the integrated wave.
 7. Dispatch one pinned `reviewer`. Give it only the combined diff and
@@ -78,8 +91,8 @@ select ≤3 ready tasks → start statuses → background implementers
 9. Commit the verified wave once, then append each `done` status serially and
     rebuild the graph:
     ```bash
-    project-context status TASK-NNN done -t .
-    project-context graph -t .
+    ./tools/project-context status TASK-NNN done -w <workspace> -t .
+    ./tools/project-context graph -w <workspace> -t .
     rm -f .context-TASK-NNN.json
     ```
 
