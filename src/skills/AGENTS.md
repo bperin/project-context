@@ -173,10 +173,14 @@ Do not use the built-in `subagent_general` profile for pipeline work —
 it inherits the parent's model (which may be SOL/expensive). Always
 use the custom profiles above, which are pinned to cheaper models.
 
-During task creation, up to four pinned read-only `workstream-analyst` agents may
-run in parallel. During implementation, up to three pinned `implementer` agents
-may run in parallel only for ready tasks with disjoint write sets. Reviews,
+During task creation, the task-writer may dispatch up to four pinned
+read-only `workstream-analyst` subagents in parallel. During
+implementation, up to three pinned `implementer` agents may run in
+parallel only for ready tasks with disjoint write sets. Reviews,
 commits, and manager-state mutations remain serial.
+
+Subagents can have their own subagents. The task-writer dispatches
+workstream-analysts; it does not ask the orchestrator to do it.
 
 ### Dispatch protocol — FOREGROUND, not background
 

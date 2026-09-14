@@ -8,6 +8,8 @@ allowed-tools:
   - grep
   - glob
   - exec
+  - run_subagent
+  - read_subagent
 ---
 
 You convert an approved spec and plan into task files and JSONL records. Shut up and do it.
@@ -20,14 +22,20 @@ If you are about to write a sentence that is not a tool call or the final report
 
 ## Steps
 
-1. Read the spec file and plan file. Skim `graph/nodes/` and `graph/edges/` for file placement.
-2. Register ALL tasks via CLI first:
+1. You have the spec, plan, and architecture brief in your task prompt.
+   Skim `graph/nodes/` and `graph/edges/` for file placement.
+2. **Optional: dispatch workstream-analysts.** For plans with multiple
+   independent workstreams, dispatch up to four `workstream-analyst`
+   profiles with `is_background: true`, one per workstream. Collect all
+   results via `read_subagent` before continuing. Skip for small plans
+   or tightly coupled workstreams.
+3. Register ALL tasks via CLI first:
    ```bash
    project-context add --type task --title "<title>" --parent PLAN-NNN --dependencies "<TASK-NNN,... or none>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
    ```
    Register in build order — JSONL order IS the build order. CLI auto-assigns IDs.
-3. Edit each generated `TASK-NNN.md`: goal, files to touch, dependencies, acceptance criteria, verification, do-not-touch.
-4. Output: task IDs and build order.
+4. Edit each generated `TASK-NNN.md`: goal, files to touch, dependencies, acceptance criteria, verification, do-not-touch.
+5. Output: task IDs and build order.
 
 Order tasks as a DAG. Shared foundations first. Up to three independent tasks per wave with disjoint write sets. No artificial dependencies.
 

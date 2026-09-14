@@ -14,17 +14,17 @@ orchestrator already has.
 
 ## Pattern
 
-Analyze in parallel, then serialize writes. The orchestrator may dispatch one
-read-only `workstream-analyst` per independent workstream in the background.
-After collecting every report, one foreground task-writer registers and edits all
-tasks in build order. Only the task-writer writes task state.
+The orchestrator dispatches one foreground task-writer. The
+task-writer may dispatch its own workstream-analyst subagents in
+parallel, collect their reports, then serialize writes. Only the
+task-writer writes task state.
 
 ```
-Orchestrator dispatches bounded workstream analysts in parallel (optional)
-    → Orchestrator collects all analyst reports
-    → Orchestrator dispatches one foreground task-writer
-    → Task-writer reads agreed spec + plan + analyst reports
-    → Task-writer writes TASK-NNN.md files (one per workstream)
+Orchestrator dispatches one foreground task-writer (with spec + plan + architecture brief in task prompt)
+    → Task-writer dispatches bounded workstream analysts in parallel (optional)
+    → Task-writer collects all analyst reports
+    → Task-writer registers all tasks via CLI in build order
+    → Task-writer edits each TASK-NNN.md with details
     → Task-writer writes the build order into data/tasks.jsonl
     → Task-writer writes the per-plan timeline into plans/PLAN-NNN.timeline.jsonl
     → Task-writer returns its report
@@ -36,7 +36,8 @@ Orchestrator dispatches bounded workstream analysts in parallel (optional)
 The task-writer is not the orchestrator. The orchestrator is expensive
 and already did the hard thinking (spec + plan). The task-writer is a
 cheaper subagent (`glm-5.2-high`) that takes the agreed plan and turns
-it into concrete, executable tasks with a build order.
+it into concrete, executable tasks with a build order. It can dispatch
+its own read-only `workstream-analyst` subagents for parallel analysis.
 
 ## Steps
 
@@ -45,13 +46,7 @@ it into concrete, executable tasks with a build order.
    ./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json
    ```
 
-2. **Optional parallel analysis.** For plans with multiple independent
-   workstreams, dispatch up to four `workstream-analyst` profiles with
-   `is_background: true`, one bounded workstream each. Every analyst is pinned to
-   `glm-5.2-high` and read-only. Collect all results before continuing. Skip this
-   fan-out for small plans or tightly coupled workstreams.
-
-3. **Dispatch the task-writer** (foreground, `task-writer` profile,
+2. **Dispatch the task-writer** (foreground, `task-writer` profile,
    `is_background: false`). **Pass the spec content, plan content, and
    architecture brief in the task prompt** — the orchestrator has all
    three from the planning phases. Do not make the task-writer re-read
@@ -59,6 +54,10 @@ it into concrete, executable tasks with a build order.
    context packet path, `AGENTS.md` path, and the instruction to write
    and register tasks. The task-writer:
    - Has the spec, plan, and architecture brief in its task prompt
+   - **May dispatch up to four `workstream-analyst` subagents**
+     (`is_background: true`, one per workstream) for parallel
+     analysis. Collects all results via `read_subagent` before
+     writing. Skips this for small plans or tightly coupled workstreams.
    - Thinks through 2-3 implementation approaches per workstream, picks
      one (no `adhd` — the plan already decided the high-level approach)
    - Consults `graph/nodes/` and `graph/edges/` for file placement
@@ -85,7 +84,7 @@ it into concrete, executable tasks with a build order.
      that creates task files and JSONL records.
    Block on `read_subagent` to collect its report.
 
-4. **Dispatch the reviewer** (foreground, `reviewer` profile,
+3. **Dispatch the reviewer** (foreground, `reviewer` profile,
    `is_background: false`). Give it only the task file paths, the plan
    file, and the spec file. The reviewer checks only:
    - Each task maps to a plan workstream
@@ -95,12 +94,12 @@ it into concrete, executable tasks with a build order.
    - All template sections present
    Nothing else. Block on `read_subagent` to collect results.
 
-5. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
+4. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
    the task-writer (foreground, `is_background: false`) with the
    findings — it revises the task files and JSONL records. If MUST-FIX
    issues remain after one revision, escalate to the user.
 
-6. **Commit and clean up.** Commit the task files and JSONL together, then delete
+5. **Commit and clean up.** Commit the task files and JSONL together, then delete
    `.context-PLAN-NNN.json`. Tell the user
    to run `/pc-implement TASK-NNN` to start implementation (one at a
    time).
@@ -134,9 +133,12 @@ it into concrete, executable tasks with a build order.
 - No `adhd`. The plan already decided the approach. The task-writer
   thinks through concrete implementation details, not divergent ideation.
 - Background analysts are optional, read-only, explicitly pinned, and limited to
-  four. Never use a general/unpinned background subagent.
+  four. The task-writer dispatches them — not the orchestrator. Never
+  use a general/unpinned background subagent.
 - The orchestrator does not write tasks — the task-writer subagent does.
-  The orchestrator dispatches, collects results, and re-dispatches.
+  The orchestrator dispatches the task-writer, collects results, and
+  re-dispatches with findings. The task-writer dispatches its own
+  workstream-analysts, collects their reports, then writes.
 - No optimizer subagent. The task-writer writes; the reviewer checks.
 - No skill loading. The task-writer records skills and triggers in
   the task MD and JSONL record, but does not load or invoke them.

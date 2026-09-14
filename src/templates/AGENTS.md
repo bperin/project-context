@@ -152,20 +152,23 @@ agent, not the orchestrator). The orchestrator passes the spec
 content, plan content, and architecture brief in the task prompt —
 the task-writer does not re-read the files:
 
-1. Dispatches the task-writer (foreground, `is_background: false`).
+1. Orchestrator dispatches the task-writer (foreground, `is_background: false`).
    The task-writer has the spec, plan, and architecture brief in its
    task prompt.
-2. The task-writer thinks through implementation approaches for each
+2. The task-writer may dispatch up to four `workstream-analyst`
+   subagents in parallel (`is_background: true`) for independent
+   workstreams. It collects all reports before writing.
+3. The task-writer thinks through implementation approaches for each
    workstream and consults the project graph for file placement.
-3. The task-writer writes `TASK-NNN.md` files — one per workstream.
+4. The task-writer writes `TASK-NNN.md` files — one per workstream.
    Records each task's skills and triggers in the MD file.
-4. The task-writer registers each task via the CLI in build order. The
+5. The task-writer registers each task via the CLI in build order. The
    `skills` and `triggers` are stored in `data/tasks.jsonl` so the
    implementer knows what to load later. The task-writer does not load
    them.
-5. The orchestrator dispatches the reviewer. If MUST-FIX findings
+6. The orchestrator dispatches the reviewer. If MUST-FIX findings
    remain, the orchestrator re-dispatches the task-writer to revise.
-6. Commits.
+7. Commits.
 
 ## During implementation
 
