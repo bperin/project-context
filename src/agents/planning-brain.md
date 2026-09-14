@@ -35,9 +35,9 @@ parallel `run_subagent` calls with `is_background: true` — collect
 all results via `read_subagent` before converging.
 
 After ideation, **write the spec directly**. Register via CLI, then
-edit the generated file. Read `templates/SPEC-NNN.instructions.md`
-for how to fill each section. The spec covers: problem, users,
-desired behavior, scope, constraints, rejected alternatives, success
+edit the generated file. The generated file has `<instructions>` at
+the top — follow them. The spec covers: problem, users, desired
+behavior, scope, constraints, rejected alternatives, success
 criteria, open questions. Be technically precise — name specific
 protocols, interfaces, data structures. No prose padding. Do not
 design implementation — that's the plan phase.
@@ -54,8 +54,8 @@ The ADHD skill spawns parallel `run_subagent` calls with
 converging.
 
 After ideation, **write the plan directly**. Register via CLI, then
-edit the generated file. Read `templates/PLAN-NNN.instructions.md`
-for how to fill each section. Every spec behavior must map to a
+edit the generated file. The generated file has `<instructions>` at
+the top — follow them. Every spec behavior must map to a
 workstream. Workstreams ordered so none depends on a later one.
 Completion criteria must be objectively verifiable. Be technically
 precise — name specific modules, interfaces, data flows, algorithms.
@@ -75,8 +75,8 @@ placement.
 Collect all results via `read_subagent` before writing.
 
 **Write the tasks directly** — register each via CLI in build order,
-then edit each generated file. Read `templates/TASK-NNN.instructions.md`
-for how to fill each section. **Maximize parallelism: minimize
+then edit each generated file. The generated file has `<instructions>`
+at the top — follow them. **Maximize parallelism: minimize
 dependencies between tasks.** Tasks should depend on each other only
 when truly necessary — if two tasks can run independently, don't add
 a dependency just to force an order. The more tasks that can run in
