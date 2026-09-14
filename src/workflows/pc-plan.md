@@ -3,15 +3,15 @@
 ## Model separation
 
 The top-level `/pc-plan` skill is a lightweight orchestrator. It dispatches the
-custom `planning-brain`, pinned to `gpt-5.6-sol-medium`, which loads `adhd` for
+custom `planning-brain`, pinned to `gpt-5.6-terra-high`, which loads `adhd` for
 divergent ideation before making scope and architecture decisions.
 
 | Work | Who | Model |
 |---|---|---|
-| ADHD ideation + scope/architecture decisions | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-sol-medium` |
+| ADHD ideation + scope/architecture decisions | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
 | Write specification | `spec-writer` subagent | `glm-5.2-high` |
 | Write implementation plan | `plan-writer` subagent | `glm-5.2-high` |
-| Review either artifact | `reviewer` subagent | `swe-1.7-medium` |
+| Review either artifact | `reviewer` subagent | `swe-2-high` |
 
 Never use an unpinned or general subagent in this workflow.
 

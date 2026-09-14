@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: "Reviewer — read-only. Checks documents and code for correctness and rule compliance."
-model: swe-1.7-medium
+model: swe-2-high
 allowed-tools:
   - read
   - grep

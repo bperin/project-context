@@ -153,20 +153,20 @@ all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planning-brain` | `gpt-5.6-sol-medium` | Scope and architecture decisions | Twice during planning |
+| `planning-brain` | `gpt-5.6-terra-high` | Scope and architecture decisions | Twice during planning |
 | `spec-writer` | `glm-5.2-high` | Write spec from decision brief | After spec framing |
 | `plan-writer` | `glm-5.2-high` | Write plan from architecture brief | After plan framing |
 | `task-writer` | `glm-5.2-high` | Write task MDs + JSONL build order from approved plan | After plan committed |
 | `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `swe-1.7-medium` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
-| `test-agent` | `swe-1.7-medium` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
+| `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
+| `test-agent` | `swe-2-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
 
 Code optimization is a **skill** (`pc-optimize`), not a separate agent.
 The implementer loads it while writing code — no extra dispatch step.
 
 The top-level agent is a lightweight orchestrator. Planning decisions run in the
-custom `planning-brain` profile pinned to `gpt-5.6-sol-medium`; writers and
+custom `planning-brain` profile pinned to `gpt-5.6-terra-high`; writers and
 reviewers use their own cheaper pins. Never rely on parent-model inheritance.
 
 Do not use the built-in `subagent_general` profile for pipeline work —
