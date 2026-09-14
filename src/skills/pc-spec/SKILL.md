@@ -35,7 +35,13 @@ Follow `workflows/pc-spec.md` exactly:
 3. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
 4. **Stop and wait for explicit specification approval.**
 5. Dispatch pinned `planning-brain` again for the architecture brief.
-6. Dispatch pinned `plan-writer` (`glm-5.2-high`).
+   **Pass the full spec content and the phase 1 decision brief in the
+   task prompt.** The planning-brain is a fresh subagent — it has no
+   memory of phase 1. Do not make it re-read the spec file. Include
+   the spec text and the original decision brief verbatim.
+6. Dispatch pinned `plan-writer` (`glm-5.2-high`). **Pass the spec
+   content and the architecture brief in the task prompt** — do not
+   make the plan-writer re-read the spec.
 7. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
 8. **Stop and wait for explicit plan approval.**
 9. After approval, commit and hand off to `/pc-create-tasks`.

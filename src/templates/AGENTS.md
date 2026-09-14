@@ -133,9 +133,12 @@ When a user describes what they want built:
 4. **Stop. Wait for the user to approve the spec.** Do not proceed to
    the plan until the user says to.
 5. Dispatch pinned `planning-brain` (SOL) again for the architecture
-   brief.
-6. Dispatch pinned `plan-writer` (GLM) with the brief. It writes the
-   plan.
+   brief. **Pass the full spec content and the phase 1 decision brief
+   in the task prompt** — the planning-brain is a fresh subagent with
+   no memory of phase 1. Do not make it re-read the spec file.
+6. Dispatch pinned `plan-writer` (GLM) with the brief. **Pass the spec
+   content and the architecture brief in the task prompt.** It writes
+   the plan.
 7. Dispatch pinned `reviewer` (SWE). Revise based on findings.
 8. **Stop. Wait for the user to approve the plan.** Do not proceed to
    task creation until the user says to.
@@ -145,10 +148,13 @@ When a user describes what they want built:
 
 After the plan is committed, the orchestrator dispatches the
 task-writer subagent (`task-writer` profile — a different, cheaper
-agent, not the orchestrator):
+agent, not the orchestrator). The orchestrator passes the spec
+content, plan content, and architecture brief in the task prompt —
+the task-writer does not re-read the files:
 
 1. Dispatches the task-writer (foreground, `is_background: false`).
-   The task-writer reads the agreed spec and plan.
+   The task-writer has the spec, plan, and architecture brief in its
+   task prompt.
 2. The task-writer thinks through implementation approaches for each
    workstream and consults the project graph for file placement.
 3. The task-writer writes `TASK-NNN.md` files — one per workstream.

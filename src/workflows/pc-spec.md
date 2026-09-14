@@ -45,12 +45,17 @@ Never use an unpinned or general subagent in this workflow.
 
 ## Phase 2: Implementation plan
 
-7. Dispatch pinned `planning-brain` again with the approved spec and graph. Ask
-   for a concise architecture brief covering approach, boundaries, dependencies,
-   dependency DAG, critical path, candidate parallel waves of at most three,
-   risks, migration, and verification strategy.
-8. Dispatch pinned `plan-writer` in the foreground with the approved spec,
-   architecture brief, graph, root `AGENTS.md`, and template.
+7. Dispatch pinned `planning-brain` again. **Pass the full spec content and
+   the phase 1 decision brief in the task prompt** — the planning-brain is a
+   fresh subagent with no memory of phase 1. Do not make it re-read the spec
+   file; include the spec text and the original decision brief verbatim in the
+   dispatch. Also pass the graph. Ask for a concise architecture brief covering
+   approach, boundaries, dependencies, dependency DAG, critical path, candidate
+   parallel waves of at most three, risks, migration, and verification strategy.
+8. Dispatch pinned `plan-writer` in the foreground. **Pass the approved spec
+   content and the architecture brief in the task prompt** — do not make the
+   plan-writer re-read the spec. Include the spec text, the architecture brief,
+   graph, root `AGENTS.md`, and template.
 9. Dispatch pinned `reviewer` once. Give it only the plan file and spec
    file and this exact criteria list:
    - Every spec behavior has a workstream

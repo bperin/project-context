@@ -5,8 +5,12 @@
 After the plan is reviewed and committed. The pc-spec workflow exits here.
 The orchestrator dispatches a different agent — the task-writer
 subagent (`task-writer` profile, `glm-5.2-high`) — to pick up with the
-agreed spec and plan in hand. It has full context of the plan (it reads
-the spec and plan files) but is not the orchestrator that wrote them.
+agreed spec and plan. The orchestrator has the spec content, plan
+content, and architecture brief from the planning phases in its
+context. **It passes all of this forward in the task-writer's dispatch
+prompt** — the task-writer is a fresh subagent with no conversation
+history and should not have to re-read or re-derive context that the
+orchestrator already has.
 
 ## Pattern
 
@@ -48,10 +52,13 @@ it into concrete, executable tasks with a build order.
    fan-out for small plans or tightly coupled workstreams.
 
 3. **Dispatch the task-writer** (foreground, `task-writer` profile,
-   `is_background: false`). Give it the context packet path, the spec
-   MD path, the plan MD path, `AGENTS.md` path, and the instruction to
-   write and register tasks. The task-writer:
-   - Reads the agreed spec and plan
+   `is_background: false`). **Pass the spec content, plan content, and
+   architecture brief in the task prompt** — the orchestrator has all
+   three from the planning phases. Do not make the task-writer re-read
+   the spec and plan files; include their text verbatim. Also pass the
+   context packet path, `AGENTS.md` path, and the instruction to write
+   and register tasks. The task-writer:
+   - Has the spec, plan, and architecture brief in its task prompt
    - Thinks through 2-3 implementation approaches per workstream, picks
      one (no `adhd` — the plan already decided the high-level approach)
    - Consults `graph/nodes/` and `graph/edges/` for file placement
@@ -136,7 +143,9 @@ it into concrete, executable tasks with a build order.
 - No 3-round loop. One review pass. If MUST-FIX issues remain after one
   revision, escalate to the user.
 - The task-writer is a subagent. It does not have conversation history.
-  It reads the spec and plan files for context.
+  The orchestrator passes the spec content, plan content, and
+  architecture brief in the task prompt — the task-writer does not
+  re-read the spec and plan files.
 - The reviewer is read-only. It reports findings; the task-writer
   revises.
 - Only one foreground task-writer may call `./tools/project-context add` or edit task

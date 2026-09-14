@@ -213,6 +213,24 @@ run_subagent(
 After dispatching, call `read_subagent` with `block: true` to wait for
 the result. Do not poll — block until it finishes.
 
+### Context forwarding — no re-reading
+
+Subagents are fresh — they have no memory of prior phases. When
+dispatching a subagent that needs context from a prior phase, **pass
+the prior artifact content in the task prompt**. Do not make the
+subagent re-read the file.
+
+Examples:
+- When the planning-brain is dispatched again for the architecture
+  brief (phase 2 of pc-spec), the orchestrator includes the full spec
+  text and the phase 1 decision brief in the task prompt.
+- When the task-writer is dispatched after plan approval, the
+  orchestrator includes the spec content, plan content, and
+  architecture brief in the task prompt.
+
+This preserves fidelity and saves tokens. The subagent has everything
+it needs without re-reading or re-deriving context.
+
 ### Language skill matrix
 
 When a task is code-heavy, the implementer, optional `test-agent`, and
