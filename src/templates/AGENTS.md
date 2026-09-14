@@ -162,8 +162,9 @@ the planning-brain does not re-read the files:
    `skills` and `triggers` are stored in `data/tasks.jsonl` so the
    implementer knows what to load later. The planning-brain does not load
    them.
-6. The orchestrator dispatches the reviewer. If MUST-FIX findings
-   remain, the orchestrator re-dispatches the planning-brain to revise.
+6. The orchestrator dispatches the reviewer. The reviewer **fixes
+   issues directly** — it has write access and edits the task files
+   itself. No bouncing back to the planning-brain.
 7. Commits.
 
 ## During implementation

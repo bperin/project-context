@@ -78,8 +78,10 @@ has full context — no re-reading, no context transfer.
    Block on `read_subagent` to collect its report.
 
 3. **Dispatch the reviewer** (foreground, `reviewer` profile,
-   `is_background: false`). Give it only the task file paths, the plan
-   file, and the spec file. The reviewer checks only:
+   `is_background: false`). Give it the task file paths, the plan
+   file, and the spec file. The reviewer **fixes issues directly** —
+   it has write access and edits the task files itself. No bouncing
+   back to the planning-brain. It checks:
    - Each task maps to a plan workstream
    - Each workstream traces back to a spec requirement
    - JSONL build order matches plan workstream order
@@ -88,14 +90,9 @@ has full context — no re-reading, no context transfer.
    - Each task has acceptance criteria and verification commands
    - Do-not-touch list present
    - All template sections present
-   Nothing else. Block on `read_subagent` to collect results.
+   Block on `read_subagent` to collect results.
 
-4. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
-   the planning-brain (foreground, `is_background: false`) with the
-   findings — it revises the task files and JSONL records. If MUST-FIX
-   issues remain after one revision, escalate to the user.
-
-5. **Commit and clean up.** Commit the task files and JSONL together, then delete
+4. **Commit and clean up.** Commit the task files and JSONL together, then delete
    `.context-PLAN-NNN.json`. Tell the user
    to run `/pc-implement TASK-NNN` to start implementation (one at a
    time).
@@ -107,7 +104,7 @@ has full context — no re-reading, no context transfer.
 - `data/tasks.jsonl` — the build order, one `created` event per task.
 - `plans/PLAN-NNN.timeline.jsonl` — the per-plan timeline, one `queued`
   event per task.
-- All reviewed by the reviewer and revised by the planning-brain.
+- All reviewed and fixed by the reviewer directly.
 
 ## Constraints
 
@@ -116,19 +113,21 @@ has full context — no re-reading, no context transfer.
   four. The planning-brain dispatches them — not the orchestrator. Never
   use a general/unpinned background subagent.
 - The orchestrator does not write tasks — the planning-brain subagent does.
-  The orchestrator dispatches the planning-brain, collects results, and
-  re-dispatches with findings.
+  The orchestrator dispatches the planning-brain, collects results, then
+  dispatches the reviewer which fixes any issues directly.
 - No skill loading. The planning-brain records skills and triggers in
   the task MD and JSONL record, but does not load or invoke them.
-- No 3-round loop. One review pass. If MUST-FIX issues remain after one
-  revision, escalate to the user.
+- No 3-round loop. The reviewer fixes issues directly. If issues remain
+  that the reviewer cannot fix, escalate to the user.
 - The planning-brain is a subagent. It does not have conversation history.
   The orchestrator passes the spec content, plan content, and
   architecture brief in the task prompt.
-- The reviewer is read-only. It reports findings; the planning-brain
-  revises.
-- Only one foreground planning-brain may call `./tools/project-context add` or edit task
-  files. Parallel analysts never mutate JSONL, timelines, or Markdown.
+- The reviewer has write access to task files. It fixes issues directly
+  — no bouncing back to the planning-brain.
+- Only the planning-brain may call `./tools/project-context add` to
+  create tasks. The reviewer edits existing task files but does not
+  create new ones. Parallel analysts never mutate JSONL, timelines, or
+  Markdown.
 - One task file per workstream. If a workstream is large, split it into
   multiple tasks — but each task must be independently verifiable.
 - The build order in JSONL is the queue. Tasks are built one at a time
