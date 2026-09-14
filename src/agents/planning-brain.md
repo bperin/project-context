@@ -70,7 +70,11 @@ placement.
 Collect all results via `read_subagent` before writing.
 
 **Write the tasks directly** — register each via CLI in build order,
-then edit each generated file. Each task must include:
+then edit each generated file. **Maximize parallelism: minimize
+dependencies between tasks.** Tasks should depend on each other only
+when truly necessary — if two tasks can run independently, don't add
+a dependency just to force an order. The more tasks that can run in
+parallel, the faster implementation goes. Each task must include:
 - Goal, relevant files, relevant symbols, required change
 - Constraints, acceptance criteria, verification commands
 - **Tests to write** — each task defines its own tests (success,

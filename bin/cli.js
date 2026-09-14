@@ -186,7 +186,7 @@ program
 program
   .command('ready')
   .description('Select the next dependency-ready, non-overlapping implementation wave')
-  .option('--limit <count>', 'Maximum total active tasks (hard-capped at 3)', '3')
+  .option('--limit <count>', 'Maximum total active tasks (hard-capped at 5)', '5')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action((options) => {

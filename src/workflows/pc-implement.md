@@ -19,7 +19,7 @@ When one or more ready tasks move from `draft` to `in_progress`.
 
 ## Implementation waves
 
-Run up to three tasks in one background wave. A task is eligible only when:
+Run up to five tasks in one background wave. A task is eligible only when:
 
 - every declared task dependency is `done`;
 - its declared files and symbols do not overlap another task in the wave; and
@@ -29,18 +29,18 @@ If ownership overlaps or is unclear, run those tasks sequentially. Background
 implementers share the working tree; they are not isolated branches.
 
 ```text
-select ≤3 ready tasks → start statuses → background implementers (self-review)
+select ≤5 ready tasks → start statuses → background implementers (self-review)
 → collect all → integrated verification → one commit
 → when all tasks in plan done → plan review
 ```
 
 ## Steps
 
-1. Ask the scheduler for a wave of at most three eligible tasks:
+1. Ask the scheduler for a wave of at most five eligible tasks:
    ```bash
-   ./tools/project-context ready --limit 3 -w <workspace> -t .
+   ./tools/project-context ready --limit 5 -w <workspace> -t .
    ```
-   It subtracts active tasks from the three-task budget, checks dependencies,
+   It subtracts active tasks from the five-task budget, checks dependencies,
    rejects overlapping write sets, and preserves JSONL order for equal candidates.
    Never launch a task listed under `waiting`.
 2. Build a separate context packet for each task:
@@ -108,7 +108,7 @@ PR.
 
 ## Constraints
 
-- Maximum three simultaneous implementation agents.
+- Maximum five simultaneous implementation agents.
 - Never parallelize tasks with overlapping or unknown write sets.
 - No per-agent commits and no concurrent JSONL or Markdown state writes.
 - One integrated commit per wave.

@@ -34,8 +34,8 @@ function pathsOverlap(left, right) {
   return false;
 }
 
-function buildReadyWave(aiDir, limit = 3) {
-  const boundedLimit = Math.max(1, Math.min(3, Number(limit) || 3));
+function buildReadyWave(aiDir, limit = 5) {
+  const boundedLimit = Math.max(1, Math.min(5, Number(limit) || 5));
   const states = getTaskStates(aiDir);
   const files = readTaskFiles(aiDir);
   const active = files.filter((task) => states.get(task.id)?.status === 'in_progress');

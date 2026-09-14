@@ -36,7 +36,7 @@ test('ready wave respects total cap, dependencies, and write ownership', () => {
   const root = fixture();
   try {
     const result = buildReadyWave(root, 99);
-    assert.strictEqual(result.limit, 3);
+    assert.strictEqual(result.limit, 5);
     assert.deepStrictEqual(result.active, ['TASK-002']);
     assert.deepStrictEqual(result.ready.map((task) => task.id), ['TASK-003', 'TASK-004']);
     assert.deepStrictEqual(result.waiting[0].blockedBy, ['TASK-009']);

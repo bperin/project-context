@@ -174,7 +174,7 @@ use the custom profiles above, which are pinned to cheaper models.
 
 During task creation, the planning-brain may dispatch up to four
 pinned read-only `workstream-analyst` subagents in parallel. During
-implementation, up to three pinned `implementer` agents may run in
+implementation, up to five pinned `implementer` agents may run in
 parallel only for ready tasks with disjoint write sets. Reviews,
 commits, and manager-state mutations remain serial.
 
@@ -190,7 +190,7 @@ When you dispatch a subagent with `run_subagent`, you MUST set:
 - `profile:` — the subagent profile name (e.g. `implementer`, `reviewer`)
 
 Set `is_background: true` only for pinned read-only `workstream-analyst` agents or
-for a wave of at most three pinned `implementer` agents with exclusive file/symbol
+for a wave of at most five pinned `implementer` agents with exclusive file/symbol
 ownership. Background agents open in their own session tabs — the orchestrator
 continues and collects results via `read_subagent` when notified. Collect every
 result before verification or state changes. All other pipeline agents are
@@ -287,8 +287,8 @@ Check the root `AGENTS.md` for the exact workspace name. Do not guess.
 ./tools/project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
 ./tools/project-context update TASK-001 --skills "<skills>" --triggers "<triggers>" -t .
 
-# Select the next ready implementation wave (maximum three active tasks)
-./tools/project-context ready --limit 3 -t .
+# Select the next ready implementation wave (maximum five active tasks)
+./tools/project-context ready --limit 5 -t .
 
 # Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
 ./tools/project-context status TASK-001 done -t .
@@ -351,7 +351,7 @@ use only the bounded parallel waves defined by their workflows.
 3. **JSONL is append-only task history.** Add events; never rewrite old events.
    Markdown specs, plans, and tasks are living documents and may be edited.
 4. **Bounded parallel work.** Up to four pinned read-only analysts may fan out
-   during task creation. Up to three pinned implementers may run for ready,
+   during task creation. Up to five pinned implementers may run for ready,
    non-overlapping tasks. Reviews and state mutations are serial.
 5. **Background is explicit.** Only eligible analyst or implementer waves use
    `is_background: true`. Reviewer stays foreground. Always
@@ -363,7 +363,7 @@ use only the bounded parallel waves defined by their workflows.
    append metadata changes, and `project-context status` to update status.
 8. **Skills cascade.** A task inherits skills from its plan and spec.
    Load all applicable skills before starting work.
-9. **Maximum three implementation tasks.** Dependencies and disjoint ownership
+9. **Maximum five implementation tasks.** Dependencies and disjoint ownership
    determine wave eligibility; JSONL event order breaks ties.
 10. **Hard gates.** Stop and wait for the user after spec review and
     after plan review. Never auto-progress.

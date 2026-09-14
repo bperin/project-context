@@ -1,6 +1,6 @@
 ---
 name: pc-implement
-description: "Implement up to three independent tasks in a bounded background wave, then verify and review the integrated diff"
+description: "Implement up to five independent tasks in a bounded background wave, then verify and review the integrated diff"
 argument-hint: "<TASK-NNN> [TASK-NNN ...]"
 triggers:
   - user
@@ -29,14 +29,14 @@ permissions:
 > **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the
 > shared protocol, CLI commands, context packets, and dispatch rules.
 
-You are the orchestrator. Build a wave of at most three dependency-ready tasks
+You are the orchestrator. Build a wave of at most five dependency-ready tasks
 with disjoint declared write sets. Fall back to one task when ownership is unclear.
 
 ## What you do
 
 Follow `workflows/pc-implement.md` exactly. In order:
 
-1. Run `./tools/project-context ready --limit 3 -t .`; select only its ready tasks
+1. Run `./tools/project-context ready --limit 5 -t .`; select only its ready tasks
 2. Append their `in_progress` statuses serially
 3. Dispatch one pinned `implementer` per task with `is_background: true`.
    Each implementer has its own clean context — no history. The `task:`
@@ -45,7 +45,7 @@ Follow `workflows/pc-implement.md` exactly. In order:
    commands. Collect all results.
 4. Check file ownership and run integrated mechanical checks
 5. Dispatch one focused reviewer over the combined diff
-6. Allow one correction wave, capped at three, for original blockers only
+6. Allow one correction wave, capped at five, for original blockers only
 7. Commit once, append done statuses serially, rebuild the graph, and report
 
 Background implementers share the working tree. Assign exclusive files/symbols,

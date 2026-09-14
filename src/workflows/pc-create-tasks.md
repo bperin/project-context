@@ -51,9 +51,12 @@ has full context — no re-reading, no context transfer.
    - Thinks through 2-3 implementation approaches per workstream, picks
      one (no `adhd` here — the plan already decided the high-level approach)
    - Consults `graph/nodes/` and `graph/edges/` for file placement
-   - Builds a dependency DAG that minimizes the critical path and exposes up to
-     three safe implementation tasks per wave. It does not add dependencies merely
-     to force a serial ID order.
+   - **Maximizes parallelism.** Builds a dependency DAG that minimizes
+     the critical path. Tasks should depend on each other only when
+     truly necessary — if two tasks can run independently, don't add a
+     dependency. The more tasks that can run in parallel, the faster
+     implementation goes. Does not add dependencies merely to force a
+     serial ID order.
    - **Registers each task via the CLI in topological order FIRST.** The CLI
      `add` command creates the MD file from the template AND appends
      the JSONL `created` event + plan timeline `queued` event in one

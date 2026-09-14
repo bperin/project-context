@@ -40,7 +40,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    CTX["Select ≤3 ready, disjoint tasks"] --> P["Background implementer wave<br/>each writes code + tests + self-reviews"]
+    CTX["Select ≤5 ready, disjoint tasks"] --> P["Background implementer wave<br/>each writes code + tests + self-reviews"]
     P --> V["Integrated mechanical verification"]
     V --> COM["Commit + done"]
     COM --> ALLDONE{"All tasks in plan done?"}
@@ -76,7 +76,7 @@ TASK:    draft → in_progress → done → superseded
 
 ### Concurrency
 
-1. Up to three dependency-ready implementation tasks with disjoint write sets.
+1. Up to five dependency-ready implementation tasks with disjoint write sets.
 2. Task creation may use up to four pinned read-only analysts in parallel; one
    planning-brain serializes every Markdown and JSONL change.
 3. Implementers may run as a bounded background wave; each self-reviews.

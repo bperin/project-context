@@ -171,7 +171,7 @@ the planning-brain does not re-read the files:
 Follow the pc-implement workflow
 (`workflows/pc-implement.md`). Summary:
 
-1. Select up to three dependency-ready tasks with disjoint write sets and build
+1. Select up to five dependency-ready tasks with disjoint write sets and build
    a separate context packet for each.
 2. Append their `in_progress` states serially, then dispatch one pinned
    implementer per task in the background. Each implementer writes code,
@@ -188,7 +188,7 @@ Follow the pc-implement workflow
    workstream is complete. One review, not per-wave.
 
 **Bounded parallelism.** Task creation may use up to four pinned read-only
-analysts. Implementation may run up to three pinned implementers for ready tasks
+analysts. Implementation may run up to five pinned implementers for ready tasks
 with disjoint write sets. Reviews, commits, and manager-state mutations are serial.
 
 **The orchestrator coordinates.** It builds context packets, dispatches
