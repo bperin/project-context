@@ -79,9 +79,10 @@ it into concrete, executable tasks with a build order.
    Block on `read_subagent` to collect its report.
 
 4. **Dispatch the reviewer** (foreground, `reviewer` profile,
-   `is_background: false`). Give it only the task file paths and the
-   plan file. The reviewer checks only:
+   `is_background: false`). Give it only the task file paths, the plan
+   file, and the spec file. The reviewer checks only:
    - Each task maps to a plan workstream
+   - Each workstream traces back to a spec requirement
    - JSONL build order matches plan workstream order
    - Cited file paths respect dependency rules
    - All template sections present
