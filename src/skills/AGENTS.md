@@ -93,7 +93,7 @@ Append-only event log. Each line is a JSON object:
 {"id":"TASK-001","event":"done","ts":"2026-09-11T..."}
 ```
 
-The `created` event is written by the task-writer. The `started` and
+The `created` event is written by the planning-brain. The `started` and
 `done` events are written by the `status` command during
 implementation. The log is a historical record — do not modify past
 lines.
@@ -129,14 +129,14 @@ area, a plan inherits and adds, a task inherits and adds.
 
 Skills are recorded in spec/plan/task metadata during planning and
 task-writing, but they are not loaded until implementation. The
-planner and task-writer record what skills will be needed; the
+planner and planning-brain record what skills will be needed; the
 implementer loads them at implementation time.
 
 - **Plan workflow**: the `planning-brain` subagent loads `adhd` for
   divergent ideation, then converges on the decision brief. No other
   skill is loaded during planning. Skills needed for implementation
   are recorded in the spec/plan metadata.
-- **Task workflow**: the task-writer does not load `adhd` or any
+- **Task workflow**: the planning-brain does not load `adhd` or any
   skills. It reads the spec and plan, thinks through implementations,
   writes tasks, and records each task's skills + triggers in the MD
   file and JSONL record.
@@ -145,41 +145,37 @@ implementer loads them at implementation time.
 
 ## Subagent profiles
 
-`planning-brain`, `spec-writer`, `plan-writer`, `task-writer`,
-`workstream-analyst`, `implementer`, `reviewer`, and `test-agent`
-are custom profiles under `.agents/agents/`. They are pinned to
-specific models via the `model:` field in their profile so they don't
-all run on the expensive orchestrator model.
+`planning-brain`, `workstream-analyst`, `implementer`, `reviewer`, and
+`test-agent` are custom profiles under `.agents/agents/`. They are
+pinned to specific models via the `model:` field in their profile so
+they don't all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planning-brain` | `gpt-5.6-terra-high` | Scope and architecture decisions | Twice during planning |
-| `spec-writer` | `glm-5.2-high` | Write spec from decision brief | After spec framing |
-| `plan-writer` | `glm-5.2-high` | Write plan from architecture brief | After plan framing |
-| `task-writer` | `glm-5.2-high` | Write task MDs + JSONL build order from approved plan | After plan committed |
+| `planning-brain` | `gpt-5.6-terra-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
 | `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
+| `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After planning-brain, all creation workflows |
 | `test-agent` | `swe-2-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
 
 Code optimization is a **skill** (`pc-optimize`), not a separate agent.
 The implementer loads it while writing code — no extra dispatch step.
 
-The top-level agent is a lightweight orchestrator. Planning decisions run in the
-custom `planning-brain` profile pinned to `gpt-5.6-terra-high`; writers and
-reviewers use their own cheaper pins. Never rely on parent-model inheritance.
+The top-level agent is a lightweight orchestrator. The `planning-brain`
+does all the thinking AND writing — specs, plans, tasks, JSONL. No
+separate writer subagents. Never rely on parent-model inheritance.
 
 Do not use the built-in `subagent_general` profile for pipeline work —
 it inherits the parent's model (which may be SOL/expensive). Always
 use the custom profiles above, which are pinned to cheaper models.
 
-During task creation, the task-writer may dispatch up to four pinned
-read-only `workstream-analyst` subagents in parallel. During
+During task creation, the planning-brain may dispatch up to four
+pinned read-only `workstream-analyst` subagents in parallel. During
 implementation, up to three pinned `implementer` agents may run in
 parallel only for ready tasks with disjoint write sets. Reviews,
 commits, and manager-state mutations remain serial.
 
-Subagents can have their own subagents. The task-writer dispatches
+Subagents can have their own subagents. The planning-brain dispatches
 workstream-analysts; it does not ask the orchestrator to do it.
 
 ### Dispatch protocol — FOREGROUND, not background
@@ -228,7 +224,7 @@ Examples:
 - When the planning-brain is dispatched again for the architecture
   brief (phase 2 of pc-spec), the orchestrator includes the full spec
   text and the phase 1 decision brief in the task prompt.
-- When the task-writer is dispatched after plan approval, the
+- When the planning-brain is dispatched after plan approval, the
   orchestrator includes the spec content, plan content, and
   architecture brief in the task prompt.
 
@@ -329,11 +325,11 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
-EPIC → /pc-epic workflow (planning-brain loads adhd → spec-writer → review → [user approves])
+EPIC → /pc-epic workflow (planning-brain loads adhd → planning-brain → review → [user approves])
   ↓
-PLAN → /pc-spec workflow (planning-brain loads adhd → spec-writer → review → [user approves] → planning-brain → plan-writer → review → [user approves])
+PLAN → /pc-spec workflow (planning-brain loads adhd → planning-brain → review → [user approves] → planning-brain → planning-brain → review → [user approves])
   ↓
-TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task MDs + JSONL → review)
+TASK → /pc-create-tasks workflow (planning-brain reads spec+plan → writes task MDs + JSONL → review)
   ↓
 IMPLEMENT → /pc-implement workflow (implementer + tests → verify → focused reviewer)
   ↓

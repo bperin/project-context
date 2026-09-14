@@ -79,6 +79,8 @@ async function upgradeCommand(options) {
   const obsoleteAgentProfiles = [
     'spec-optimizer.md', 'plan-optimizer.md', 'task-optimizer.md',
     'code-optimizer.md',
+    // Merged into planning-brain — no separate writers
+    'spec-writer.md', 'plan-writer.md', 'task-writer.md',
   ];
 
   for (const f of obsoleteFiles) {

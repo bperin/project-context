@@ -28,7 +28,7 @@ permissions:
 > shared protocol, CLI commands, context packets, and dispatch rules.
 
 You are the **orchestrator**. You do not write tasks yourself — you
-dispatch the `task-writer` agent profile (`.agents/agents/task-writer.md`,
+dispatch the `planning-brain` agent profile (`.agents/agents/planning-brain.md`,
 a cheaper model) and collect its results.
 
 ## What you do
@@ -38,7 +38,7 @@ Follow `workflows/pc-create-tasks.md` exactly. In order:
 1. Build a context packet: `./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
 2. For multiple independent workstreams, optionally dispatch up to four pinned
    `workstream-analyst` agents in the background and collect every report
-3. Dispatch `task-writer` (foreground, write access to tasks/ + CLI) —
+3. Dispatch `planning-brain` (foreground, write access to tasks/ + CLI) —
    it reads the spec + plan, consults the graph, **registers each task
    via `./tools/project-context add --type task` first** (creates the MD from
    template + JSONL record), **then edits the generated MD files** to
@@ -47,11 +47,11 @@ Follow `workflows/pc-create-tasks.md` exactly. In order:
    is the only thing that creates task files and JSONL records.
 4. Dispatch `reviewer` (foreground, read-only) — checks task files
    against the plan, templates, and rules
-5. Re-dispatch `task-writer` with findings on MUST-FIX (one revision,
+5. Re-dispatch `planning-brain` with findings on MUST-FIX (one revision,
    then escalate)
 6. Commit task files + JSONL together
 6. Report build order; tell the user to run `/pc-implement TASK-NNN`
 
 Only read-only workstream analysis may run in parallel/background. Every analyst
 must use the pinned `workstream-analyst` profile. Collect all reports before the
-single foreground task-writer mutates state; reviewer and revisions remain serial.
+single foreground planning-brain mutates state; reviewer and revisions remain serial.

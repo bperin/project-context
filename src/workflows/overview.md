@@ -5,10 +5,10 @@
 ```mermaid
 flowchart TD
     INPUT["User input"] --> EPIC{"High-level vision?<br/>Multiple features?"}
-    EPIC -->|yes| ROADW["pc-epic<br/>planning-brain(adhd) → spec-writer → review → [approve]"]
+    EPIC -->|yes| ROADW["pc-epic<br/>planning-brain(adhd) → planning-brain → review → [approve]"]
     EPIC -->|no| PLANW["pc-spec<br/>planning-brain(adhd) → spec → review → plan → review"]
     ROADW -->|item ready| PLANW
-    PLANW -->|committed| TASKW["pc-create-tasks<br/>task-writer → task MDs + JSONL → review"]
+    PLANW -->|committed| TASKW["pc-create-tasks<br/>planning-brain → task MDs + JSONL → review"]
     TASKW -->|committed| IMPL["pc-implement<br/>implement + tests → verify → focused review"]
     IMPL -->|one correction needed| TF["bounded correction<br/>one pass"]
     TF -->|fixed| IMPL
@@ -23,7 +23,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ADHD["planning-brain<br/>loads adhd"] --> WRITESPEC["spec-writer<br/>Write spec"]
+    ADHD["planning-brain<br/>loads adhd"] --> WRITESPEC["planning-brain<br/>Write spec"]
     WRITESPEC --> REV1["Dispatch reviewer"]
     REV1 --> FIX1{"MUST-FIX?"}
     FIX1 -->|yes| REVISE1["Revise"] --> REV1
@@ -75,7 +75,7 @@ TASK:    draft → in_progress → done → superseded
 
 1. Up to three dependency-ready implementation tasks with disjoint write sets.
 2. Task creation may use up to four pinned read-only analysts in parallel; one
-   task-writer serializes every Markdown and JSONL change.
+   planning-brain serializes every Markdown and JSONL change.
 3. Implementers may run as a bounded background wave; reviews and state changes
    remain sequential.
 4. One review pass per artifact. If MUST-FIX after one revision,

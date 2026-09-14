@@ -1,20 +1,18 @@
 # Workflow: pc-epic
 
-> Write a verbose epic from a user's vision or an input .md file. Items
-> are intentionally detailed — fidelity is lost when items are vague.
-> Each item gets refined into a SPEC when its turn comes via `/pc-spec`.
+> Write a verbose epic from a user's vision or an input .md file. The
+> planning-brain thinks with ADHD and writes the epic directly. No
+> separate writer subagent.
 
 ```mermaid
 flowchart TD
     A["User input: text or .md file"] --> B[planning-brain loads adhd]
-    B --> C[planning-brain returns epic brief]
-    C --> D[spec-writer writes EPIC-NNN.md]
-    D --> E[reviewer checks epic]
-    E --> F{MUST-FIX?}
-    F -->|yes| D
-    F -->|no| G[Stop: user approves epic]
-    G --> H[Register EPIC-NNN via CLI]
-    H --> I[Commit]
+    B --> C[planning-brain writes EPIC-NNN.md]
+    C --> D[reviewer checks epic]
+    D --> E{MUST-FIX?}
+    E -->|yes| C
+    E -->|no| F[Stop: user approves epic]
+    F --> G[Commit]
 ```
 
 ## Input
@@ -25,8 +23,7 @@ Accepts either:
   containing the vision, requirements, or notes
 
 If an .md file is provided, read it and pass its content to the
-planning-brain as the vision input. The file may be rough notes,
-a product brief, a design doc, or any markdown the user has.
+planning-brain as the vision input.
 
 ## CLI
 
@@ -44,23 +41,14 @@ root `AGENTS.md` for the exact name. Do not guess.
 
 2. **Dispatch `planning-brain`** (foreground, `is_background: false`).
    Give it the vision input and repo context. The planning-brain
-   loads `adhd` for divergent ideation, then returns an epic brief:
-   - The high-level vision (2-3 paragraphs)
-   - Ordered items (3-7 items, each with: what it does, why it
-     matters, dependencies, out of scope, constraints/risks)
-   - Why this order (dependency narrative)
-   - Constraints across all items
-   - Out of scope
-   - Open questions
+   loads `adhd` for divergent ideation, then writes the epic directly.
+   It registers via CLI and edits the generated file. Items must be
+   verbose — each item needs enough detail that the planning-brain
+   can produce a concrete spec without re-reading the original
+   conversation. Fidelity is lost when items are vague. Write more,
+   not less.
 
-3. **Dispatch `spec-writer`** (foreground, `is_background: false`).
-   Give it the epic brief. It writes `EPIC-NNN.md` using the
-   epic template. Items must be verbose — each item needs enough
-   detail that the planning-brain can produce a concrete spec
-   without re-reading the original conversation. Fidelity is lost
-   when items are vague. Write more, not less.
-
-4. **Dispatch the reviewer** (foreground, `is_background: false`).
+3. **Dispatch the reviewer** (foreground, `is_background: false`).
    Give it the epic file. The reviewer checks only:
    - Each item has: what it does, why it matters, dependencies, out of scope
    - Items are ordered with dependencies explained
@@ -69,19 +57,13 @@ root `AGENTS.md` for the exact name. Do not guess.
    - Template sections present
    Nothing else. Block on `read_subagent` to collect results.
 
-5. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
-   the spec-writer with the findings. At most one correction pass.
+4. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
+   the planning-brain with the findings. At most one correction pass.
 
-6. **Stop. Wait for the user to approve the epic.** Do not register
+5. **Stop. Wait for the user to approve the epic.** Do not register
    or commit until the user says to.
 
-7. **Register the epic via the CLI:**
-   ```bash
-   ./tools/project-context add --type epic --title "<title>" -w <workspace> -t .
-   ```
-   Then copy the approved epic content into the generated file.
-
-8. **Commit.** Commit the epic file.
+6. **Commit.** Commit the epic file.
 
 ## Refining an epic item into a spec
 

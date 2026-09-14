@@ -2,15 +2,16 @@
 
 ## Model separation
 
-The top-level `/pc-spec` skill is a lightweight orchestrator. It dispatches the
-custom `planning-brain`, pinned to `gpt-5.6-terra-high`, which loads `adhd` for
-divergent ideation before making scope and architecture decisions.
+The top-level `/pc-spec` skill is a lightweight orchestrator. It dispatches
+the `planning-brain` (`gpt-5.6-terra-high`), which loads `adhd` for
+divergent ideation, then writes the spec and plan directly. No separate
+writer subagents — the planning-brain thinks and writes in one
+continuous context.
 
 | Work | Who | Model |
 |---|---|---|
-| ADHD ideation + scope/architecture decisions | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
-| Write specification | `spec-writer` subagent | `glm-5.2-high` |
-| Write implementation plan | `plan-writer` subagent | `glm-5.2-high` |
+| ADHD ideation + write spec | `planning-brain` subagent (loads `adhd`) | `gpt-5.6-terra-high` |
+| Architecture brief + write plan | `planning-brain` subagent (same session) | `gpt-5.6-terra-high` |
 | Review either artifact | `reviewer` subagent | `swe-2-high` |
 
 Never use an unpinned or general subagent in this workflow.
@@ -19,60 +20,52 @@ Never use an unpinned or general subagent in this workflow.
 
 1. Dispatch pinned `planning-brain` in the foreground with the request and
    repository context. The planning-brain loads `adhd` for divergent ideation,
-   then returns a concise specification decision brief.
+   then writes the spec directly. It registers via CLI and edits the generated
+   file.
 
-   **If refining a epic item:** include the epic file and the specific
+   **If refining an epic item:** include the epic file and the specific
    item to refine. The planning-brain uses the epic for context and the
    item as the scope. The resulting spec's `Dependencies` field points to
    the epic ID (e.g. `EPIC-001`).
-2. Collect its problem, users, behavior, boundaries, constraints, chosen scope,
-   rejected alternatives, criteria, and open questions.
-3. Dispatch pinned `spec-writer` in the foreground with the brief, root
-   `AGENTS.md`, and template. It registers and writes the specification.
-4. Dispatch pinned `reviewer` once. Give it only the spec file and this
+2. Dispatch pinned `reviewer` once. Give it only the spec file and this
    exact criteria list:
    - Every desired behavior maps to a measurable success criterion
    - Out of Scope is present and honest
    - No internal contradictions
    - All template sections present
    Nothing else. No AGENTS.md, no codebase access.
-5. If objectively blocked, re-dispatch `spec-writer` once, then confirm only the
-   original findings. If one remains, ask the user instead of looping.
-6. **Hard stop:** present the specification and wait for approval.
+3. If objectively blocked, re-dispatch `planning-brain` once with the
+   findings, then confirm only the original findings. If one remains,
+   ask the user instead of looping.
+4. **Hard stop:** present the specification and wait for approval.
 
-   **If refining a epic item:** after approval, update the epic MD:
+   **If refining an epic item:** after approval, update the epic MD:
    set the item's `Status` to `specced` and `Spec` to the new SPEC-NNN ID.
 
 ## Phase 2: Implementation plan
 
-7. Dispatch pinned `planning-brain` again. **Pass the full spec content and
-   the phase 1 decision brief in the task prompt** — the planning-brain is a
-   fresh subagent with no memory of phase 1. Do not make it re-read the spec
-   file; include the spec text and the original decision brief verbatim in the
-   dispatch. Also pass the graph. Ask for a concise architecture brief covering
-   approach, boundaries, dependencies, dependency DAG, critical path, candidate
-   parallel waves of at most three, risks, migration, and verification strategy.
-8. Dispatch pinned `plan-writer` in the foreground. **Pass the approved spec
-   content and the architecture brief in the task prompt** — do not make the
-   plan-writer re-read the spec. Include the spec text, the architecture brief,
-   graph, root `AGENTS.md`, and template.
-9. Dispatch pinned `reviewer` once. Give it only the plan file and spec
+5. Re-dispatch the same `planning-brain` (foreground) for the architecture
+   brief and plan. It has the spec in context from phase 1 — no re-reading
+   needed. It thinks through the architecture, then writes the plan directly.
+   Register via CLI, edit the generated file.
+6. Dispatch pinned `reviewer` once. Give it only the plan file and spec
    file and this exact criteria list:
    - Every spec behavior has a workstream
    - Workstreams ordered so none depends on a later one
    - Completion criteria are objectively verifiable
    - No forbidden dependencies
    Nothing else.
-10. If objectively blocked, re-dispatch `plan-writer` once, then confirm only the
-    original findings. If one remains, ask the user.
-11. **Hard stop:** present the plan and wait for approval.
-12. After approval, mark and commit the spec and plan. Task creation is a separate
-    `/pc-create-tasks` invocation.
+7. If objectively blocked, re-dispatch `planning-brain` once with the
+   findings, then confirm only the original findings. If one remains,
+   ask the user.
+8. **Hard stop:** present the plan and wait for approval.
+9. After approval, mark and commit the spec and plan. Task creation is a
+   separate `/pc-create-tasks` invocation.
 
 ## Constraints
 
 - `adhd` is loaded by `planning-brain`, not the orchestrator. Never again after planning.
-- Pinned SOL makes decisions; pinned GLM writers create Markdown artifacts.
+- `planning-brain` writes specs and plans directly — no separate writer subagents.
 - Pinned SWE reviews without expanding scope.
 - Subagents run sequentially and in the foreground.
 - One correction pass per artifact.

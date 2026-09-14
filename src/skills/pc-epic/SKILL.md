@@ -1,13 +1,15 @@
 # pc-epic
 
 Write a verbose epic from a user's vision or an input document. The
-epic lists ordered items — each item becomes a SPEC when its turn
-comes. Epics are intentionally verbose to preserve fidelity downstream.
+planning-brain thinks with ADHD and writes the epic directly. No
+separate writer subagent. Epics are intentionally verbose to preserve
+fidelity downstream.
 
 ## What this skill does
 
 You are the orchestrator. Follow `workflows/pc-epic.md`. Dispatch
-the `planning-brain` and `spec-writer` subagents as described there.
+the `planning-brain` subagent — it loads ADHD, thinks, and writes
+the epic directly.
 
 ## Input
 
@@ -17,8 +19,7 @@ Accepts either:
   containing the vision, requirements, or notes
 
 If an .md file is provided, read it and pass its content to the
-planning-brain as the vision input. The file may be rough notes,
-a product brief, a design doc, or any markdown the user has.
+planning-brain as the vision input.
 
 ## When to use
 

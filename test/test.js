@@ -55,7 +55,7 @@ async function runTests() {
   // Verify custom subagent profiles are copied
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'reviewer.md')), 'reviewer agent profile missing');
   assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'implementer.md')), 'implementer agent profile missing');
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'task-writer.md')), 'task-writer agent profile missing');
+  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'planning-brain.md')), 'planning-brain agent profile missing');
   // code-optimizer is now a skill (pc-optimize), not an agent profile
 
   // --- Test graph ---

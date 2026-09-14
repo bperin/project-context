@@ -3,41 +3,32 @@
 ## When
 
 After the plan is reviewed and committed. The pc-spec workflow exits here.
-The orchestrator dispatches a different agent — the task-writer
-subagent (`task-writer` profile, `glm-5.2-high`) — to pick up with the
-agreed spec and plan. The orchestrator has the spec content, plan
-content, and architecture brief from the planning phases in its
-context. **It passes all of this forward in the task-writer's dispatch
-prompt** — the task-writer is a fresh subagent with no conversation
-history and should not have to re-read or re-derive context that the
-orchestrator already has.
+The orchestrator dispatches the `planning-brain` again — it has the spec
+and plan in context from the planning phases. It writes the tasks and
+JSONL directly.
 
 ## Pattern
 
-The orchestrator dispatches one foreground task-writer. The
-task-writer may dispatch its own workstream-analyst subagents in
-parallel, collect their reports, then serialize writes. Only the
-task-writer writes task state.
+The planning-brain may dispatch its own workstream-analyst subagents
+in parallel, collect their reports, then serialize writes. Only the
+planning-brain writes task state.
 
 ```
-Orchestrator dispatches one foreground task-writer (with spec + plan + architecture brief in task prompt)
-    → Task-writer dispatches bounded workstream analysts in parallel (optional)
-    → Task-writer collects all analyst reports
-    → Task-writer registers all tasks via CLI in build order
-    → Task-writer edits each TASK-NNN.md with details
-    → Task-writer writes the build order into data/tasks.jsonl
-    → Task-writer writes the per-plan timeline into plans/PLAN-NNN.timeline.jsonl
-    → Task-writer returns its report
+Orchestrator dispatches planning-brain (with spec + plan in task prompt)
+    → Planning-brain dispatches workstream analysts in parallel (optional)
+    → Planning-brain collects all analyst reports
+    → Planning-brain registers all tasks via CLI in build order
+    → Planning-brain edits each TASK-NNN.md with details
+    → Planning-brain writes the build order into data/tasks.jsonl
+    → Planning-brain writes the per-plan timeline into plans/PLAN-NNN.timeline.jsonl
+    → Planning-brain returns its report
     → Orchestrator dispatches reviewer → reviewer checks task files
-    → Orchestrator re-dispatches task-writer with findings → it revises
+    → Orchestrator re-dispatches planning-brain with findings → it revises
     → Done — ready for task implementation
 ```
 
-The task-writer is not the orchestrator. The orchestrator is expensive
-and already did the hard thinking (spec + plan). The task-writer is a
-cheaper subagent (`glm-5.2-high`) that takes the agreed plan and turns
-it into concrete, executable tasks with a build order. It can dispatch
-its own read-only `workstream-analyst` subagents for parallel analysis.
+The planning-brain is the same agent that wrote the spec and plan. It
+has full context — no re-reading, no context transfer.
 
 ## Steps
 
@@ -46,20 +37,19 @@ its own read-only `workstream-analyst` subagents for parallel analysis.
    ./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json
    ```
 
-2. **Dispatch the task-writer** (foreground, `task-writer` profile,
+2. **Dispatch the planning-brain** (foreground, `planning-brain` profile,
    `is_background: false`). **Pass the spec content, plan content, and
-   architecture brief in the task prompt** — the orchestrator has all
-   three from the planning phases. Do not make the task-writer re-read
-   the spec and plan files; include their text verbatim. Also pass the
-   context packet path, `AGENTS.md` path, and the instruction to write
-   and register tasks. The task-writer:
+   architecture brief in the task prompt** — the planning-brain wrote
+   them but this is a fresh dispatch. Also pass the context packet path,
+   `AGENTS.md` path, and the instruction to write and register tasks.
+   The planning-brain:
    - Has the spec, plan, and architecture brief in its task prompt
    - **May dispatch up to four `workstream-analyst` subagents**
      (`is_background: true`, one per workstream) for parallel
      analysis. Collects all results via `read_subagent` before
      writing. Skips this for small plans or tightly coupled workstreams.
    - Thinks through 2-3 implementation approaches per workstream, picks
-     one (no `adhd` — the plan already decided the high-level approach)
+     one (no `adhd` here — the plan already decided the high-level approach)
    - Consults `graph/nodes/` and `graph/edges/` for file placement
    - Builds a dependency DAG that minimizes the critical path and exposes up to
      three safe implementation tasks per wave. It does not add dependencies merely
@@ -72,13 +62,13 @@ its own read-only `workstream-analyst` subagents for parallel analysis.
      ./tools/project-context add --type task --title "<title>" --parent PLAN-NNN --dependencies "<TASK-NNN,... or none>" --status draft --skills "<skills>" --triggers "<triggers>" -t .
      ```
      The `skills` and `triggers` are stored in the JSONL record so the
-     implementer knows what to load later. The task-writer does not
+     implementer knows what to load later. The planning-brain does not
      load them. Register ALL tasks before editing any files — the CLI
      auto-assigns sequential IDs and the JSONL order IS the build order.
    - **Then edits the generated MD files** to fill in the detailed
      content — goal, relevant files, relevant symbols, required change,
      constraints, acceptance criteria, verification, do-not-touch. The
-     CLI created each file from `TASK-NNN.template.md`; the task-writer
+     CLI created each file from `TASK-NNN.template.md`; the planning-brain
      uses `edit` to replace the template body with real content. Never
      `write` a TASK-NNN.md directly — the CLI `add` is the only thing
      that creates task files and JSONL records.
@@ -95,7 +85,7 @@ its own read-only `workstream-analyst` subagents for parallel analysis.
    Nothing else. Block on `read_subagent` to collect results.
 
 4. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
-   the task-writer (foreground, `is_background: false`) with the
+   the planning-brain (foreground, `is_background: false`) with the
    findings — it revises the task files and JSONL records. If MUST-FIX
    issues remain after one revision, escalate to the user.
 
@@ -111,46 +101,27 @@ its own read-only `workstream-analyst` subagents for parallel analysis.
 - `data/tasks.jsonl` — the build order, one `created` event per task.
 - `plans/PLAN-NNN.timeline.jsonl` — the per-plan timeline, one `queued`
   event per task.
-- All reviewed by the reviewer and revised by the task-writer.
-
-## Inputs
-
-- The agreed spec (`specs/SPEC-NNN.md`)
-- The agreed plan (`plans/PLAN-NNN.md`)
-- The project graph (`graph/nodes/`, `graph/edges/`)
-- `AGENTS.md` (project conventions and rules)
-- `TASK-NNN.template.md` (for format reference)
-
-## Outputs
-
-- Task files (`tasks/TASK-NNN.md`) — one per workstream
-- `data/tasks.jsonl` — the build order
-- `plans/PLAN-NNN.timeline.jsonl` — the per-plan timeline
-- All reviewed and committed
+- All reviewed by the reviewer and revised by the planning-brain.
 
 ## Constraints
 
-- No `adhd`. The plan already decided the approach. The task-writer
-  thinks through concrete implementation details, not divergent ideation.
+- No `adhd` during task writing. The plan already decided the approach.
 - Background analysts are optional, read-only, explicitly pinned, and limited to
-  four. The task-writer dispatches them — not the orchestrator. Never
+  four. The planning-brain dispatches them — not the orchestrator. Never
   use a general/unpinned background subagent.
-- The orchestrator does not write tasks — the task-writer subagent does.
-  The orchestrator dispatches the task-writer, collects results, and
-  re-dispatches with findings. The task-writer dispatches its own
-  workstream-analysts, collects their reports, then writes.
-- No optimizer subagent. The task-writer writes; the reviewer checks.
-- No skill loading. The task-writer records skills and triggers in
+- The orchestrator does not write tasks — the planning-brain subagent does.
+  The orchestrator dispatches the planning-brain, collects results, and
+  re-dispatches with findings.
+- No skill loading. The planning-brain records skills and triggers in
   the task MD and JSONL record, but does not load or invoke them.
 - No 3-round loop. One review pass. If MUST-FIX issues remain after one
   revision, escalate to the user.
-- The task-writer is a subagent. It does not have conversation history.
+- The planning-brain is a subagent. It does not have conversation history.
   The orchestrator passes the spec content, plan content, and
-  architecture brief in the task prompt — the task-writer does not
-  re-read the spec and plan files.
-- The reviewer is read-only. It reports findings; the task-writer
+  architecture brief in the task prompt.
+- The reviewer is read-only. It reports findings; the planning-brain
   revises.
-- Only one foreground task-writer may call `./tools/project-context add` or edit task
+- Only one foreground planning-brain may call `./tools/project-context add` or edit task
   files. Parallel analysts never mutate JSONL, timelines, or Markdown.
 - One task file per workstream. If a workstream is large, split it into
   multiple tasks — but each task must be independently verifiable.

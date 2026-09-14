@@ -1,6 +1,6 @@
 ---
 name: pc-spec
-description: "SOL planning-brain loads ADHD for ideation, then pinned GLM writers and a pinned SWE reviewer for spec and plan artifacts"
+description: "Planning-brain loads ADHD, writes spec and plan directly, reviewer checks each. One agent thinks and writes."
 argument-hint: "<description of what to build>"
 triggers:
   - user
@@ -22,32 +22,24 @@ permissions:
 
 > **Read [`.agents/AGENTS.md`](../AGENTS.md) first.**
 
-You are the lightweight orchestrator. Dispatch pinned subagents for
-decisions, writing, and review. The planning-brain loads ADHD itself —
-you do not load it. Do not rely on the root session's selected model.
+You are the lightweight orchestrator. Dispatch the `planning-brain`
+subagent — it loads ADHD, thinks, and writes specs and plans directly.
+No separate writer subagents. Do not rely on the root session's model.
 
 Follow `workflows/pc-spec.md` exactly:
 
-1. Dispatch pinned `planning-brain` (`gpt-5.6-terra-high`) with the request
-   and repository context. The planning-brain loads `adhd` for divergent
-   ideation, then returns the specification decision brief.
-2. Dispatch pinned `spec-writer` (`glm-5.2-high`) with that brief.
-3. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
-4. **Stop and wait for explicit specification approval.**
-5. Dispatch pinned `planning-brain` again for the architecture brief.
-   **Pass the full spec content and the phase 1 decision brief in the
-   task prompt.** The planning-brain is a fresh subagent — it has no
-   memory of phase 1. Do not make it re-read the spec file. Include
-   the spec text and the original decision brief verbatim.
-6. Dispatch pinned `plan-writer` (`glm-5.2-high`). **Pass the spec
-   content and the architecture brief in the task prompt** — do not
-   make the plan-writer re-read the spec.
-7. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
-8. **Stop and wait for explicit plan approval.**
-9. After approval, commit and hand off to `/pc-create-tasks`.
+1. Dispatch pinned `planning-brain` (`gpt-5.6-terra-high`) with the
+   request and repository context. It loads `adhd`, thinks, then writes
+   the spec directly.
+2. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
+3. **Stop and wait for explicit specification approval.**
+4. Re-dispatch `planning-brain` for the architecture brief and plan.
+   It has the spec in context — no re-reading. It writes the plan directly.
+5. Dispatch pinned `reviewer` (`swe-2-high`); allow one correction pass.
+6. **Stop and wait for explicit plan approval.**
+7. After approval, commit and hand off to `/pc-create-tasks`.
 
-Use only explicitly pinned `planning-brain`, `spec-writer`, `plan-writer`, and
-`reviewer` profiles. Never use `subagent_general` or an unpinned custom profile.
-Do not write long-form spec or plan prose, implement code, create tasks, or
-auto-progress past either gate. Do not load `adhd` yourself — the
-planning-brain does that.
+Use only explicitly pinned `planning-brain` and `reviewer` profiles.
+Never use `subagent_general` or an unpinned custom profile. Do not
+write specs, plans, or code yourself. Do not load `adhd` yourself —
+the planning-brain does that.

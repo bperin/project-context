@@ -61,7 +61,7 @@ Append-only event log. Each line is a JSON object:
 {"id":"TASK-001","event":"done","ts":"2026-09-11T..."}
 ```
 
-The `created` event is written by the task-writer. The `started` and
+The `created` event is written by the planning-brain. The `started` and
 `done` events are written by the `status` command during
 implementation. The log is a historical record — do not modify past
 lines.
@@ -74,7 +74,7 @@ lines.
 {"task":"TASK-001","event":"done","ts":"2026-09-11T..."}
 ```
 
-The task-writer writes `queued` events. The `status` command appends
+The planning-brain writes `queued` events. The `status` command appends
 `started` and `done` events as implementation progresses.
 
 ## Workflows
@@ -86,7 +86,7 @@ flowchart that renders in GitHub and IDE preview.
 |----------|------|------|
 | Epic | `workflows/pc-epic.md` | When a user describes a high-level vision with multiple features |
 | Plan | `workflows/pc-spec.md` | When a user describes what to build, or refining an epic item |
-| Task | `workflows/pc-create-tasks.md` | After a plan is committed — task-writer creates tasks + JSONL build order |
+| Task | `workflows/pc-create-tasks.md` | After a plan is committed — planning-brain creates tasks + JSONL build order |
 | Implement | `workflows/pc-implement.md` | When a task moves to `in_progress` |
 | Test failure | `workflows/test-failure.md` | When tests fail during implementation or verification |
 | PR review | `workflows/pc-review.md` | Before any PR — run checks, verify tasks done, open PR |
@@ -108,7 +108,7 @@ When a user describes a high-level vision with multiple features:
 1. Dispatch pinned `planning-brain` (SOL) with the vision and repo
    context. The planning-brain loads `adhd` for divergent ideation,
    then returns a roadmap brief: vision, ordered items, why this order.
-2. Dispatch pinned `spec-writer` (GLM) with the brief. It writes
+2. Dispatch pinned `planning-brain` (GLM) with the brief. It writes
    `EPIC-NNN.md`. Items can be vague — a few sentences each.
 3. Dispatch pinned `reviewer` (SWE). Revise based on findings.
 4. **Stop. Wait for the user to approve the epic.**
@@ -126,7 +126,7 @@ When a user describes what they want built:
 1. Dispatch pinned `planning-brain` (SOL) with the request and repo
    context. The planning-brain loads `adhd` for divergent ideation,
    then returns a specification decision brief.
-2. Dispatch pinned `spec-writer` (GLM) with the brief. It writes the
+2. Dispatch pinned `planning-brain` (GLM) with the brief. It writes the
    spec. Record what skills the tasks will need, but do not load them —
    they load at implementation time.
 3. Dispatch pinned `reviewer` (SWE). Revise based on findings.
@@ -136,7 +136,7 @@ When a user describes what they want built:
    brief. **Pass the full spec content and the phase 1 decision brief
    in the task prompt** — the planning-brain is a fresh subagent with
    no memory of phase 1. Do not make it re-read the spec file.
-6. Dispatch pinned `plan-writer` (GLM) with the brief. **Pass the spec
+6. Dispatch pinned `planning-brain` (GLM) with the brief. **Pass the spec
    content and the architecture brief in the task prompt.** It writes
    the plan.
 7. Dispatch pinned `reviewer` (SWE). Revise based on findings.
@@ -147,27 +147,27 @@ When a user describes what they want built:
 ## Writing tasks
 
 After the plan is committed, the orchestrator dispatches the
-task-writer subagent (`task-writer` profile — a different, cheaper
+planning-brain subagent (`planning-brain` profile — a different, cheaper
 agent, not the orchestrator). The orchestrator passes the spec
 content, plan content, and architecture brief in the task prompt —
-the task-writer does not re-read the files:
+the planning-brain does not re-read the files:
 
-1. Orchestrator dispatches the task-writer (foreground, `is_background: false`).
-   The task-writer has the spec, plan, and architecture brief in its
+1. Orchestrator dispatches the planning-brain (foreground, `is_background: false`).
+   The planning-brain has the spec, plan, and architecture brief in its
    task prompt.
-2. The task-writer may dispatch up to four `workstream-analyst`
+2. The planning-brain may dispatch up to four `workstream-analyst`
    subagents in parallel (`is_background: true`) for independent
    workstreams. It collects all reports before writing.
-3. The task-writer thinks through implementation approaches for each
+3. The planning-brain thinks through implementation approaches for each
    workstream and consults the project graph for file placement.
-4. The task-writer writes `TASK-NNN.md` files — one per workstream.
+4. The planning-brain writes `TASK-NNN.md` files — one per workstream.
    Records each task's skills and triggers in the MD file.
-5. The task-writer registers each task via the CLI in build order. The
+5. The planning-brain registers each task via the CLI in build order. The
    `skills` and `triggers` are stored in `data/tasks.jsonl` so the
-   implementer knows what to load later. The task-writer does not load
+   implementer knows what to load later. The planning-brain does not load
    them.
 6. The orchestrator dispatches the reviewer. If MUST-FIX findings
-   remain, the orchestrator re-dispatches the task-writer to revise.
+   remain, the orchestrator re-dispatches the planning-brain to revise.
 7. Commits.
 
 ## During implementation

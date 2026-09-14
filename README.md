@@ -75,14 +75,14 @@ front-matter; tasks carry status in the JSONL event log.
 
 The orchestrator runs the planning workflow in one continuous context:
 divergent ideation (`adhd`) once on the original input, then write spec,
-review, write plan, review. A separate task-writer then converts the
+review, write plan, review. A separate planning-brain then converts the
 approved plan into task Markdown files and JSONL records.
 
 ```mermaid
 graph LR
     SPEC["**SPEC**<br/>adhd once → write<br/>→ review"]
     PLAN["**PLAN**<br/>write → review<br/>(same context as SPEC)"]
-    TASK["**TASKS**<br/>task-writer reads spec+plan<br/>→ writes task MDs + JSONL → review"]
+    TASK["**TASKS**<br/>planning-brain reads spec+plan<br/>→ writes task MDs + JSONL → review"]
     IMPL["**IMPLEMENT**<br/>implement + complete tests<br/>→ verify → focused review"]
     REVIEW["**REVIEW**<br/>mechanical<br/>→ review diff → PR"]
 
@@ -142,9 +142,9 @@ user-owned Devin profiles.
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
 | `planning-brain` | `gpt-5.6-terra-high` | Scope and architecture decisions | Planning only |
-| `spec-writer` | `glm-5.2-high` | Write spec from SOL decision brief | Specification phase |
-| `plan-writer` | `glm-5.2-high` | Write plan from SOL architecture brief | Plan phase |
-| `task-writer` | `glm-5.2-high` | Serialize task documents and event history | Task creation |
+| `planning-brain` | `glm-5.2-high` | Write spec from SOL decision brief | Specification phase |
+| `planning-brain` | `glm-5.2-high` | Write plan from SOL architecture brief | Plan phase |
+| `planning-brain` | `glm-5.2-high` | Serialize task documents and event history | Task creation |
 | `workstream-analyst` | `glm-5.2-high` | Read-only workstream analysis | Optional bounded parallel fan-out |
 | `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
 | `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
@@ -195,9 +195,9 @@ workflow. They live in `.agents/skills/` and are discovered by Devin.
 
 | Command | Purpose |
 |---------|---------|
-| `/pc-epic` | Write a high-level epic from a vision — planning-brain loads adhd, spec-writer writes, review |
+| `/pc-epic` | Write a high-level epic from a vision — planning-brain loads adhd, planning-brain writes, review |
 | `/pc-spec` | Run the planning workflow — adhd once, write spec, review, write plan, review |
-| `/pc-create-tasks` | Run the task-writer workflow — read spec+plan, write task MDs + JSONL |
+| `/pc-create-tasks` | Run the planning-brain workflow — read spec+plan, write task MDs + JSONL |
 | `/pc-implement` | Implement + complete tests → verify → one focused review; optimizer only when warranted |
 | `/pc-review` | Run the PR review workflow — mechanical checks, dispatch reviewer, open PR |
 | `/pc-inspect-project` | Read project state and print specs/plans/tasks with status |

@@ -52,9 +52,6 @@ async function testAgentProtocolsAndFixtures() {
   const profileDir = path.join(aiDir, '.agents', 'agents');
   const expectedPins = {
     'planning-brain.md': 'gpt-5.6-terra-high',
-    'spec-writer.md': 'glm-5.2-high',
-    'plan-writer.md': 'glm-5.2-high',
-    'task-writer.md': 'glm-5.2-high',
     'workstream-analyst.md': 'glm-5.2-high',
     'implementer.md': 'swe-2-high',
     'reviewer.md': 'swe-2-high',
