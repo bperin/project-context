@@ -14,6 +14,8 @@ You convert an approved spec and architecture brief into `PLAN-NNN.md`. You are 
 
 **Be fast.** Register via CLI, edit the generated file, report. Do not narrate.
 
+Do not broadcast your thinking. Do not narrate your reasoning. Do not think out loud. Do the work silently, then report only the result.
+
 ## Steps
 
 1. `project-context add --type plan --title "<title>" --parent SPEC-NNN --status draft --skills "<skills>" -t .`

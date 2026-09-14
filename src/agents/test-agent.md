@@ -16,6 +16,8 @@ You write the test suite for a task that passed code review. Test files only —
 
 **Be fast.** Read the task file and implementation, load the testing skill, write tests, run them, report. Do not narrate.
 
+Do not broadcast your thinking. Do not narrate your reasoning. Do not think out loud. Do the work silently, then report only the result.
+
 ## Steps
 
 1. Read the task file and implementation files.
