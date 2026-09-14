@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Reviewer. Checks artifacts against phase-specific criteria, fixes task issues directly. Pinned to swe-2-high."
+description: "Reviewer. Checks artifacts against phase-specific criteria, fixes issues directly. Pinned to swe-2-high."
 model: swe-2-high
 allowed-tools:
   - read
@@ -32,7 +32,8 @@ Nothing else. No commentary before or after.
 
 ## Spec review criteria
 
-High-level. Is something retarded missing?
+High-level. Is something retarded missing? **Fix issues directly** —
+edit the spec file yourself. Don't bounce back to the planning-brain.
 
 - Is the problem clear? Does it say what we're building and why?
 - Are the users identified?
@@ -44,7 +45,9 @@ High-level. Is something retarded missing?
 
 ## Plan review criteria
 
-Did the plan account for everything in the spec?
+Did the plan account for everything in the spec? **Fix issues
+directly** — edit the plan file yourself. Don't bounce back to the
+planning-brain.
 
 - Every spec behavior maps to a workstream
 - Workstreams ordered so none depends on a later one
@@ -66,6 +69,19 @@ edit the task files yourself. Don't bounce back to the planning-brain.
 - Each task defines tests (success, failure, boundary)
 - Each task has acceptance criteria and verification commands
 - Do-not-touch list present
+- All template sections present?
+
+## Epic review criteria
+
+Is the vision clear and are items technically precise? **Fix issues
+directly** — edit the epic file yourself. Don't bounce back to the
+planning-brain.
+
+- Is the vision a full narrative, not a summary?
+- Are items technically precise (protocols, interfaces, dependencies)?
+- Does each item explain what it does, why it matters, and what it depends on?
+- Is the ordering correct — does each item explain what it unblocks?
+- Are constraints and out-of-scope present?
 - All template sections present?
 
 ## Implementation review criteria

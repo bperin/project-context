@@ -105,11 +105,11 @@ projects.
 
 When a user describes a high-level vision with multiple features:
 
-1. Dispatch pinned `planning-brain` (SOL) with the vision and repo
+1. Dispatch pinned `planning-brain` with the vision and repo
    context. The planning-brain loads `adhd` for divergent ideation,
-   then writes `EPIC-NNN.md` directly. Items can be vague — a few
-   sentences each.
-2. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+   then writes `EPIC-NNN.md` directly. Items must be technically
+   precise — name protocols, interfaces, dependencies.
+2. Dispatch pinned `reviewer`. Revise based on findings.
 3. **Stop. Wait for the user to approve the epic.**
 4. Register and commit.
 
@@ -122,20 +122,20 @@ the epic ID (e.g. `EPIC-001`).
 
 When a user describes what they want built:
 
-1. Dispatch pinned `planning-brain` (SOL) with the request and repo
+1. Dispatch pinned `planning-brain` with the request and repo
    context. The planning-brain loads `adhd` for divergent ideation about
    the problem, then writes the spec directly. Record what skills the
    tasks will need, but do not load them — they load at implementation
    time.
-2. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+2. Dispatch pinned `reviewer`. Revise based on findings.
 3. **Stop. Wait for the user to approve the spec.** Do not proceed to
    the plan until the user says to.
-4. Re-dispatch pinned `planning-brain` (SOL) for the architecture brief
+4. Re-dispatch pinned `planning-brain` for the architecture brief
    and plan. **Pass the full spec content in the task prompt** — the
    planning-brain is a fresh subagent with no memory of phase 1. It
    **loads `adhd` again** for divergent ideation about the
    implementation approach, then writes the plan directly.
-5. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+5. Dispatch pinned `reviewer`. Revise based on findings.
 6. **Stop. Wait for the user to approve the plan.** Do not proceed to
    task creation until the user says to.
 7. Commit spec + plan together.
@@ -143,8 +143,7 @@ When a user describes what they want built:
 ## Writing tasks
 
 After the plan is committed, the orchestrator dispatches the
-planning-brain subagent (`planning-brain` profile — a different, cheaper
-agent, not the orchestrator). The orchestrator passes the spec
+planning-brain subagent. The orchestrator passes the spec
 content, plan content, and architecture brief in the task prompt —
 the planning-brain does not re-read the files:
 

@@ -38,9 +38,8 @@ Never use an unpinned or general subagent in this workflow.
    - All template sections present?
    Nothing else. No AGENTS.md, no codebase access.
 
-3. If MUST-FIX issues remain, re-dispatch `planning-brain` once with
-   the findings, then confirm only the original findings. If one
-   remains, ask the user.
+3. **Reviewer fixes directly.** The reviewer has write access and
+   fixes issues in the spec file itself. No re-dispatch.
 
 4. **Hard stop:** present the specification and wait for approval.
 
@@ -68,9 +67,8 @@ Never use an unpinned or general subagent in this workflow.
    - All template sections present?
    Nothing else.
 
-7. If MUST-FIX issues remain, re-dispatch `planning-brain` once with
-   the findings, then confirm only the original findings. If one
-   remains, ask the user.
+7. **Reviewer fixes directly.** The reviewer has write access and
+   fixes issues in the plan file itself. No re-dispatch.
 
 8. **Hard stop:** present the plan and wait for approval.
 

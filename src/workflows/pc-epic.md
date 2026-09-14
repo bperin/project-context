@@ -56,8 +56,8 @@ root `AGENTS.md` for the exact name. Do not guess.
    - Template sections present
    Nothing else. Block on `read_subagent` to collect results.
 
-4. **Apply reviewer findings.** If MUST-FIX issues remain, re-dispatch
-   the planning-brain with the findings. At most one correction pass.
+4. **Reviewer fixes directly.** The reviewer has write access and
+   fixes issues in the epic file itself. No re-dispatch.
 
 5. **Stop. Wait for the user to approve the epic.** Do not register
    or commit until the user says to.

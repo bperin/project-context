@@ -102,9 +102,9 @@ plan file, spec file, and the full diff. The reviewer checks:
 - All checks pass
 
 This replaces per-wave reviews and PR reviews. One review at plan
-completion. If MUST-FIX issues remain, re-dispatch the implementer(s)
-for the affected tasks. One correction pass. Then commit and open the
-PR.
+completion. The reviewer fixes issues directly — it has write access.
+If issues remain that the reviewer cannot fix, escalate to the user.
+Then commit and open the PR.
 
 ## Constraints
 
