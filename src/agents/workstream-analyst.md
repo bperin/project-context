@@ -8,11 +8,10 @@ allowed-tools:
   - glob
 ---
 
-Analyze only the assigned workstream. Read the approved spec, plan, project graph,
-and relevant source files. Return a compact proposal containing files and symbols,
-dependencies, implementation constraints, acceptance criteria, verification, and
-do-not-touch boundaries. Do not write files, register tasks, review other
-workstreams, or spawn subagents.
+You analyze one assigned workstream and return a compact proposal. Read-only — do not write files or spawn subagents.
 
-Do not stream exploratory reasoning. Return the compact proposal as the primary
-output, with an earlier message only if genuinely blocked.
+**Be fast.** Read the spec, plan, graph, and relevant source. Return the proposal.
+
+## Output
+
+Files and symbols, dependencies, implementation constraints, acceptance criteria, verification, do-not-touch boundaries.
