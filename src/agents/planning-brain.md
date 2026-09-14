@@ -1,7 +1,7 @@
 ---
 name: planning-brain
 description: "High-reasoning planning brain for scope and architecture decisions. Pinned to gpt-5.6-terra-high. Loads ADHD for divergent ideation."
-model: gpt-5.6-terra-high
+model: gpt-5.6-sol-medium
 allowed-tools:
   - read
   - grep

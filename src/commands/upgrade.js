@@ -104,6 +104,7 @@ async function upgradeCommand(options) {
   const dirs = [
     path.join(wsDir, '.agents', 'skills'),
     path.join(wsDir, 'workflows'),
+    path.join(wsDir, 'epics'),
     path.join(wsDir, 'specs'),
     path.join(wsDir, 'plans'),
     path.join(wsDir, 'tasks'),
@@ -161,9 +162,9 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Sync subagent profiles to both discovery paths. Devin supports
-  // .devin/agents/ and .agents/agents/ — keeping both populated ensures
-  // discovery regardless of which path Devin scans first.
+  // Sync subagent profiles to .agents/agents/ only. The root .agents
+  // symlink discovers them. Do NOT copy to .devin/agents/ — that
+  // creates duplicate profiles the user asked to avoid.
   // Use plain copy (not copyWithHeader) because agent profiles have YAML
   // frontmatter that must be the first line — prepending an HTML comment
   // breaks frontmatter parsing.
@@ -175,12 +176,21 @@ async function upgradeCommand(options) {
       fs.copyFileSync(path.join(srcAgents, f), path.join(dstAgentsDir, f));
     }
 
-    // Also sync to .devin/agents/ — Devin's primary project-specific
-    // discovery path per the subagents docs.
-    const devinAgentsDir = path.join(targetDir, '.devin', 'agents');
-    fs.mkdirSync(devinAgentsDir, { recursive: true });
-    for (const f of profileFiles) {
-      fs.copyFileSync(path.join(srcAgents, f), path.join(devinAgentsDir, f));
+    // Remove any stale managed profiles from .devin/agents/ so only
+    // .agents/agents/ has them. Check both root and workspace-level.
+    const devinAgentsPaths = [
+      path.join(targetDir, '.devin', 'agents'),
+      path.join(wsDir, '.devin', 'agents'),
+    ];
+    for (const devinAgentsDir of devinAgentsPaths) {
+      if (fs.existsSync(devinAgentsDir)) {
+        for (const f of profileFiles) {
+          const stale = path.join(devinAgentsDir, f);
+          if (fs.existsSync(stale)) fs.rmSync(stale, { force: true });
+        }
+        // Remove the dir if empty
+        try { fs.rmdirSync(devinAgentsDir); } catch (e) {}
+      }
     }
   }
 

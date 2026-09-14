@@ -44,6 +44,7 @@ The directory structure is flat — no nesting:
 │   ├── agents/                      # Custom subagent profiles (implementer, reviewer, test-agent)
 │   └── skills/                      # pc-* workflow + utility skills
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
+├── epics/EPIC-NNN.md                # Epic documents (high-level vision, ordered items)
 ├── specs/SPEC-NNN.md               # Spec documents
 ├── plans/PLAN-NNN.md               # Plan documents
 ├── plans/PLAN-NNN.timeline.jsonl   # Per-plan build timeline (append-only)
@@ -73,6 +74,7 @@ documents. JSON files hold project metadata.
 | `data/identity.json` | Project name, stack, modules, repo |
 | `data/skills.json` | Skill registry and skill matrix |
 | `data/decisions.json` | ADR index |
+| `epics/EPIC-NNN.md` | Epic documents (high-level vision, ordered items) |
 | `specs/SPEC-NNN.md` | Spec documents (human-readable, status in file) |
 | `plans/PLAN-NNN.md` | Plan documents (human-readable, status in file) |
 | `tasks/TASK-NNN.md` | Task documents (human-readable, status in file) |
@@ -257,7 +259,8 @@ Check the root `AGENTS.md` for the exact workspace name. Do not guess.
 # Scaffold a new .{reponame}-manager workspace
 ./tools/project-context init -t . --discover
 
-# Add a spec/plan/task (creates MD file, appends to JSONL for tasks)
+# Add a epic/spec/plan/task (creates MD file, appends to JSONL for tasks)
+./tools/project-context add --type epic --title "<title>" -w <workspace> -t .
 ./tools/project-context add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
 ./tools/project-context add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
 ./tools/project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
@@ -301,6 +304,8 @@ from leaking into reviews.
 ## Workflow lifecycle
 
 ```
+EPIC → /pc-epic workflow (planning-brain loads adhd → spec-writer → review → [user approves])
+  ↓
 PLAN → /pc-plan workflow (planning-brain loads adhd → spec-writer → review → [user approves] → planning-brain → plan-writer → review → [user approves])
   ↓
 TASK → /pc-create-tasks workflow (task-writer reads spec+plan → writes task MDs + JSONL → review)

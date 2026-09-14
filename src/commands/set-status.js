@@ -27,14 +27,15 @@ async function setStatusCommand(options) {
   const prefix = id.toUpperCase().startsWith('SPEC-') ? 'SPEC'
     : id.toUpperCase().startsWith('PLAN-') ? 'PLAN'
     : id.toUpperCase().startsWith('TASK-') ? 'TASK'
+    : id.toUpperCase().startsWith('EPIC-') ? 'EPIC'
     : null;
 
   if (!prefix) {
-    console.error(`Could not determine type for ID: ${id}. Use SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
+    console.error(`Could not determine type for ID: ${id}. Use SPEC-NNN, PLAN-NNN, TASK-NNN, or EPIC-NNN.`);
     process.exit(1);
   }
 
-  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : 'tasks';
+  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : prefix === 'EPIC' ? 'epics' : 'tasks';
   const filePath = path.join(aiDir, dirName, `${id.toUpperCase()}.md`);
 
   if (!fs.existsSync(filePath)) {

@@ -61,7 +61,7 @@ select ≤3 ready tasks → start statuses → background implementers
    Read the task file at <path> for goal, files, symbols, criteria.
    Implement TASK-NNN. Stay within these files only: <exclusive list>.
    Do not touch: <do-not-touch list>. Load pc-optimize before verification.
-   Run <verification commands>. Do not commit or change task status.",
+   Run <verification commands>. do not commit or change task status.",
      profile: "implementer",
      is_background: true
    )

@@ -84,7 +84,8 @@ flowchart that renders in GitHub and IDE preview.
 
 | Workflow | File | When |
 |----------|------|------|
-| Plan | `workflows/pc-plan.md` | When a user describes what they want built — spec + plan in one context |
+| Epic | `workflows/pc-epic.md` | When a user describes a high-level vision with multiple features |
+| Plan | `workflows/pc-plan.md` | When a user describes what to build, or refining an epic item |
 | Task | `workflows/pc-create-tasks.md` | After a plan is committed — task-writer creates tasks + JSONL build order |
 | Implement | `workflows/pc-implement.md` | When a task moves to `in_progress` |
 | Test failure | `workflows/test-failure.md` | When tests fail during implementation or verification |
@@ -99,6 +100,24 @@ When a task is marked done in the JSONL, start fresh. A new session
 reads `AGENTS.md` and inspects the project state, then continues
 without conversation history. This keeps context lean across long
 projects.
+
+## Writing an epic
+
+When a user describes a high-level vision with multiple features:
+
+1. Dispatch pinned `planning-brain` (SOL) with the vision and repo
+   context. The planning-brain loads `adhd` for divergent ideation,
+   then returns a roadmap brief: vision, ordered items, why this order.
+2. Dispatch pinned `spec-writer` (GLM) with the brief. It writes
+   `EPIC-NNN.md`. Items can be vague — a few sentences each.
+3. Dispatch pinned `reviewer` (SWE). Revise based on findings.
+4. **Stop. Wait for the user to approve the epic.**
+5. Register and commit.
+
+When the user is ready to build an item from the epic, use `/pc-plan`.
+The planning-brain takes the epic item + the epic for context and
+produces a concrete spec. The spec's `Dependencies` field points to
+the epic ID (e.g. `EPIC-001`).
 
 ## Building a plan
 

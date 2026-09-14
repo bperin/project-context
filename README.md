@@ -195,6 +195,7 @@ workflow. They live in `.agents/skills/` and are discovered by Devin.
 
 | Command | Purpose |
 |---------|---------|
+| `/pc-epic` | Write a high-level epic from a vision — planning-brain loads adhd, spec-writer writes, review |
 | `/pc-plan` | Run the planning workflow — adhd once, write spec, review, write plan, review |
 | `/pc-create-tasks` | Run the task-writer workflow — read spec+plan, write task MDs + JSONL |
 | `/pc-implement` | Implement + complete tests → verify → one focused review; optimizer only when warranted |

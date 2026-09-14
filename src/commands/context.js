@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   readSpecs,
+  readEpics,
   readPlans,
   readTaskFiles,
   getTaskStates,
@@ -97,9 +98,10 @@ function findChildren(rows, parentId) {
   });
 }
 
-// readMarkdown reads a companion markdown file for a spec/plan/task.
+// readMarkdown reads a companion markdown file for a epic/spec/plan/task.
 function readMarkdown(aiDir, id) {
-  const type = id.toUpperCase().startsWith('SPEC-') ? 'specs'
+  const type = id.toUpperCase().startsWith('EPIC-') ? 'epics'
+    : id.toUpperCase().startsWith('SPEC-') ? 'specs'
     : id.toUpperCase().startsWith('PLAN-') ? 'plans'
     : id.toUpperCase().startsWith('TASK-') ? 'tasks'
     : null;
@@ -131,9 +133,25 @@ function collectSkills(row, matrix) {
   return [...skills];
 }
 
+// parseRepositories extracts repository names from a Markdown body's
+// ## Repositories section. Returns an array of repo names (e.g. ['trakt2-api']).
+function parseRepositories(body) {
+  if (!body) return [];
+  const pattern = /##\s+Repositories[\r\n]+([\s\S]*?)(?=##\s|$)/i;
+  const m = body.match(pattern);
+  if (!m) return [];
+  const repos = [];
+  for (const line of m[1].split('\n')) {
+    const repoMatch = line.match(/[-*]\s+`([^`/]+)\/?`/);
+    if (repoMatch) repos.push(repoMatch[1]);
+  }
+  return repos;
+}
+
 // buildPacket constructs a minimal context packet for a spec/plan/task.
 async function buildPacket(aiDir, targetId, options = {}) {
   const specs = readSpecs(aiDir);
+  const epics = readEpics(aiDir);
   const plans = readPlans(aiDir);
   const taskFiles = readTaskFiles(aiDir);
   const taskStates = getTaskStates(aiDir);
@@ -147,28 +165,25 @@ async function buildPacket(aiDir, targetId, options = {}) {
   const identity = readIdentity(aiDir);
   const skillsData = readSkills(aiDir);
 
-  // Graph nodes/edges
+  // Graph nodes/edges — loaded after target resolution so we can filter
+  // modules to only those from the target's declared repositories.
   const graphNodesDir = path.join(aiDir, 'graph', 'nodes');
   const graphEdgesDir = path.join(aiDir, 'graph', 'edges');
   let modules = [];
   let components = [];
-  try {
-    if (fs.existsSync(graphNodesDir)) {
-      modules = fs.readdirSync(graphNodesDir)
-        .filter(f => f.endsWith('.json'))
-        .map(f => {
-          const node = JSON.parse(fs.readFileSync(path.join(graphNodesDir, f), 'utf8'));
-          return { module: node.id || '', path: node.path || '', purpose: node.type || '' };
-        });
-    }
-  } catch (e) {}
 
   let type, row, parent, children, grandparent;
 
-  if (targetId.toUpperCase().startsWith('SPEC-')) {
+  if (targetId.toUpperCase().startsWith('EPIC-')) {
+    type = 'epic';
+    row = findRow(epics, targetId);
+    if (!row) throw new Error(`Epic ${targetId} not found`);
+    children = findChildren(specs, targetId);
+  } else if (targetId.toUpperCase().startsWith('SPEC-')) {
     type = 'spec';
     row = findRow(specs, targetId);
     if (!row) throw new Error(`Spec ${targetId} not found`);
+    parent = findRow(epics, row.dependencies || '');
     children = findChildren(plans, targetId);
   } else if (targetId.toUpperCase().startsWith('PLAN-')) {
     type = 'plan';
@@ -185,7 +200,7 @@ async function buildPacket(aiDir, targetId, options = {}) {
       grandparent = findRow(specs, parent.parent || parent.dependencies || '');
     }
   } else {
-    throw new Error(`Unknown ID format: ${targetId}. Expected SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
+    throw new Error(`Unknown ID format: ${targetId}. Expected EPIC-NNN, SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
   }
 
   const projectLanguage = readProjectLanguage(identity);
@@ -222,6 +237,33 @@ async function buildPacket(aiDir, targetId, options = {}) {
   const parentMd = parent ? readMarkdown(aiDir, parent.id) : { body: '', testing: '', criteria: '' };
   const grandparentMd = grandparent ? readMarkdown(aiDir, grandparent.id) : { body: '', testing: '', criteria: '' };
 
+  // Collect declared repositories from target + parent + grandparent bodies
+  // to filter graph modules to only those repos.
+  const declaredRepos = new Set([
+    ...parseRepositories(targetMd.body),
+    ...parseRepositories(parentMd.body),
+    ...parseRepositories(grandparentMd.body),
+  ]);
+
+  try {
+    if (fs.existsSync(graphNodesDir)) {
+      modules = fs.readdirSync(graphNodesDir)
+        .filter(f => f.endsWith('.json'))
+        .map(f => {
+          const node = JSON.parse(fs.readFileSync(path.join(graphNodesDir, f), 'utf8'));
+          return { module: node.id || '', path: node.path || '', purpose: node.type || '' };
+        });
+      // In multi-repo workspaces, filter modules to only those from the
+      // target's declared repositories. If no repos are declared, keep all.
+      if (declaredRepos.size > 0) {
+        modules = modules.filter(m => {
+          const repo = (m.path || '').split('/')[0];
+          return declaredRepos.has(repo);
+        });
+      }
+    }
+  } catch (e) {}
+
   const packet = {
     target: {
       type,
@@ -237,7 +279,7 @@ async function buildPacket(aiDir, targetId, options = {}) {
       criteria: targetMd.criteria,
     },
     parent: parent ? {
-      type: parent.id.startsWith('SPEC-') ? 'spec' : 'plan',
+      type: parent.id.startsWith('EPIC-') ? 'epic' : parent.id.startsWith('SPEC-') ? 'spec' : 'plan',
       id: parent.id,
       title: parent.title || '',
       status: parent.status || '',

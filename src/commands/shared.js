@@ -300,6 +300,31 @@ function readSpecs(aiDir) {
     });
 }
 
+// readEpics reads all epic MD files and returns an array of metadata.
+function readEpics(aiDir) {
+  const epicsDir = path.join(aiDir, 'epics');
+  if (!fs.existsSync(epicsDir)) return [];
+  return fs.readdirSync(epicsDir)
+    .filter(f => f.endsWith('.md') && f.startsWith('EPIC-'))
+    .sort()
+    .map(f => {
+      const fp = path.join(epicsDir, f);
+      const id = f.replace('.md', '');
+      const titleMatch = fs.readFileSync(fp, 'utf8').match(/^#\s+(.*)/m);
+      return {
+        id,
+        title: titleMatch ? titleMatch[1] : id,
+        status: parseMarkdownStatus(fp),
+        uuid: parseMarkdownField(fp, 'UUID'),
+        dependencies: parseMarkdownField(fp, 'Dependencies'),
+        skills: parseMarkdownField(fp, 'Skills'),
+        triggers: parseMarkdownField(fp, 'Triggers'),
+        commit: parseMarkdownField(fp, 'Commit'),
+        filePath: fp,
+      };
+    });
+}
+
 // readPlans reads all plan MD files and returns an array of metadata.
 function readPlans(aiDir) {
   const plansDir = path.join(aiDir, 'plans');
@@ -432,6 +457,7 @@ module.exports = {
   updateMarkdownStatus,
   parseMarkdownField,
   readSpecs,
+  readEpics,
   readPlans,
   readTaskFiles,
   // Identity and skills

@@ -28,6 +28,7 @@ async function testAgentProtocolsAndFixtures() {
   assert(agentsMd.includes('Session start'), 'AGENTS.md missing Session start checklist');
   assert(agentsMd.includes('Workflows'), 'AGENTS.md missing Workflows table');
   assert(agentsMd.includes('pc-plan'), 'AGENTS.md missing pc-plan reference');
+  assert(agentsMd.includes('pc-epic'), 'AGENTS.md missing pc-epic reference');
   assert(agentsMd.includes('pc-create-tasks'), 'AGENTS.md missing pc-create-tasks reference');
   assert(agentsMd.includes('Communication budget'), 'AGENTS.md missing communication budget');
   assert(agentsMd.includes('one to three sentences'), 'communication budget is not bounded');
@@ -37,6 +38,7 @@ async function testAgentProtocolsAndFixtures() {
   // 3. Verify workflow files are present and match expectations
   const workflowsDir = path.join(aiDir, 'workflows');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-plan.md')), 'pc-plan.md workflow missing');
+  assert(fs.existsSync(path.join(workflowsDir, 'pc-epic.md')), 'pc-epic.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-create-tasks.md')), 'pc-create-tasks.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-implement.md')), 'pc-implement.md workflow missing');
   assert(fs.existsSync(path.join(workflowsDir, 'pc-review.md')), 'pc-review.md workflow missing');

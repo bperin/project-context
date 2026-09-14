@@ -5,6 +5,7 @@ const {
   appendTimelineEvent,
   parseMarkdownField,
   readSpecs,
+  readEpics,
   readPlans,
   readTaskFiles,
   getTaskStates,
@@ -67,13 +68,15 @@ async function addCommand(options) {
   const prefix = type.toUpperCase().startsWith('SPEC-') ? 'SPEC'
     : type.toUpperCase().startsWith('PLAN-') ? 'PLAN'
     : type.toUpperCase().startsWith('TASK-') ? 'TASK'
+    : type.toUpperCase().startsWith('EPIC-') ? 'EPIC'
     : type.toUpperCase() === 'SPEC' ? 'SPEC'
     : type.toUpperCase() === 'PLAN' ? 'PLAN'
     : type.toUpperCase() === 'TASK' ? 'TASK'
+    : type.toUpperCase() === 'EPIC' ? 'EPIC'
     : null;
 
   if (!prefix) {
-    console.error(`Invalid type: ${type}. Use spec, plan, or task.`);
+    console.error(`Invalid type: ${type}. Use spec, plan, task, or epic.`);
     process.exit(1);
   }
 
@@ -82,6 +85,7 @@ async function addCommand(options) {
   if (!finalID) {
     let existing;
     if (prefix === 'SPEC') existing = readSpecs(aiDir);
+    else if (prefix === 'EPIC') existing = readEpics(aiDir);
     else if (prefix === 'PLAN') existing = readPlans(aiDir);
     else existing = [...readTaskFiles(aiDir), ...getTaskStates(aiDir).values()];
     finalID = nextID(existing, prefix);
@@ -93,7 +97,7 @@ async function addCommand(options) {
   const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
   const uuid = v5(finalID, NAMESPACE);
 
-  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : 'tasks';
+  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : prefix === 'EPIC' ? 'epics' : 'tasks';
   const filePath = path.join(aiDir, dirName, `${finalID}.md`);
 
   // Check for duplicates

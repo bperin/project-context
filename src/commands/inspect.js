@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   readSpecs,
+  readEpics,
   readPlans,
   readTaskFiles,
   getTaskStates,
@@ -27,7 +28,7 @@ function readArchived(aiDir, dirName, prefix) {
         status: 'archived',
         filePath: fp,
       };
-      if (prefix === 'SPEC-') {
+      if (prefix === 'SPEC-' || prefix === 'EPIC-') {
         return { ...base, dependencies: parseMarkdownField(fp, 'Dependencies'), skills: parseMarkdownField(fp, 'Skills'), triggers: parseMarkdownField(fp, 'Triggers') };
       }
       return {
@@ -52,6 +53,7 @@ async function inspectCommand(options) {
   console.log(`Inspecting workspace at ${aiDir}...\n`);
 
   let specs = readSpecs(aiDir);
+  let epics = readEpics(aiDir);
   let plans = readPlans(aiDir);
   const taskFiles = readTaskFiles(aiDir);
   const taskStates = getTaskStates(aiDir);
@@ -68,18 +70,20 @@ async function inspectCommand(options) {
     tasks = tasks.filter(t => String(t.status || '').toLowerCase() !== 'archived');
   } else {
     specs = specs.concat(readArchived(aiDir, 'specs', 'SPEC-'));
+    epics = epics.concat(readArchived(aiDir, 'epics', 'EPIC-'));
     plans = plans.concat(readArchived(aiDir, 'plans', 'PLAN-'));
     tasks = tasks.concat(readArchived(aiDir, 'tasks', 'TASK-'));
   }
 
   const allRows = [
+    ...epics.map(r => ({ ...r, _type: 'EPIC' })),
     ...specs.map(s => ({ ...s, _type: 'SPEC' })),
     ...plans.map(p => ({ ...p, _type: 'PLAN' })),
     ...tasks.map(t => ({ ...t, _type: 'TASK' })),
   ];
 
   if (allRows.length === 0) {
-    console.log('  (no specs, plans, or tasks)\n');
+    console.log('  (no epics, specs, plans, or tasks)\n');
   } else {
     const cols = ['Type', 'ID', 'Title', 'Status', 'Dependencies', 'Skills', 'Triggers'];
     const keys = ['_type', 'id', 'title', 'status', 'dependencies', 'skills', 'triggers'];
@@ -106,7 +110,7 @@ async function inspectCommand(options) {
 
   const doneTasks = tasks.filter(t => String(t.status || '').toLowerCase() === 'done').length;
   console.log('--- Summary ---');
-  console.log(`  Specs: ${specs.length}  |  Plans: ${plans.length}  |  Tasks: ${tasks.length} (${doneTasks} done)`);
+  console.log(`  Epics: ${epics.length}  |  Specs: ${specs.length}  |  Plans: ${plans.length}  |  Tasks: ${tasks.length} (${doneTasks} done)`);
 }
 
 module.exports = inspectCommand;

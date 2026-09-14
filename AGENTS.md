@@ -41,7 +41,7 @@ project-context/
 │   └── skills/                  # pc-* skill wrappers
 ├── workflows/                   # Workflow definitions
 ├── templates/                   # Document templates
-├── specs/, plans/, tasks/       # Document output directories
+├── specs/, plans/, tasks/, epics/  # Document output directories
 ├── data/
 │   ├── tasks.jsonl              # Append-only task event log
 │   ├── identity.json            # Project identity
@@ -60,7 +60,7 @@ node bin/cli.js graph -t <target>
 node bin/cli.js overview -t <target>
 node bin/cli.js uuid <ID>
 node bin/cli.js context <ID> -t <target> [-o <output.json>]
-node bin/cli.js add --type <spec|plan|task> --title <title> [options] -t <target>
+node bin/cli.js add --type <epic|spec|plan|task> --title <title> [options] -t <target>
 node bin/cli.js ready -t <target> [--limit 3]
 node bin/cli.js status <ID> <status> -t <target>
 node bin/cli.js sync -t <target>
@@ -83,6 +83,7 @@ node bin/cli.js upgrade -t <target>
 
 ## State machines
 
+- **Epic**: `draft → committed → in_progress → done → superseded → archived`
 - **Spec**: `draft → committed → done → superseded → archived`
 - **Plan**: `draft → committed → in_progress → done → superseded → archived`
 - **Task**: `draft → in_progress → done → superseded → archived`

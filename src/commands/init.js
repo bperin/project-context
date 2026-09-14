@@ -99,6 +99,7 @@ async function initCommand(options) {
     wsDir,
     path.join(wsDir, '.agents', 'skills'),
     path.join(wsDir, 'workflows'),
+    path.join(wsDir, 'epics'),
     path.join(wsDir, 'specs'),
     path.join(wsDir, 'plans'),
     path.join(wsDir, 'tasks'),

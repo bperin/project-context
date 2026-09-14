@@ -4,7 +4,10 @@
 
 ```mermaid
 flowchart TD
-    INPUT["User input"] --> PLANW["pc-plan<br/>planning-brain(adhd) → spec → review → plan → review"]
+    INPUT["User input"] --> EPIC{"High-level vision?<br/>Multiple features?"}
+    EPIC -->|yes| ROADW["pc-epic<br/>planning-brain(adhd) → spec-writer → review → [approve]"]
+    EPIC -->|no| PLANW["pc-plan<br/>planning-brain(adhd) → spec → review → plan → review"]
+    ROADW -->|item ready| PLANW
     PLANW -->|committed| TASKW["pc-create-tasks<br/>task-writer → task MDs + JSONL → review"]
     TASKW -->|committed| IMPL["pc-implement<br/>implement + tests → verify → focused review"]
     IMPL -->|one correction needed| TF["bounded correction<br/>one pass"]
@@ -50,7 +53,8 @@ flowchart TD
 
 | Skill | When |
 |-------|------|
-| `/pc-plan` | User describes what to build |
+| `/pc-epic` | User describes a high-level vision with multiple features |
+| `/pc-plan` | User describes what to build, or refining a epic item |
 | `/pc-create-tasks` | After plan committed |
 | `/pc-implement` | Task moves to `in_progress` |
 | `/pc-review` | All tasks done, PR ready |
@@ -61,6 +65,7 @@ flowchart TD
 ### State transitions
 
 ```
+EPIC: draft → committed → in_progress → done → superseded
 SPEC:    draft → committed → done → superseded
 PLAN:    draft → committed → in_progress → done → superseded
 TASK:    draft → in_progress → done → superseded

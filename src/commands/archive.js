@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   readSpecs,
+  readEpics,
   readPlans,
   readTaskFiles,
   getTaskStates,
@@ -21,6 +22,7 @@ function isTerminal(status) {
 // resolveType maps an ID prefix to its type and directory name.
 function resolveType(id) {
   const up = String(id).toUpperCase();
+  if (up.startsWith('EPIC-')) return { type: 'epic', dir: 'epics' };
   if (up.startsWith('SPEC-')) return { type: 'spec', dir: 'specs' };
   if (up.startsWith('PLAN-')) return { type: 'plan', dir: 'plans' };
   if (up.startsWith('TASK-')) return { type: 'task', dir: 'tasks' };
@@ -47,10 +49,17 @@ function removeContextPacket(targetDir, id) {
 }
 
 // collectActiveChildIds returns the set of active (non-archived) child IDs
-// for a given parent ID, across plans and tasks.
+// for a given parent ID, across specs, plans, and tasks.
 function collectActiveChildIds(aiDir, parentId) {
   const parentUp = String(parentId).toUpperCase();
   const active = new Set();
+
+  // Specs whose parent is a epic.
+  const specs = readSpecs(aiDir);
+  for (const s of specs) {
+    const sParent = String(s.dependencies || '').toUpperCase();
+    if (sParent === parentUp) active.add(s.id);
+  }
 
   const plans = readPlans(aiDir);
   for (const p of plans) {
@@ -75,7 +84,7 @@ function collectActiveChildIds(aiDir, parentId) {
 function archiveOne(aiDir, id, options) {
   const resolved = resolveType(id);
   if (!resolved) {
-    throw new Error(`Could not determine type for ID: ${id}. Use SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
+    throw new Error(`Could not determine type for ID: ${id}. Use EPIC-NNN, SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
   }
   const idUp = id.toUpperCase();
   const fileName = `${idUp}.md`;
@@ -185,6 +194,15 @@ function archiveByStatus(aiDir, options) {
     if (isTerminal(s.status)) {
       try {
         results.push(archiveOne(aiDir, s.id, options));
+      } catch (e) { errors.push(e.message); }
+    }
+  }
+  // Then epics (parent of specs).
+  const epics = readEpics(aiDir);
+  for (const r of epics) {
+    if (isTerminal(r.status)) {
+      try {
+        results.push(archiveOne(aiDir, r.id, options));
       } catch (e) { errors.push(e.message); }
     }
   }

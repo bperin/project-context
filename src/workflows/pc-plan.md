@@ -20,6 +20,11 @@ Never use an unpinned or general subagent in this workflow.
 1. Dispatch pinned `planning-brain` in the foreground with the request and
    repository context. The planning-brain loads `adhd` for divergent ideation,
    then returns a concise specification decision brief.
+
+   **If refining a epic item:** include the epic file and the specific
+   item to refine. The planning-brain uses the epic for context and the
+   item as the scope. The resulting spec's `Dependencies` field points to
+   the epic ID (e.g. `EPIC-001`).
 2. Collect its problem, users, behavior, boundaries, constraints, chosen scope,
    rejected alternatives, criteria, and open questions.
 3. Dispatch pinned `spec-writer` in the foreground with the brief, root
@@ -34,6 +39,9 @@ Never use an unpinned or general subagent in this workflow.
 5. If objectively blocked, re-dispatch `spec-writer` once, then confirm only the
    original findings. If one remains, ask the user instead of looping.
 6. **Hard stop:** present the specification and wait for approval.
+
+   **If refining a epic item:** after approval, update the epic MD:
+   set the item's `Status` to `specced` and `Spec` to the new SPEC-NNN ID.
 
 ## Phase 2: Implementation plan
 

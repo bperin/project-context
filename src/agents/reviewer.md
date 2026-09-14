@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: "Reviewer — read-only. Checks documents and code for correctness and rule compliance."
-model: swe-2-high
+model: swe-1.7-medium
 allowed-tools:
   - read
   - grep
@@ -21,7 +21,7 @@ Read the files you were given. Check only the criteria you were given. Output th
 ## Output
 
 ```
-MUST-FIX:
+MUST-FIX:fo
 - [file:line] <exact text> — <why>
 
 SHOULD-FIX:
