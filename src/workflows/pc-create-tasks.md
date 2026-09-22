@@ -9,21 +9,17 @@ JSONL directly.
 
 ## Pattern
 
-The planning-brain may dispatch its own workstream-analyst subagents
-in parallel, collect their reports, then serialize writes. Only the
-planning-brain writes task state.
+Only the planning-brain writes task state.
 
 ```
-Orchestrator dispatches planning-brain (with spec + plan in task prompt)
-    → Planning-brain dispatches workstream analysts in parallel (optional)
-    → Planning-brain collects all analyst reports
+Orchestrator loads grill-me → interrogates the plan
+    → Orchestrator dispatches planning-brain (with spec + plan + grill findings)
+    → Planning-brain loads ADHD for divergent ideation on task decomposition
     → Planning-brain registers all tasks via CLI in build order
     → Planning-brain edits each TASK-NNN.md with details
     → Planning-brain writes the build order into data/tasks.jsonl
     → Planning-brain writes the per-plan timeline into plans/PLAN-NNN.timeline.jsonl
     → Planning-brain returns its report
-    → Orchestrator dispatches reviewer → reviewer checks task files
-    → Orchestrator re-dispatches planning-brain with findings → it revises
     → Done — ready for task implementation
 ```
 
@@ -32,24 +28,30 @@ has full context — no re-reading, no context transfer.
 
 ## Steps
 
-1. **Build a context packet** for the plan:
+1. **Load `grill-me` skill.** Interrogate the plan:
+   - What are the workstreams?
+   - What does each workstream deliver?
+   - What are the dependencies between workstreams?
+   - What are the risks?
+   Grill until the task decomposition approach is clear.
+
+2. **Build a context packet** for the plan:
+
    ```bash
    ./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json
    ```
 
-2. **Dispatch the planning-brain** (foreground, `planning-brain` profile,
-   `is_background: false`). **Pass the spec content, plan content, and
-   architecture brief in the task prompt** — the planning-brain wrote
-   them but this is a fresh dispatch. Tell it **Phase: TASKS**. Also
-   pass the context packet path, `AGENTS.md` path, and the
-   instruction to write and register tasks. The planning-brain:
-   - Has the spec, plan, and architecture brief in its task prompt
-   - **May dispatch up to four `workstream-analyst` subagents**
-     (`is_background: true`, one per workstream) for parallel
-     analysis. Collects all results via `read_subagent` before
-     writing. Skips this for small plans or tightly coupled workstreams.
-   - Thinks through 2-3 implementation approaches per workstream, picks
-     one (no `adhd` here — the plan already decided the high-level approach)
+3. **Dispatch the planning-brain** (foreground, `planning-brain` profile,
+   `is_background: false`). **Pass the spec content, plan content,
+   architecture brief, and grill-me findings in the task prompt** — the
+   planning-brain wrote them but this is a fresh dispatch. Tell it
+   **Phase: TASKS**. Also pass the context packet path, `AGENTS.md` path,
+   and the instruction to write and register tasks. The planning-brain:
+   - Has the spec, plan, architecture brief, and grill-me findings in its
+     task prompt
+   - **Loads `adhd` for divergent ideation on task decomposition.** Think
+     from multiple cognitive frames about how to split the plan into
+     granular, independently verifiable tasks. Maximize parallelism.
    - Consults `graph/nodes/` and `graph/edges/` for file placement
    - **Maximizes parallelism.** Builds a dependency DAG that minimizes
      the critical path. Tasks should depend on each other only when
@@ -75,22 +77,7 @@ has full context — no re-reading, no context transfer.
      uses `edit` to replace the template body with real content. Never
      `write` a TASK-NNN.md directly — the CLI `add` is the only thing
      that creates task files and JSONL records.
-   Block on `read_subagent` to collect its report.
-
-3. **Dispatch the reviewer** (foreground, `reviewer` profile,
-   `is_background: false`). Give it the task file paths, the plan
-   file, and the spec file. The reviewer **fixes issues directly** —
-   it has write access and edits the task files itself. No bouncing
-   back to the planning-brain. It checks:
-   - Each task maps to a plan workstream
-   - Each workstream traces back to a spec requirement
-   - JSONL build order matches plan workstream order
-   - Cited file paths respect dependency rules
-   - Each task defines tests (success, failure, boundary)
-   - Each task has acceptance criteria and verification commands
-   - Do-not-touch list present
-   - All template sections present
-   Block on `read_subagent` to collect results.
+     Block on `read_subagent` to collect its report.
 
 4. **Commit and clean up.** Commit the task files and JSONL together, then delete
    `.context-PLAN-NNN.json`. Tell the user
@@ -104,30 +91,23 @@ has full context — no re-reading, no context transfer.
 - `data/tasks.jsonl` — the build order, one `created` event per task.
 - `plans/PLAN-NNN.timeline.jsonl` — the per-plan timeline, one `queued`
   event per task.
-- All reviewed and fixed by the reviewer directly.
 
 ## Constraints
 
-- No `adhd` during task writing. The plan already decided the approach.
-- Background analysts are optional, read-only, explicitly pinned, and limited to
-  four. The planning-brain dispatches them — not the orchestrator. Never
-  use a general/unpinned background subagent.
+- `grill-me` is loaded first to interrogate the plan — reduces the need
+  for reviewer handoffs
+- `adhd` is loaded by planning-brain during task writing for divergent
+  ideation on task decomposition — no separate reviewer subagents
 - The orchestrator does not write tasks — the planning-brain subagent does.
-  The orchestrator dispatches the planning-brain, collects results, then
-  dispatches the reviewer which fixes any issues directly.
+  The orchestrator dispatches the planning-brain, collects results.
 - No skill loading. The planning-brain records skills and triggers in
   the task MD and JSONL record, but does not load or invoke them.
-- No 3-round loop. The reviewer fixes issues directly. If issues remain
-  that the reviewer cannot fix, escalate to the user.
+- No reviewer — grill-me + ADHD serve as quality gates
 - The planning-brain is a subagent. It does not have conversation history.
-  The orchestrator passes the spec content, plan content, and
-  architecture brief in the task prompt.
-- The reviewer has write access to task files. It fixes issues directly
-  — no bouncing back to the planning-brain.
+  The orchestrator passes the spec content, plan content, architecture
+  brief, and grill-me findings in the task prompt.
 - Only the planning-brain may call `./tools/project-context add` to
-  create tasks. The reviewer edits existing task files but does not
-  create new ones. Parallel analysts never mutate JSONL, timelines, or
-  Markdown.
+  create tasks.
 - One task file per workstream. If a workstream is large, split it into
   multiple tasks — but each task must be independently verifiable.
 - The build order in JSONL is the queue. Tasks are built one at a time

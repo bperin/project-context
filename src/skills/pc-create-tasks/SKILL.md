@@ -1,21 +1,16 @@
 ---
 name: pc-create-tasks
-description: "Build tasks from a plan using optional pinned parallel analysts, one serial task writer, then one reviewer"
+description: "Grill-me interrogates plan, planning-brain with ADHD writes tasks and JSONL. No separate reviewer."
 argument-hint: "<PLAN-NNN>"
 triggers:
   - user
   - model
 allowed-tools:
   - read
-  - edit
-  - write
-  - grep
-  - glob
   - exec
+  - skill
   - run_subagent
   - read_subagent
-  - skill
-  - todo_write
 permissions:
   allow:
     - Read(**)
@@ -28,30 +23,26 @@ permissions:
 > shared protocol, CLI commands, context packets, and dispatch rules.
 
 You are the **orchestrator**. You do not write tasks yourself — you
-dispatch the `planning-brain` agent profile (`.agents/agents/planning-brain.md`,
-a cheaper model) and collect its results.
+dispatch the `planning-brain` agent profile (`.agents/agents/planning-brain.md`)
+and collect its results.
 
 ## What you do
 
 Follow `workflows/pc-create-tasks.md` exactly. In order:
 
-1. Build a context packet: `./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
-2. For multiple independent workstreams, optionally dispatch up to four pinned
-   `workstream-analyst` agents in the background and collect every report
+1. **Load `grill-me` skill.** Interrogate the plan about workstreams,
+   dependencies, and risks.
+2. Build a context packet: `./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
 3. Dispatch `planning-brain` (foreground, write access to tasks/ + CLI) —
-   it reads the spec + plan, consults the graph, **registers each task
-   via `./tools/project-context add --type task` first** (creates the MD from
+   it reads the spec + plan + grill-me findings, loads `adhd` for divergent
+   ideation on task decomposition, **registers each task via
+   `./tools/project-context add --type task` first** (creates the MD from
    template + JSONL record), **then edits the generated MD files** to
    fill in detailed content (goal, files, symbols, constraints,
    verification). Never `write` a TASK-NNN.md directly — the CLI `add`
    is the only thing that creates task files and JSONL records.
-4. Dispatch `reviewer` (foreground, read-only) — checks task files
-   against the plan, templates, and rules
-5. Re-dispatch `planning-brain` with findings on MUST-FIX (one revision,
-   then escalate)
-6. Commit task files + JSONL together
-6. Report build order; tell the user to run `/pc-implement TASK-NNN`
+4. Commit task files + JSONL together
+5. Report build order; tell the user to run `/pc-implement TASK-NNN`
 
-Only read-only workstream analysis may run in parallel/background. Every analyst
-must use the pinned `workstream-analyst` profile. Collect all reports before the
-single foreground planning-brain mutates state; reviewer and revisions remain serial.
+The planning-brain runs in the foreground. No separate reviewer — grill-me
+and ADHD serve as quality gates.

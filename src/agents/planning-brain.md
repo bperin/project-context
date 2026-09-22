@@ -1,7 +1,7 @@
 ---
 name: planning-brain
-description: "Planning + writing brain. Thinks with ADHD, then writes specs, plans, tasks, and JSONL. Pinned to deepseek-4.1-flash-high."
-model: deepseek-4.1-flash-high
+description: "Planning + writing brain. Thinks with ADHD (self-review), then writes specs, plans, tasks, and JSONL. Pinned to openai-terra-5.6-high."
+model: openai-terra-5.6-high
 allowed-tools:
   - read
   - edit
@@ -65,14 +65,14 @@ No prose padding.
 
 Granular. Concrete files, symbols, tests, build order.
 
-No `adhd` here — the plan already decided the approach. You have the
-spec and plan in context. Think through implementation approaches per
-workstream. Consult `graph/nodes/` and `graph/edges/` for file
-placement.
+**Load `adhd`** for divergent ideation on task decomposition. Think from
+multiple cognitive frames about how to split the plan into granular,
+independently verifiable tasks. Maximize parallelism. The ADHD skill
+spawns parallel `run_subagent` calls with `is_background: true` — collect
+all results via `read_subagent` before converging.
 
-**May dispatch up to four `workstream-analyst` subagents**
-(`is_background: true`, one per workstream) for parallel analysis.
-Collect all results via `read_subagent` before writing.
+You have the spec and plan in context. Consult `graph/nodes/` and
+`graph/edges/` for file placement.
 
 **Write the tasks directly** — register each via CLI in build order,
 then edit each generated file. The generated file has `<instructions>`
@@ -83,6 +83,7 @@ a dependency just to force an order. The more tasks that can run in
 parallel, the faster implementation goes. Be technically precise —
 exact file paths, symbol names, signatures, types, test cases. No
 prose padding. Each task must include:
+
 - Goal, relevant files, relevant symbols, required change
 - Constraints, acceptance criteria, verification commands
 - **Tests to write** — each task defines its own tests (success,

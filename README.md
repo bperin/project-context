@@ -139,23 +139,15 @@ workspace profiles from `.agents/agents/`. Project-context does not duplicate
 them under `.devin/agents/`; that directory remains available for unrelated
 user-owned Devin profiles.
 
-| Profile | Model | Role | Fires when |
-|---------|-------|------|------------|
-| `planning-brain` | `gpt-5.6-terra-high` | Scope and architecture decisions | Planning only |
-| `planning-brain` | `glm-5.2-high` | Write spec from SOL decision brief | Specification phase |
-| `planning-brain` | `glm-5.2-high` | Write plan from SOL architecture brief | Plan phase |
-| `planning-brain` | `glm-5.2-high` | Serialize task documents and event history | Task creation |
-| `workstream-analyst` | `glm-5.2-high` | Read-only workstream analysis | Optional bounded parallel fan-out |
-| `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `swe-2-high` | Correctness, rule compliance, template compliance | After writer, all creation workflows |
-| `code-optimizer` | `glm-5.2-high` | Performance, memory, and concurrency review | Only when task risk or measurements warrant it |
-| `test-agent` | `swe-2-high` | Test-only specialist | Optional isolated test repair |
+| Profile          | Model        | Role                                            | Fires when                                   |
+| ---------------- | ------------ | ----------------------------------------------- | -------------------------------------------- |
+| `planning-brain` | `swe-2-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases                          |
+| `implementer`    | `swe-2-high` | Write code + complete task-level tests          | Task implementation                          |
+| `reviewer`       | `swe-2-high` | Fast focused review, fixes issues directly      | After planning-brain, all creation workflows |
 
-The root agent is a lightweight orchestrator. A custom `planning-brain` profile
-is explicitly pinned to `gpt-5.6-terra-high`; document writers use
-`glm-5.2-high`, implementation uses `swe-2-high`, and review uses
-`swe-2-high`. The workflow never uses `subagent_general`, which would inherit
-the root model.
+The root agent is a lightweight orchestrator. All pinned subagent
+profiles use `swe-2-high`. The workflow never uses `subagent_general`,
+which would inherit the root model.
 
 ## Subagent architecture
 
@@ -164,26 +156,19 @@ graph TD
     ORCH["**Orchestrator** (main agent)<br/>coordinates pinned profiles"]
 
     subgraph "Custom profiles (.agents/agents/)"
-        BRAIN["planning-brain.md<br/>model: gpt-5.6-terra-high<br/>scope + architecture"]
-        WRITERS["spec/plan/task writers<br/>model: glm-5.2-high"]
+        BRAIN["planning-brain.md<br/>model: swe-2-high<br/>planning + writing"]
         IMPL["implementer.md<br/>model: swe-2-high<br/>write access, with context"]
         REV["reviewer.md<br/>model: swe-2-high<br/>read-only, with context"]
-        CODEOPT["code-optimizer.md<br/>model: glm-5.2-high<br/>read-only, with context"]
-        TEST["test-agent.md<br/>model: swe-2-high<br/>write access"]
     end
 
-    ORCH -->|"planning decisions"| BRAIN
-    ORCH -->|"documents"| WRITERS
+    ORCH -->|"planning"| BRAIN
     ORCH -->|"implementation"| IMPL
-    ORCH -->|"after writer"| REV
-    ORCH -->|"after implementer"| CODEOPT
-    ORCH -->|"after review"| TEST
+    ORCH -->|"after planning / after implementation"| REV
 ```
 
-Task creation may fan out up to four pinned read-only analysts. Implementation may
-run up to three pinned `swe-2-high` implementers in the background when tasks are
-dependency-ready and have disjoint write sets. Reviews, commits, and project-state
-updates remain serial.
+Implementation may run up to three pinned `swe-2-high` implementers in
+the background when tasks are dependency-ready and have disjoint write
+sets. Reviews, commits, and project-state updates remain serial.
 Subagents receive context packets (not conversation history) built by
 the CLI. Each packet contains the target entity, parent, children,
 modules, components, and cascaded skills.
@@ -193,16 +178,16 @@ modules, components, and cascaded skills.
 The `pc-*` skills are the user-facing slash commands that drive the
 workflow. They live in `.agents/skills/` and are discovered by Devin.
 
-| Command | Purpose |
-|---------|---------|
-| `/pc-epic` | Write a high-level epic from a vision — planning-brain loads adhd, planning-brain writes, review |
-| `/pc-spec` | Run the planning workflow — adhd once, write spec, review, write plan, review |
-| `/pc-create-tasks` | Run the planning-brain workflow — read spec+plan, write task MDs + JSONL |
-| `/pc-implement` | Implement + complete tests → verify → one focused review; optimizer only when warranted |
-| `/pc-review` | Run the PR review workflow — mechanical checks, dispatch reviewer, open PR |
-| `/pc-inspect-project` | Read project state and print specs/plans/tasks with status |
-| `/pc-context` | Build a context packet for a spec/plan/task |
-| `/pc-uuid` | Generate a deterministic UUID from an ID |
+| Command               | Purpose                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| `/pc-epic`            | Write a high-level epic from a vision — planning-brain loads adhd, planning-brain writes, review |
+| `/pc-spec`            | Run the planning workflow — adhd once, write spec, review, write plan, review                    |
+| `/pc-create-tasks`    | Run the planning-brain workflow — read spec+plan, write task MDs + JSONL                         |
+| `/pc-implement`       | Implement + complete tests → verify → one focused review; optimizer only when warranted          |
+| `/pc-review`          | Run the PR review workflow — mechanical checks, dispatch reviewer, open PR                       |
+| `/pc-inspect-project` | Read project state and print specs/plans/tasks with status                                       |
+| `/pc-context`         | Build a context packet for a spec/plan/task                                                      |
+| `/pc-uuid`            | Generate a deterministic UUID from an ID                                                         |
 
 ## Commands
 
@@ -310,10 +295,9 @@ target repository/
 │   ├── .agents/
 │   │   ├── AGENTS.md               # shared skill instructions (generated)
 │   │   ├── agents/                 # subagent profiles (generated)
+│   │   │   ├── planning-brain.md
 │   │   │   ├── reviewer.md
-│   │   │   ├── code-optimizer.md
-│   │   │   ├── implementer.md
-│   │   │   └── test-agent.md
+│   │   │   └── implementer.md
 │   │   └── skills/                 # pc-* workflow skills (generated)
 │   ├── workflows/                  # workflow definitions (generated)
 │   ├── templates/                  # document templates (generated)
@@ -361,12 +345,12 @@ This project uses [semantic-release](https://semantic-release.gitbook.io/)
 with [conventional commits](https://www.conventionalcommits.org/).
 Version bumps are automatic based on commit messages:
 
-| Commit type | Version bump |
-|-------------|-------------|
-| `feat:` | minor |
-| `fix:`, `perf:` | patch |
-| `feat!:` or `BREAKING CHANGE:` | major |
-| `docs:`, `chore:`, `style:`, `test:`, `refactor:` | none |
+| Commit type                                       | Version bump |
+| ------------------------------------------------- | ------------ |
+| `feat:`                                           | minor        |
+| `fix:`, `perf:`                                   | patch        |
+| `feat!:` or `BREAKING CHANGE:`                    | major        |
+| `docs:`, `chore:`, `style:`, `test:`, `refactor:` | none         |
 
 A `CHANGELOG.md` is generated automatically with each release.
 
@@ -377,10 +361,9 @@ project-context/
 ├── bin/cli.js                      # CLI entry point
 ├── src/
 │   ├── agents/                     # subagent profile source
+│   │   ├── planning-brain.md       #   model: swe-2-high
 │   │   ├── reviewer.md             #   model: swe-2-high
-│   │   ├── code-optimizer.md       #   model: glm-5.2-high
-│   │   ├── implementer.md          #   model: gpt-5.6-terra-high
-│   │   └── test-agent.md           #   model: swe-2-high
+│   │   └── implementer.md          #   model: swe-2-high
 │   ├── commands/                   # CLI commands
 │   │   ├── init.js
 │   │   ├── inspect.js

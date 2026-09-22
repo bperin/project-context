@@ -35,16 +35,16 @@ or the final handoff instead of streaming it token by token.
 JSONL files hold append-only event history: add events, never rewrite prior
 events. Markdown specs, plans, and tasks are living documents and may be edited.
 
-| File | Content |
-|------|---------|
-| `data/tasks.jsonl` | Task event log — append-only. Each line is an event (created, started, done). |
-| `plans/PLAN-NNN.timeline.jsonl` | Per-plan build timeline — append-only. |
-| `data/identity.json` | Project name, stack, modules, repo |
-| `data/skills.json` | Skill registry and skill matrix |
-| `data/decisions.json` | ADR index |
-| `specs/SPEC-NNN.md` | Spec documents (human-readable) |
-| `plans/PLAN-NNN.md` | Plan documents (human-readable) |
-| `tasks/TASK-NNN.md` | Task documents (human-readable) |
+| File                            | Content                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `data/tasks.jsonl`              | Task event log — append-only. Each line is an event (created, started, done). |
+| `plans/PLAN-NNN.timeline.jsonl` | Per-plan build timeline — append-only.                                        |
+| `data/identity.json`            | Project name, stack, modules, repo                                            |
+| `data/skills.json`              | Skill registry and skill matrix                                               |
+| `data/decisions.json`           | ADR index                                                                     |
+| `specs/SPEC-NNN.md`             | Spec documents (human-readable)                                               |
+| `plans/PLAN-NNN.md`             | Plan documents (human-readable)                                               |
+| `tasks/TASK-NNN.md`             | Task documents (human-readable)                                               |
 
 Do not edit JSONL files directly. Register records with `./tools/project-context add`,
 append metadata changes with `./tools/project-context update`, and update status with
@@ -82,14 +82,14 @@ The planning-brain writes `queued` events. The `status` command appends
 Workflows are markdown files in `workflows/`. Each has an inline mermaid
 flowchart that renders in GitHub and IDE preview.
 
-| Workflow | File | When |
-|----------|------|------|
-| Epic | `workflows/pc-epic.md` | When a user describes a high-level vision with multiple features |
-| Plan | `workflows/pc-spec.md` | When a user describes what to build, or refining an epic item |
-| Task | `workflows/pc-create-tasks.md` | After a plan is committed — planning-brain creates tasks + JSONL build order |
-| Implement | `workflows/pc-implement.md` | When a task moves to `in_progress` |
-| Test failure | `workflows/test-failure.md` | When tests fail during implementation or verification |
-| PR review | `workflows/pc-review.md` | Before any PR — run checks, verify tasks done, open PR |
+| Workflow     | File                           | When                                                                         |
+| ------------ | ------------------------------ | ---------------------------------------------------------------------------- |
+| Epic         | `workflows/pc-epic.md`         | When a user describes a high-level vision with multiple features             |
+| Plan         | `workflows/pc-spec.md`         | When a user describes what to build, or refining an epic item                |
+| Task         | `workflows/pc-create-tasks.md` | After a plan is committed — planning-brain creates tasks + JSONL build order |
+| Implement    | `workflows/pc-implement.md`    | When a task moves to `in_progress`                                           |
+| Test failure | `workflows/test-failure.md`    | When tests fail during implementation or verification                        |
+| PR review    | `workflows/pc-review.md`       | Before any PR — run checks, verify tasks done, open PR                       |
 
 See [`overview.md`](workflows/overview.md) for mermaid diagrams of the
 full lifecycle and each workflow.
@@ -150,9 +150,7 @@ the planning-brain does not re-read the files:
 1. Orchestrator dispatches the planning-brain (foreground, `is_background: false`).
    The planning-brain has the spec, plan, and architecture brief in its
    task prompt.
-2. The planning-brain may dispatch up to four `workstream-analyst`
-   subagents in parallel (`is_background: true`) for independent
-   workstreams. It collects all reports before writing.
+2. The planning-brain does not dispatch additional subagents.
 3. The planning-brain thinks through implementation approaches for each
    workstream and consults the project graph for file placement.
 4. The planning-brain writes `TASK-NNN.md` files — one per workstream.
@@ -187,9 +185,9 @@ Follow the pc-implement workflow
    it checks that every spec behavior was implemented and every plan
    workstream is complete. One review, not per-wave.
 
-**Bounded parallelism.** Task creation may use up to four pinned read-only
-analysts. Implementation may run up to five pinned implementers for ready tasks
-with disjoint write sets. Reviews, commits, and manager-state mutations are serial.
+**Bounded parallelism.** Implementation may run up to five pinned
+implementers for ready tasks with disjoint write sets. Reviews, commits,
+and manager-state mutations are serial.
 
 **The orchestrator coordinates.** It builds context packets, dispatches
 implementers and reviewers, collects results, and decides next steps.

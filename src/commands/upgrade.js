@@ -1,9 +1,16 @@
-const fs = require('fs');
-const path = require('path');
-const { copyWithHeader, detectLanguage, createDataFiles, readIdentity, writeJSON, ensureContextPacketsIgnored } = require('./shared');
+const fs = require("fs");
+const path = require("path");
+const {
+  copyWithHeader,
+  detectLanguage,
+  createDataFiles,
+  readIdentity,
+  writeJSON,
+  ensureContextPacketsIgnored,
+} = require("./shared");
 
 async function upgradeCommand(options) {
-  const targetDir = path.resolve(options.target || '.');
+  const targetDir = path.resolve(options.target || ".");
   const repoName = path.basename(targetDir);
 
   // Find existing workspace, or default to .{reponame}-manager
@@ -11,15 +18,20 @@ async function upgradeCommand(options) {
   if (!workspace) {
     const expected = `.${repoName}-manager`;
     const entries = fs.readdirSync(targetDir);
-    const candidates = entries.filter(e => e.startsWith('.') && fs.statSync(path.join(targetDir, e)).isDirectory());
-    const known = candidates.find(e => e === expected || e.endsWith('-manager'));
+    const candidates = entries.filter(
+      (e) =>
+        e.startsWith(".") && fs.statSync(path.join(targetDir, e)).isDirectory(),
+    );
+    const known = candidates.find(
+      (e) => e === expected || e.endsWith("-manager"),
+    );
     workspace = known || expected;
   }
 
   const wsDir = path.join(targetDir, workspace);
   if (!fs.existsSync(wsDir)) {
     console.error(`Workspace not found: ${wsDir}`);
-    console.error('Run init first.');
+    console.error("Run init first.");
     process.exit(1);
   }
 
@@ -31,56 +43,82 @@ async function upgradeCommand(options) {
   // Source root for assets. Defaults to this package's src/ directory.
   // Pass --source <dir> to sync assets from another checkout (e.g. when
   // running a vendored binary that does not bundle the markdown assets).
-  const srcRoot = options.source ? path.resolve(options.source) : path.join(__dirname, '..');
-  const srcWorkflows = path.join(srcRoot, 'workflows');
-  const srcSkills = path.join(srcRoot, 'skills');
-  const srcAgents = path.join(srcRoot, 'agents');
-  const srcTemplates = path.join(srcRoot, 'templates');
+  const srcRoot = options.source
+    ? path.resolve(options.source)
+    : path.join(__dirname, "..");
+  const srcWorkflows = path.join(srcRoot, "workflows");
+  const srcSkills = path.join(srcRoot, "skills");
+  const srcAgents = path.join(srcRoot, "agents");
+  const srcTemplates = path.join(srcRoot, "templates");
 
   // Clean up obsolete files from older versions. We don't migrate data
   // from these — we just remove them. Existing specs/plans/tasks MD
   // files are left alone.
   const obsoleteFiles = [
-    path.join(wsDir, 'overview.xlsx'),
-    path.join(wsDir, 'overview.csv'),
-    path.join(wsDir, 'workflows', 'spec-creation.md'),
-    path.join(wsDir, 'workflows', 'plan-creation.md'),
-    path.join(wsDir, 'workflows', 'task-creation.md'),
+    path.join(wsDir, "overview.xlsx"),
+    path.join(wsDir, "overview.csv"),
+    path.join(wsDir, "workflows", "spec-creation.md"),
+    path.join(wsDir, "workflows", "plan-creation.md"),
+    path.join(wsDir, "workflows", "task-creation.md"),
     // Old workflow names (pre-skill-name alignment)
-    path.join(wsDir, 'workflows', 'plan-workflow.md'),
-    path.join(wsDir, 'workflows', 'task-workflow.md'),
-    path.join(wsDir, 'workflows', 'task-implementation.md'),
-    path.join(wsDir, 'workflows', 'code-review.md'),
+    path.join(wsDir, "workflows", "plan-workflow.md"),
+    path.join(wsDir, "workflows", "task-workflow.md"),
+    path.join(wsDir, "workflows", "task-implementation.md"),
+    path.join(wsDir, "workflows", "code-review.md"),
     // Old templates no longer generated
-    path.join(wsDir, 'templates', 'STATE.md'),
-    path.join(wsDir, 'templates', 'current.md'),
-    path.join(wsDir, 'templates', 'DECISIONS.md'),
-    path.join(wsDir, 'templates', 'skill.md'),
-    path.join(wsDir, 'templates', 'skill.template.md'),
-    path.join(wsDir, 'templates', 'state.template.md'),
-    path.join(wsDir, 'templates', 'workflow.template.md'),
-    path.join(wsDir, 'templates', 'architecture.template.md'),
-    path.join(wsDir, 'templates', 'identity.template.md'),
-    path.join(wsDir, 'templates', 'ADR-NNN.template.md'),
+    path.join(wsDir, "templates", "STATE.md"),
+    path.join(wsDir, "templates", "current.md"),
+    path.join(wsDir, "templates", "DECISIONS.md"),
+    path.join(wsDir, "templates", "skill.md"),
+    path.join(wsDir, "templates", "skill.template.md"),
+    path.join(wsDir, "templates", "state.template.md"),
+    path.join(wsDir, "templates", "workflow.template.md"),
+    path.join(wsDir, "templates", "architecture.template.md"),
+    path.join(wsDir, "templates", "identity.template.md"),
+    path.join(wsDir, "templates", "ADR-NNN.template.md"),
     // Renamed: pc-plan.md → pc-spec.md
-    path.join(wsDir, 'workflows', 'pc-plan.md'),
+    path.join(wsDir, "workflows", "pc-plan.md"),
   ];
   const obsoleteSkillDirs = [
     // Old workflow names (pre-pc- prefix)
-    'create-spec', 'create-plan', 'create-task',
-    'approve-spec', 'approve-plan',
-    'spec-optimizer', 'plan-optimizer', 'task-optimizer',
+    "create-spec",
+    "create-plan",
+    "create-task",
+    "approve-spec",
+    "approve-plan",
+    "spec-optimizer",
+    "plan-optimizer",
+    "task-optimizer",
     // Old non-prefixed skill names (renamed to pc-*)
-    'code-optimizer', 'context', 'implement', 'implementer',
-    'inspect-project', 'plan', 'review', 'reviewer', 'test', 'uuid',
+    "code-optimizer",
+    "context",
+    "implement",
+    "inspect-project",
+    "plan",
+    "review",
+    "test",
+    "uuid",
     // Renamed: pc-plan → pc-spec
-    'pc-plan',
+    "pc-plan",
+    // Removed in favor of writer + challenger
+    "implementer",
+    "reviewer",
   ];
   const obsoleteAgentProfiles = [
-    'spec-optimizer.md', 'plan-optimizer.md', 'task-optimizer.md',
-    'code-optimizer.md',
+    "spec-optimizer.md",
+    "plan-optimizer.md",
+    "task-optimizer.md",
+    "code-optimizer.md",
     // Merged into planning-brain — no separate writers
-    'spec-writer.md', 'plan-writer.md', 'task-writer.md',
+    "spec-writer.md",
+    "plan-writer.md",
+    "task-writer.md",
+    // Replaced by writer + challenger
+    "implementer.md",
+    "reviewer.md",
+    // Removed from profile set — only planning-brain, implementer, reviewer remain
+    "workstream-analyst.md",
+    "test-agent.md",
   ];
 
   for (const f of obsoleteFiles) {
@@ -90,50 +128,58 @@ async function upgradeCommand(options) {
     }
   }
   for (const skillName of obsoleteSkillDirs) {
-    const d = path.join(wsDir, '.agents', 'skills', skillName);
+    const d = path.join(wsDir, ".agents", "skills", skillName);
     if (fs.existsSync(d)) {
       fs.rmSync(d, { recursive: true, force: true });
       console.log(`Removed obsolete skill: ${skillName}`);
     }
   }
   for (const agentFile of obsoleteAgentProfiles) {
-    for (const agentsBase of [path.join(wsDir, '.agents', 'agents'), path.join(targetDir, '.devin', 'agents')]) {
+    for (const agentsBase of [
+      path.join(wsDir, ".agents", "agents"),
+      path.join(targetDir, ".devin", "agents"),
+    ]) {
       const f = path.join(agentsBase, agentFile);
       if (fs.existsSync(f)) {
         fs.rmSync(f, { force: true });
-        console.log(`Removed obsolete agent profile: ${path.relative(targetDir, f)}`);
+        console.log(
+          `Removed obsolete agent profile: ${path.relative(targetDir, f)}`,
+        );
       }
     }
   }
 
   // Ensure directories exist
   const dirs = [
-    path.join(wsDir, '.agents', 'skills'),
-    path.join(wsDir, 'workflows'),
-    path.join(wsDir, 'epics'),
-    path.join(wsDir, 'specs'),
-    path.join(wsDir, 'plans'),
-    path.join(wsDir, 'tasks'),
-    path.join(wsDir, 'decisions'),
-    path.join(wsDir, 'architecture'),
-    path.join(wsDir, 'identity'),
-    path.join(wsDir, 'graph'),
+    path.join(wsDir, ".agents", "skills"),
+    path.join(wsDir, "workflows"),
+    path.join(wsDir, "epics"),
+    path.join(wsDir, "specs"),
+    path.join(wsDir, "plans"),
+    path.join(wsDir, "tasks"),
+    path.join(wsDir, "decisions"),
+    path.join(wsDir, "architecture"),
+    path.join(wsDir, "identity"),
+    path.join(wsDir, "graph"),
   ];
   for (const d of dirs) fs.mkdirSync(d, { recursive: true });
 
   // Copy AGENTS.md (workflow protocol)
-  const agentsTemplate = path.join(srcTemplates, 'AGENTS.md');
+  const agentsTemplate = path.join(srcTemplates, "AGENTS.md");
   if (fs.existsSync(agentsTemplate)) {
-    copyWithHeader(agentsTemplate, path.join(wsDir, 'AGENTS.md'));
+    copyWithHeader(agentsTemplate, path.join(wsDir, "AGENTS.md"));
   } else {
-    fs.writeFileSync(path.join(wsDir, 'AGENTS.md'), '# Agent Protocol\n');
+    fs.writeFileSync(path.join(wsDir, "AGENTS.md"), "# Agent Protocol\n");
   }
 
   // Copy workflow .md files
   if (fs.existsSync(srcWorkflows)) {
     for (const f of fs.readdirSync(srcWorkflows)) {
-      if (f.endsWith('.md') && !f.includes('template')) {
-        copyWithHeader(path.join(srcWorkflows, f), path.join(wsDir, 'workflows', f));
+      if (f.endsWith(".md") && !f.includes("template")) {
+        copyWithHeader(
+          path.join(srcWorkflows, f),
+          path.join(wsDir, "workflows", f),
+        );
       }
     }
   }
@@ -144,13 +190,13 @@ async function upgradeCommand(options) {
   // header — they get injected into generated files via XML tags, so the
   // header would be noise inside the <instructions> block.
   if (fs.existsSync(srcTemplates)) {
-    const dstTemplates = path.join(wsDir, 'templates');
+    const dstTemplates = path.join(wsDir, "templates");
     fs.mkdirSync(dstTemplates, { recursive: true });
     for (const f of fs.readdirSync(srcTemplates)) {
-      if (!f.endsWith('.md')) continue;
+      if (!f.endsWith(".md")) continue;
       const srcFile = path.join(srcTemplates, f);
       const dstFile = path.join(dstTemplates, f);
-      if (f.endsWith('.instructions.md')) {
+      if (f.endsWith(".instructions.md")) {
         fs.copyFileSync(srcFile, dstFile);
       } else {
         copyWithHeader(srcFile, dstFile);
@@ -159,16 +205,16 @@ async function upgradeCommand(options) {
   }
 
   // Copy workflow skills from src/skills/
-  const agentsDir = path.join(wsDir, '.agents');
-  const skillsDir = path.join(agentsDir, 'skills');
+  const agentsDir = path.join(wsDir, ".agents");
+  const skillsDir = path.join(agentsDir, "skills");
 
   if (fs.existsSync(srcSkills)) {
-    const agentsInstructions = path.join(srcSkills, 'AGENTS.md');
+    const agentsInstructions = path.join(srcSkills, "AGENTS.md");
     if (fs.existsSync(agentsInstructions)) {
-      copyWithHeader(agentsInstructions, path.join(agentsDir, 'AGENTS.md'));
+      copyWithHeader(agentsInstructions, path.join(agentsDir, "AGENTS.md"));
     }
     for (const skillName of fs.readdirSync(srcSkills)) {
-      if (skillName === 'AGENTS.md') continue;
+      if (skillName === "AGENTS.md") continue;
       const srcSkillDir = path.join(srcSkills, skillName);
       if (!fs.statSync(srcSkillDir).isDirectory()) continue;
       const dstSkillDir = path.join(skillsDir, skillName);
@@ -184,8 +230,10 @@ async function upgradeCommand(options) {
   // frontmatter that must be the first line — prepending an HTML comment
   // breaks frontmatter parsing.
   if (fs.existsSync(srcAgents)) {
-    const profileFiles = fs.readdirSync(srcAgents).filter((f) => f.endsWith('.md'));
-    const dstAgentsDir = path.join(agentsDir, 'agents');
+    const profileFiles = fs
+      .readdirSync(srcAgents)
+      .filter((f) => f.endsWith(".md"));
+    const dstAgentsDir = path.join(agentsDir, "agents");
     fs.mkdirSync(dstAgentsDir, { recursive: true });
     for (const f of profileFiles) {
       fs.copyFileSync(path.join(srcAgents, f), path.join(dstAgentsDir, f));
@@ -194,8 +242,8 @@ async function upgradeCommand(options) {
     // Remove any stale managed profiles from .devin/agents/ so only
     // .agents/agents/ has them. Check both root and workspace-level.
     const devinAgentsPaths = [
-      path.join(targetDir, '.devin', 'agents'),
-      path.join(wsDir, '.devin', 'agents'),
+      path.join(targetDir, ".devin", "agents"),
+      path.join(wsDir, ".devin", "agents"),
     ];
     for (const devinAgentsDir of devinAgentsPaths) {
       if (fs.existsSync(devinAgentsDir)) {
@@ -204,7 +252,9 @@ async function upgradeCommand(options) {
           if (fs.existsSync(stale)) fs.rmSync(stale, { force: true });
         }
         // Remove the dir if empty
-        try { fs.rmdirSync(devinAgentsDir); } catch (e) {}
+        try {
+          fs.rmdirSync(devinAgentsDir);
+        } catch (e) {}
       }
     }
   }
@@ -218,35 +268,53 @@ async function upgradeCommand(options) {
 
   // Ensure data files exist (create if missing, preserve if existing)
   const language = detectLanguage(targetDir);
-  const dataDir = path.join(wsDir, 'data');
-  if (!fs.existsSync(path.join(dataDir, 'identity.json'))) {
+  const dataDir = path.join(wsDir, "data");
+  if (!fs.existsSync(path.join(dataDir, "identity.json"))) {
     createDataFiles(wsDir, language, repoName, repoName);
   }
 
   // Ensure .agents symlink exists (unless --no-symlink)
   if (options.symlink !== false) {
-    const agentsLink = path.join(targetDir, '.agents');
-    try { fs.rmSync(agentsLink, { recursive: true, force: true }); } catch (e) {}
-    fs.symlinkSync(path.join(workspace, '.agents'), agentsLink);
+    const agentsLink = path.join(targetDir, ".agents");
+    try {
+      fs.rmSync(agentsLink, { recursive: true, force: true });
+    } catch (e) {}
+    fs.symlinkSync(path.join(workspace, ".agents"), agentsLink);
     console.log(`Symlinked .agents → ${workspace}/.agents`);
   }
 
   // Regenerate hooks (unless --no-hooks)
   if (options.hooks !== false) {
-    const devinDir = path.join(targetDir, '.devin');
+    const devinDir = path.join(targetDir, ".devin");
     fs.mkdirSync(devinDir, { recursive: true });
-    const hooksPath = path.join(devinDir, 'hooks.v1.json');
-    const hookPath = path.join(__dirname, '..', '..', 'scripts', 'task-done-hook.js');
+    const hooksPath = path.join(devinDir, "hooks.v1.json");
+    const hookPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "scripts",
+      "task-done-hook.js",
+    );
     const hooks = {
       PostToolUse: [
         {
-          command: 'node',
-          args: [hookPath, '-t', targetDir, '-w', workspace, '--tool', '{{tool}}', '--output-file', '{{output_file}}'],
-          match: 'setStatus|edit|write|notebook_edit',
+          command: "node",
+          args: [
+            hookPath,
+            "-t",
+            targetDir,
+            "-w",
+            workspace,
+            "--tool",
+            "{{tool}}",
+            "--output-file",
+            "{{output_file}}",
+          ],
+          match: "setStatus|edit|write|notebook_edit",
         },
       ],
     };
-    fs.writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + '\n');
+    fs.writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + "\n");
     console.log(`Generated ${hooksPath}`);
   }
 

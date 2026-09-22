@@ -41,7 +41,7 @@ The directory structure is flat — no nesting:
 ├── AGENTS.md                        # Workflow protocol (read this too)
 ├── .agents/
 │   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (implementer, reviewer, test-agent)
+│   ├── agents/                      # Custom subagent profiles (planning-brain, writer, challenger, test-agent)
 │   └── skills/                      # pc-* workflow + utility skills
 ├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
 ├── epics/EPIC-NNN.md                # Epic documents (high-level vision, ordered items)
@@ -155,11 +155,11 @@ they don't all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planning-brain` | `deepseek-4.1-flash-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
-| `workstream-analyst` | `glm-5.2-high` | Read-only task research | Optional parallel task creation |
-| `implementer` | `swe-2-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `glm-5.2-high` | Fast focused review, fixes issues directly | After planning-brain, all creation workflows |
-| `test-agent` | `swe-2-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
+| `planning-brain` | `openai-terra-5.6-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
+| `workstream-analyst` | `openai-terra-5.6-high` | Read-only task research | Optional parallel task creation |
+| `implementer` | `openai-terra-5.6-high` | Write code + complete task-level tests | Task implementation |
+| `reviewer` | `openai-terra-5.6-high` | Fast focused review, fixes issues directly | After planning-brain, all creation workflows |
+| `test-agent` | `openai-terra-5.6-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
 
 Code optimization is a **skill** (`pc-optimize`), not a separate agent.
 The implementer loads it while writing code — no extra dispatch step.

@@ -29,9 +29,7 @@ If ownership overlaps or is unclear, run those tasks sequentially. Background
 implementers share the working tree; they are not isolated branches.
 
 ```text
-select ≤5 ready tasks → start statuses → background implementers (self-review)
-→ collect all → integrated verification → one commit
-→ when all tasks in plan done → plan review
+select ≤5 ready tasks → grill-me interrogates plan → writer implements → challenger collaborates → integrated verification → one commit
 ```
 
 ## Steps
@@ -43,14 +41,19 @@ select ≤5 ready tasks → start statuses → background implementers (self-rev
    It subtracts active tasks from the five-task budget, checks dependencies,
    rejects overlapping write sets, and preserves JSONL order for equal candidates.
    Never launch a task listed under `waiting`.
-2. Build a separate context packet for each task:
-   ```bash
-   ./tools/project-context context TASK-NNN -w <workspace> -t . -o .context-TASK-NNN.json
-   ```
+
+2. For each task in the wave:
+   - **Load `grill-me` skill.** Interrogate the plan and task:
+     - What is the goal?
+     - What are the acceptance criteria?
+     - What are the edge cases?
+     Grill until the implementation approach is clear.
+
 3. Append each `in_progress` status serially before dispatch. Do not let subagents
    edit manager state.
-4. Dispatch one pinned `implementer` (`swe-2-high`) per task with
-   `is_background: true`. Each implementer has its own clean context —
+
+4. Dispatch one pinned `writer` (`openai-terra-5.6-high`) per task with
+   `is_background: true`. Each writer has its own clean context —
    no conversation history. The `task:` prompt must contain everything:
 
    ```
@@ -64,27 +67,43 @@ select ≤5 ready tasks → start statuses → background implementers (self-rev
    Implement TASK-NNN. Stay within these files only: <exclusive list>.
    Do not touch: <do-not-touch list>. Load pc-optimize before verification.
    Write the tests defined in the task file.
-   Run <verification commands>. Self-review: dispatch a reviewer with
-   your diff and the task's acceptance criteria. Fix MUST-FIX issues.
-   do not commit or change task status.",
-     profile: "implementer",
+   Run <verification commands>. do not commit or change task status.",
+     profile: "writer",
      is_background: true
    )
    ```
 
-   Each implementer writes code, writes tests, and self-reviews by
-   dispatching its own reviewer. The orchestrator does not review —
-   the implementer handles it.
-5. Wait for completion notifications and collect every result. Background agents
+5. After each writer completes, dispatch one pinned `challenger`
+   (`5.6-luna-medium`) with `is_background: true` to challenge parts
+   of the implementation and collaborate:
+
+   ```
+   run_subagent(
+     title: "Challenge TASK-NNN implementation",
+     task: "Read the task file and the diff. Challenge the implementation:
+   - Does the diff satisfy acceptance criteria?
+   - Are the tests comprehensive (success, failure, boundary)?
+   - Are there edge cases missed?
+   - Is the code clean and efficient?
+   Collaborate with the writer — suggest improvements, identify gaps.
+   Return a concise report of issues found or 'pass'.",
+     profile: "challenger",
+     is_background: true
+   )
+   ```
+
+6. Wait for completion notifications and collect every result. Background agents
    cannot request new permissions; if one is denied, resume only that agent in the
    foreground. If an agent fails, keep the wave tasks `in_progress` and stop before
    commit.
    If no task is ready while agents are active, block on `read_subagent` for an
    active agent. Do not sleep or repeatedly poll. After completion, update state
    and run `./tools/project-context ready` again to backfill the open slot.
-6. Check the combined diff against declared ownership, then run applicable
+
+7. Check the combined diff against declared ownership, then run applicable
    project-level mechanical verification once over the integrated wave.
-7. Commit the verified wave once, then append each `done` status serially and
+
+8. Commit the verified wave once, then append each `done` status serially and
    rebuild the graph:
    ```bash
    ./tools/project-context status TASK-NNN done -w <workspace> -t .
@@ -94,17 +113,9 @@ select ≤5 ready tasks → start statuses → background implementers (self-rev
 
 ## Plan review
 
-When all tasks in a plan are `done`, dispatch one `reviewer` with the
-plan file, spec file, and the full diff. The reviewer checks:
-- Every spec behavior was implemented
-- Every plan workstream is complete
-- No regressions introduced
-- All checks pass
-
-This replaces per-wave reviews and PR reviews. One review at plan
-completion. The reviewer fixes issues directly — it has write access.
-If issues remain that the reviewer cannot fix, escalate to the user.
-Then commit and open the PR.
+When all tasks in a plan are `done`, skip the plan review — the
+challenger already validated each implementation during the wave.
+Commit and open the PR.
 
 ## Constraints
 
@@ -112,6 +123,6 @@ Then commit and open the PR.
 - Never parallelize tasks with overlapping or unknown write sets.
 - No per-agent commits and no concurrent JSONL or Markdown state writes.
 - One integrated commit per wave.
-- Implementers self-review — the orchestrator does not dispatch a
-  separate reviewer per wave.
-- One plan review when all tasks in the plan are done.
+- grill-me interrogates the plan before implementation — no handoffs
+- writer implements, challenger collaborates — no separate reviewer per wave
+- No plan review after wave completion — challenger already validated

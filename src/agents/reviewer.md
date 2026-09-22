@@ -1,7 +1,7 @@
 ---
 name: reviewer
-description: "Reviewer. Fast, focused, fixes issues directly. Pinned to glm-5.2-high."
-model: glm-5.2-high
+description: "Reviewer. Fast, focused, fixes issues directly. Pinned to swe-2-high."
+model: swe-2-high
 allowed-tools:
   - read
   - edit
@@ -28,14 +28,14 @@ REMAINING: <issues you couldn't fix, or "none">
 - Out-of-scope present?
 - Success criteria measurable?
 - Sections present?
-Fix issues directly.
+  Fix issues directly.
 
 ## Plan
 
 - Every spec behavior maps to a workstream?
 - Workstreams ordered, no backward deps?
 - Verification present?
-Fix issues directly.
+  Fix issues directly.
 
 ## Task
 
@@ -43,7 +43,7 @@ Fix issues directly.
 - Tests defined (success, failure, boundary)?
 - Acceptance criteria + verification commands?
 - Do-not-touch list?
-Fix issues directly.
+  Fix issues directly.
 
 ## Epic
 
@@ -51,7 +51,7 @@ Fix issues directly.
 - Items technically precise?
 - Ordering explains dependencies?
 - Constraints and out-of-scope present?
-Fix issues directly.
+  Fix issues directly.
 
 ## Implementation
 
@@ -59,4 +59,4 @@ Fix issues directly.
 - Tests written and passing?
 - No security defects or forbidden imports?
 - Stays within declared files?
-Fix issues directly.
+  Fix issues directly.

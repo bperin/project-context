@@ -12,7 +12,7 @@
 project-context/
 ├── bin/cli.js                    # CLI entry point
 ├── src/
-│   ├── agents/                  # Custom subagent profiles (implementer, reviewer, code-optimizer, test-agent)
+│   ├── agents/                  # Custom subagent profiles (planning-brain, implementer, reviewer)
 │   ├── commands/                # init, inspect, graph, overview, uuid, context, status, add, sync, archive, upgrade
 │   ├── skills/                  # Source skill templates copied to .agents/skills/
 │   │   ├── AGENTS.md            # Shared instructions for generated skills
