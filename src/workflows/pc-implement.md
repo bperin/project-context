@@ -52,7 +52,7 @@ select ≤5 ready tasks → grill-me interrogates plan → writer implements →
 3. Append each `in_progress` status serially before dispatch. Do not let subagents
    edit manager state.
 
-4. Dispatch one pinned `writer` (`openai-terra-5.6-high`) per task with
+4. Dispatch one pinned `writer` (`gpt-5.6-luna`, reasoning `high`) per task with
    `is_background: true`. Each writer has its own clean context —
    no conversation history. The `task:` prompt must contain everything:
 
@@ -74,7 +74,7 @@ select ≤5 ready tasks → grill-me interrogates plan → writer implements →
    ```
 
 5. After each writer completes, dispatch one pinned `challenger`
-   (`5.6-luna-medium`) with `is_background: true` to challenge parts
+   (`gpt-5.6-luna`, reasoning `high`) with `is_background: true` to challenge parts
    of the implementation and collaborate:
 
    ```

@@ -155,18 +155,19 @@ they don't all run on the expensive orchestrator model.
 
 | Profile | Model | Role | Fires when |
 |---------|-------|------|------------|
-| `planning-brain` | `openai-terra-5.6-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
+| Root coordinator | current session | Owns product decisions, specs, plans, and task decomposition | All planning phases |
 | `workstream-analyst` | `openai-terra-5.6-high` | Read-only task research | Optional parallel task creation |
-| `implementer` | `openai-terra-5.6-high` | Write code + complete task-level tests | Task implementation |
+| `implementer` | `gpt-5.6-luna` high | Write code + complete task-level tests | Task implementation |
 | `reviewer` | `openai-terra-5.6-high` | Fast focused review, fixes issues directly | After planning-brain, all creation workflows |
 | `test-agent` | `openai-terra-5.6-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
 
 Code optimization is a **skill** (`pc-optimize`), not a separate agent.
 The implementer loads it while writing code — no extra dispatch step.
 
-The top-level agent is a lightweight orchestrator. The `planning-brain`
-does all the thinking AND writing — specs, plans, tasks, JSONL. No
-separate writer subagents. Never rely on parent-model inheritance.
+The top-level agent owns the thinking AND writing for specs, plans, and task
+records. Do not hand dependent planning to a fresh subagent. Use agents only
+for independent evidence, bounded implementation, or a scoped challenge; the
+root coordinator integrates all results. Never rely on parent-model inheritance.
 
 Do not use the built-in `subagent_general` profile for pipeline work —
 it inherits the parent's model (which may be SOL/expensive). Always
@@ -332,7 +333,7 @@ EPIC → /pc-epic workflow (planning-brain loads adhd → planning-brain → rev
   ↓
 PLAN → /pc-spec workflow (planning-brain loads adhd → planning-brain → review → [user approves] → planning-brain → planning-brain → review → [user approves])
   ↓
-TASK → /pc-create-tasks workflow (planning-brain reads spec+plan → writes task MDs + JSONL → review)
+TASK → /pc-create-tasks workflow (root coordinator writes task MDs + JSONL → bounded challenge if needed)
   ↓
 IMPLEMENT → /pc-implement workflow (implementer + tests → verify → focused reviewer)
   ↓

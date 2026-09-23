@@ -95,8 +95,8 @@ async function testAgentProtocolsAndFixtures() {
   const profileDir = path.join(aiDir, ".agents", "agents");
   const expectedPins = {
     "planning-brain.md": "openai-terra-5.6-high",
-    "writer.md": "openai-terra-5.6-high",
-    "challenger.md": "5.6-luna-medium",
+    "writer.md": "gpt-5.6-luna",
+    "challenger.md": "gpt-5.6-luna",
   };
   for (const [file, model] of Object.entries(expectedPins)) {
     const content = fs.readFileSync(path.join(profileDir, file), "utf8");

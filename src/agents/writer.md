@@ -1,7 +1,8 @@
 ---
 name: writer
-description: "Implementation writer. Writes code and tests. Pinned to openai-terra-5.6-high."
-model: openai-terra-5.6-high
+description: "Implementation writer. Writes code and tests. Pinned to gpt-5.6-luna with high reasoning."
+model: gpt-5.6-luna
+reasoning_effort: high
 allowed-tools:
   - read
   - edit

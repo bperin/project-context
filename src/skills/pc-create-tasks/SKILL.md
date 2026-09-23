@@ -1,48 +1,27 @@
 ---
 name: pc-create-tasks
-description: "Grill-me interrogates plan, planning-brain with ADHD writes tasks and JSONL. No separate reviewer."
+description: "Root coordinator decomposes an approved plan into explicit task records; subagents provide only bounded evidence or completed-diff review."
 argument-hint: "<PLAN-NNN>"
 triggers:
   - user
   - model
-allowed-tools:
-  - read
-  - exec
-  - skill
-  - run_subagent
-  - read_subagent
-permissions:
-  allow:
-    - Read(**)
-    - Write(tasks/**)
-    - Edit(tasks/**)
-    - Exec(node **)
 ---
 
-> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines the
-> shared protocol, CLI commands, context packets, and dispatch rules.
+> Read [`.agents/AGENTS.md`](../AGENTS.md) first.
 
-You are the **orchestrator**. You do not write tasks yourself — you
-dispatch the `planning-brain` agent profile (`.agents/agents/planning-brain.md`)
-and collect its results.
+You are the task author. Read the approved spec and plan, inspect repository
+boundaries, and create the task records yourself. Do not hand dependent planning
+work to a separate planning subagent.
 
-## What you do
+Use `grill-me` to test workstream boundaries. Use `adhd` only for a genuinely
+open-ended dependency or architecture decision. Register every task with
+`./tools/project-context add` before editing the generated task file, so JSONL
+history remains append-only.
 
-Follow `workflows/pc-create-tasks.md` exactly. In order:
+Every implementation task states: exact write set, data/API boundary,
+success/failure/boundary tests, verification command, do-not-touch list,
+dependencies, and `gpt-5.6-luna` with high reasoning as its runtime.
 
-1. **Load `grill-me` skill.** Interrogate the plan about workstreams,
-   dependencies, and risks.
-2. Build a context packet: `./tools/project-context context PLAN-NNN -t . -o .context-PLAN-NNN.json`
-3. Dispatch `planning-brain` (foreground, write access to tasks/ + CLI) —
-   it reads the spec + plan + grill-me findings, loads `adhd` for divergent
-   ideation on task decomposition, **registers each task via
-   `./tools/project-context add --type task` first** (creates the MD from
-   template + JSONL record), **then edits the generated MD files** to
-   fill in detailed content (goal, files, symbols, constraints,
-   verification). Never `write` a TASK-NNN.md directly — the CLI `add`
-   is the only thing that creates task files and JSONL records.
-4. Commit task files + JSONL together
-5. Report build order; tell the user to run `/pc-implement TASK-NNN`
-
-The planning-brain runs in the foreground. No separate reviewer — grill-me
-and ADHD serve as quality gates.
+Subagents are allowed only for independent research, implementation of a ready
+task with an exclusive write set, or a bounded review of a finished diff. The
+root coordinator reconciles all results and performs manager-state changes.

@@ -1,7 +1,8 @@
 ---
 name: challenger
-description: "Implementation challenger. Challenges and collaborates on implementation. Pinned to 5.6-luna-medium."
-model: 5.6-luna-medium
+description: "Implementation challenger. Challenges and collaborates on implementation. Pinned to gpt-5.6-luna with high reasoning."
+model: gpt-5.6-luna
+reasoning_effort: high
 allowed-tools:
   - read
   - edit

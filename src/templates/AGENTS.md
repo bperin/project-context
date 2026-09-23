@@ -74,7 +74,7 @@ lines.
 {"task":"TASK-001","event":"done","ts":"2026-09-11T..."}
 ```
 
-The planning-brain writes `queued` events. The `status` command appends
+The root coordinator writes `queued` events. The `status` command appends
 `started` and `done` events as implementation progresses.
 
 ## Workflows
@@ -153,7 +153,7 @@ the planning-brain does not re-read the files:
 2. The planning-brain does not dispatch additional subagents.
 3. The planning-brain thinks through implementation approaches for each
    workstream and consults the project graph for file placement.
-4. The planning-brain writes `TASK-NNN.md` files — one per workstream.
+4. The root coordinator writes `TASK-NNN.md` files — one per workstream.
    Records each task's skills and triggers in the MD file.
 5. The planning-brain registers each task via the CLI in build order. The
    `skills` and `triggers` are stored in `data/tasks.jsonl` so the
