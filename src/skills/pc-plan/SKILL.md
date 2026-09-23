@@ -47,6 +47,12 @@ permissions:
   through ready work. Stop for explicit plan acceptance, a blocking user
   decision, `needs_planning`, a failed hard check, or completion.
 
+When `run` dispatches a worker in Codex, it must supervise that worker to a
+terminal report with bounded `wait_threads` calls. Reuse each returned cursor
+as `afterCursor`; treat a timeout as non-terminal progress. Consume a builder
+report before dispatching its challenger, and consume the challenger report
+before integration, correction, a planning return, or a user-facing stop.
+
 When an ID is omitted, resolve the sole non-terminal plan. Never guess when
 zero or multiple candidates exist.
 

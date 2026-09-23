@@ -113,6 +113,15 @@ If a packet is incomplete or contradictory, the worker stops and returns
 `needs_planning` with evidence. The root agent revises the existing plan and
 affected packets. Exactly one challenger reviews each completed packet.
 
+The root agent actively supervises every builder and challenger to a terminal
+report. In Codex, it uses `wait_threads` with a bounded timeout and carries the
+returned cursor forward as `afterCursor`; a timeout is not completion. It does
+not return to the user, begin unrelated work, or leave a completed reviewer
+unconsumed while a packet is active. A challenger `pass` advances to serial
+integration; bounded defects receive one focused correction and re-review;
+`needs_planning` returns to the root workflow. User input can interrupt a wait,
+but must be reconciled with the active packet before more work is dispatched.
+
 Commits, integrated checks, and manager-state transitions remain serial.
 
 ## Skill discovery

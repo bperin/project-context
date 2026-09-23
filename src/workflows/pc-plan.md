@@ -177,15 +177,24 @@ For each ready packet:
 2. Persist `in_progress` serially.
 3. Dispatch one pinned Luna-high implementer. It may change only its declared
    files and symbols and must run its specified tests.
-4. If work exceeds the packet, contradicts a boundary, changes dependencies, or
+4. **Supervise the dispatched worker to a terminal report.** In Codex, use
+   `wait_threads` with the worker thread ID and a bounded timeout; pass the
+   returned cursor as `afterCursor` on the next wait. Do not return to the user,
+   begin unrelated work, or silently abandon a worker after dispatch. A timeout
+   is progress information, not completion. New user input may interrupt a
+   wait, but must be reconciled with the active packet before further dispatch.
+5. If work exceeds the packet, contradicts a boundary, changes dependencies, or
    invalidates a proof obligation, the implementer stops and returns
    `needs_planning` with evidence. It never asks the user or expands scope.
-5. Dispatch exactly one challenger for the completed packet. It checks scope,
+6. Dispatch exactly one challenger for the completed packet, then supervise it
+   with the same bounded-wait loop until it reports `pass`, bounded defects, or
+   `needs_planning`. It checks scope,
    tests, edge cases, and proof evidence. It returns `pass`, bounded defects, or
    `needs_planning`.
-6. Allow one correction pass for bounded implementation defects. Never correct
-   a planning gap inside implementation.
-7. Verify the integrated wave, commit once, and append completion states
+7. On bounded defects, persist the report, dispatch one focused correction, and
+   supervise the correction plus challenger re-review before continuing. Never
+   correct a planning gap inside implementation.
+8. On `pass`, verify the integrated wave, commit once, and append completion states
    serially.
 
 When `needs_planning` occurs, halt affected and dependent packets. Persist the
