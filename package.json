@@ -1,6 +1,6 @@
 {
   "name": "@bperin/project-context-protocol",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Scaffold and manage project-context workspaces for AI agents — cross-IDE, graph-first, tiered review",
   "main": "bin/cli.js",
   "bin": {
