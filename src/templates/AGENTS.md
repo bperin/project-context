@@ -62,10 +62,15 @@ Every plan starts with a **Human Summary** in plain language: what changes, why
 it matters, the user-visible outcome, and the main tradeoff. The technical
 contract follows in the same file so the two views cannot drift.
 
-Load executable `grilling` for planning questions; `grill-me` is only its
-wrapper. Load `adhd` only for genuinely open-ended design. Blocking questions
-halt acceptance and task creation. Advisory questions are recorded with the
-current assumption and do not block.
+Every plan records a grilling decision tree before acceptance. Use executable
+`grilling`; `grill-me` is only its wrapper. Record settled decisions, remaining
+frontier, and every blocking or advisory question in the plan.
+
+Run `adhd` for open-ended product, architecture, workflow, API, or integration
+decisions. Record its pre-flight result, divergent frames, shortlisted
+alternatives, rejected traps, and selected direction. A closed factual or
+mechanical change may skip the full ADHD run only with a specific rationale in
+the plan. Blocking questions halt acceptance and task creation.
 
 Persist every completed gate in the plan before advancing. Resume from the plan
 file and task JSONL, not conversation memory. Material plan revisions clear
@@ -90,6 +95,14 @@ metadata.
 Every packet names exact files and symbols, boundaries, dependencies,
 do-not-touch constraints, tests, verification commands, proof obligations, and
 planning-gap conditions.
+
+## Repository integration and branches
+
+The manager is the shared planning authority and remains on `dev`. Each code
+repository uses a short-lived `codex/plan-NNN-<workstream>` branch from its own
+`dev` for one dependency-ready wave, then merges the verified workstream back
+independently. Use worktrees only for concurrent code checkouts; never create a
+cross-repository or manager worktree.
 
 Many implementation subagents may run over a plan's lifetime. At most three run
 simultaneously, only on dependency-ready packets with disjoint exact write sets.

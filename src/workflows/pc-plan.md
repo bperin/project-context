@@ -75,13 +75,17 @@ The first incomplete gate is authoritative:
    interfaces, dependency edges, and current manager state.
 2. **Compact draft** — capture goal, non-goals, repository evidence, approach,
    boundaries, acceptance probes, proof obligations, and likely decomposition.
-3. **Self-challenge** — test assumptions, failure modes, scope, ownership,
-   reversibility, and whether every acceptance claim is falsifiable.
-4. **Questions** — use executable `grilling` and classify each question:
+3. **Deliberation** — use executable `grilling` (`grill-me` is only its
+   wrapper) to record a decision tree, settled decisions, and remaining
+   frontier. For open-ended product, architecture, workflow, API, or integration
+   decisions, run `adhd` and record its pre-flight, divergent alternatives,
+   rejected traps, and selected direction. Closed factual or mechanical changes
+   record a specific ADHD skip rationale.
+4. **Questions** — classify the grilling frontier as:
    - **Blocking:** persist it and halt before acceptance or task creation.
    - **Advisory:** persist the question and current assumption; continue.
 5. **Revision** — update the same compact plan from evidence, challenges, and
-   answers. Use `adhd` only for genuinely open-ended design.
+   answers. A material revision repeats the applicable deliberation.
 6. **Explicit acceptance** — present the revised plan and wait for the user to
    accept it. Persist who accepted which revision, set the plan status to
    `committed`, and keep `User accepted: yes` in the Planning Gate. Any material
@@ -133,6 +137,8 @@ Keep each section short and decision-bearing:
 - API, data, state, and ownership boundaries;
 - blocking questions and resolution state;
 - advisory questions and current assumptions;
+- grilling decision-tree result and remaining frontier;
+- ADHD result or a closed-change skip rationale;
 - acceptance probes and proof obligations;
 - decomposition constraints and dependency order;
 - current gate, revision, acceptance receipt, and planning-gap returns.

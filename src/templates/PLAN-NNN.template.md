@@ -58,6 +58,11 @@
 
 - None.
 
+## Deliberation Record
+
+- **Grilling decision tree**: <!-- settled decisions and remaining frontier -->
+- **ADHD pre-flight/result**: <!-- output summary or closed-change skip rationale -->
+
 ## Architecture and Data Boundaries
 
 - Components:

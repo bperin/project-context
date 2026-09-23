@@ -61,7 +61,9 @@ Low-level project-context CLI operations are internal mechanics. Do not send the
 user to separate context, task, implementation, review, archive, inspect, UUID,
 epic, or specification skills.
 
-Planning loads executable `grilling`; `grill-me` is only its wrapper. Load
-`adhd` only for genuinely open-ended design. Implementers never load planning
+Planning records a `grilling` decision tree; `grill-me` is only its wrapper.
+Open-ended product, architecture, workflow, API, and integration choices run
+`adhd` and record its selected direction, alternatives, and traps. Closed
+mechanical changes record an ADHD skip rationale. Implementers never load planning
 skills, question the user, or widen a packet. Missing planning returns
 `needs_planning` to this root workflow.

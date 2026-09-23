@@ -40,10 +40,12 @@ interaction.
 
 ## Planning methods
 
-`grilling` is executable and planning-only; `grill-me` is its wrapper. `adhd` is
-planning-only and reserved for genuinely open-ended design. Blocking questions
-halt task creation. Advisory questions and current assumptions remain in the
-plan without blocking.
+`grilling` is executable and planning-only; `grill-me` is its wrapper. Every
+plan records its decision tree, settled decisions, and remaining frontier.
+`adhd` is planning-only and required for open-ended product, architecture,
+workflow, API, or integration decisions; record its pre-flight, alternatives,
+traps, and selected direction. A closed factual or mechanical change records a
+specific ADHD skip rationale. Blocking questions halt task creation.
 
 The plan's Human Summary is the canonical human-readable output. It explains
 what changes, why, the user-visible outcome, and the main tradeoff before the
