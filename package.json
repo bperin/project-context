@@ -1,6 +1,6 @@
 {
   "name": "@bperin/project-context-protocol",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "Plan once, resume from disk, and run narrow multi-agent implementation waves",
   "main": "bin/cli.js",
   "bin": {
