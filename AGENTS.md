@@ -105,14 +105,21 @@ do-not-touch constraints, tests, verification commands, proof obligations, and
 planning-gap conditions.
 
 Many writers may run over the lifetime of a plan, but at most three may run
-simultaneously. They must be dependency-ready and have disjoint exact write
-sets. Unknown ownership is sequential.
+simultaneously. Each wave fills the maximum safe concurrency: writers must be
+dependency-ready with disjoint exact write sets, and any idle slot requires a
+recorded dependency, ownership, review, or planning constraint. Unknown
+ownership is sequential.
 
 Writers never ask the user, load planning skills, expand scope, commit, or
 mutate manager state. Missing or contradictory planning returns
 `needs_planning` with evidence to the root planning agent. Exactly one
 challenger reviews each completed packet. Commits and state mutations are
 serial.
+
+After challenge pass, the coordinator runs integrated checks, commits the
+repository-scoped branch, merges it into that repository's `dev`, and fills the
+freed slot with the next safe packet. Workers never commit or merge; the loop
+continues until no safe packet remains or a defined stop gate applies.
 
 ## Engineering conventions
 

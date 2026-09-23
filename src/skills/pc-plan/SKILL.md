@@ -47,6 +47,16 @@ permissions:
   through ready work. Stop for explicit plan acceptance, a blocking user
   decision, `needs_planning`, a failed hard check, or completion.
 
+`run` selects and dispatches the maximal safe dependency-ready wave, up to
+three workers with disjoint write sets. It does not leave a safe slot idle for
+coordinator convenience; when fewer than three workers run, it records the
+specific dependency, ownership, review, or planning constraint.
+
+After a packet passes challenge, the coordinator—not a worker—runs integrated
+checks, commits the repository branch, merges it into that repository's `dev`,
+and immediately dispatches the next maximal safe wave. This repeats until no
+safe packet remains or a defined stop gate applies.
+
 When `run` dispatches a worker in Codex, it must supervise that worker to a
 terminal report with bounded `wait_threads` calls. Reuse each returned cursor
 as `afterCursor`; treat a timeout as non-terminal progress. Consume a builder

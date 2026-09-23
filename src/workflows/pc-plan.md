@@ -164,20 +164,27 @@ history remains append-only. The root agent is the only manager-state writer.
 
 ## Implementation waves
 
-Many subagents may complete work over the life of a plan. At most three may run
-simultaneously, and only when their dependencies are done and their exact write
-sets are disjoint. Overlapping, shared, or unknown ownership forces sequential
-execution.
+Many subagents may complete work over the life of a plan. Each implementation
+wave must fill every safe worker slot, up to three concurrent workers. A packet
+is safe only when its dependencies are done and its exact write set is disjoint
+from every active packet. Do not serialize independently ready packets merely
+for coordinator convenience. When fewer than three workers are active, the
+coordinator must identify the concrete dependency, ownership overlap, review,
+or planning constraint that prevents another dispatch; it then fills a newly
+safe slot immediately after a terminal worker report. This continues until no
+safe packet remains or the plan reaches a defined stop gate.
 
 For each ready packet:
 
-1. Build a compact context packet containing only project instructions, the
+1. Select the maximal dependency-ready, non-overlapping set (maximum three),
+   persist all selected packets `in_progress` serially, and dispatch their
+   builders without waiting between dispatches.
+2. Build a compact context packet containing only project instructions, the
    parent-plan summary, task contract, dependencies, and selected implementation
    skills.
-2. Persist `in_progress` serially.
-3. Dispatch one pinned Luna-high implementer. It may change only its declared
+3. Dispatch one pinned Luna-high implementer for each selected packet. It may change only its declared
    files and symbols and must run its specified tests.
-4. **Supervise the dispatched worker to a terminal report.** In Codex, use
+4. **Supervise every dispatched worker to a terminal report.** In Codex, use
    `wait_threads` with the worker thread ID and a bounded timeout; pass the
    returned cursor as `afterCursor` on the next wait. Do not return to the user,
    begin unrelated work, or silently abandon a worker after dispatch. A timeout
@@ -194,8 +201,11 @@ For each ready packet:
 7. On bounded defects, persist the report, dispatch one focused correction, and
    supervise the correction plus challenger re-review before continuing. Never
    correct a planning gap inside implementation.
-8. On `pass`, verify the integrated wave, commit once, and append completion states
-   serially.
+8. On `pass`, the coordinator verifies the integrated wave, commits it, and
+   merges the repository-scoped workstream into that repository's `dev` before
+   starting a dependent packet. Workers never commit or merge. The coordinator
+   then immediately selects and dispatches the next maximal safe wave before
+   returning control, unless a defined stop gate applies.
 
 When `needs_planning` occurs, halt affected and dependent packets. Persist the
 failed obligation, repository evidence, blocked boundary, and smallest required

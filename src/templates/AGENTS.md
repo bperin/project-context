@@ -104,8 +104,12 @@ repository uses a short-lived `codex/plan-NNN-<workstream>` branch from its own
 independently. Use worktrees only for concurrent code checkouts; never create a
 cross-repository or manager worktree.
 
-Many implementation subagents may run over a plan's lifetime. At most three run
-simultaneously, only on dependency-ready packets with disjoint exact write sets.
+Many implementation subagents may run over a plan's lifetime. Every wave fills
+the maximum safe concurrency, up to three workers. Packets run concurrently
+only when dependency-ready with disjoint exact write sets; the root agent may
+not serialize independent ready packets for convenience. If fewer than three
+workers are active, it records the concrete dependency, ownership overlap,
+review, or planning constraint and dispatches a newly safe packet immediately.
 Workers never commit, mutate manager state, ask the user, load planning skills,
 or expand scope.
 
@@ -121,6 +125,12 @@ unconsumed while a packet is active. A challenger `pass` advances to serial
 integration; bounded defects receive one focused correction and re-review;
 `needs_planning` returns to the root workflow. User input can interrupt a wait,
 but must be reconciled with the active packet before more work is dispatched.
+
+The coordinator owns serial integration: after a challenged packet passes, it
+verifies, commits, and merges the repository-scoped workstream into that
+repository's `dev`. It immediately fills the freed worker slot with the next
+safe packet and repeats until no safe packet remains or a defined stop gate
+applies. Workers never commit or merge.
 
 Commits, integrated checks, and manager-state transitions remain serial.
 
