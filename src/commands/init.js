@@ -139,11 +139,8 @@ async function initCommand(options) {
       if (!f.endsWith('.md')) continue;
       const srcFile = path.join(srcTemplates, f);
       const dstFile = path.join(dstTemplates, f);
-      if (f.endsWith('.instructions.md')) {
-        fs.copyFileSync(srcFile, dstFile);
-      } else {
-        copyWithHeader(srcFile, dstFile);
-      }
+      if (f.endsWith('.instructions.md')) continue;
+      copyWithHeader(srcFile, dstFile);
     }
   }
 

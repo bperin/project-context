@@ -94,6 +94,9 @@ async function upgradeCommand(options) {
     path.join(wsDir, "templates", "EPIC-NNN.instructions.md"),
     path.join(wsDir, "templates", "SPEC-NNN.template.md"),
     path.join(wsDir, "templates", "SPEC-NNN.instructions.md"),
+    // Writer guidance must not be embedded in generated plan/task packets.
+    path.join(wsDir, "templates", "PLAN-NNN.instructions.md"),
+    path.join(wsDir, "templates", "TASK-NNN.instructions.md"),
   ];
   const obsoleteSkillDirs = [
     // Old workflow names (pre-pc- prefix)
@@ -210,9 +213,6 @@ async function upgradeCommand(options) {
 
   // Copy document templates (PLAN/TASK) so the workspace
   // has the current templates without re-running init.
-  // Instructions files (.instructions.md) are copied without the GENERATED
-  // header — they get injected into generated files via XML tags, so the
-  // header would be noise inside the <instructions> block.
   if (fs.existsSync(srcTemplates)) {
     const dstTemplates = path.join(wsDir, "templates");
     fs.mkdirSync(dstTemplates, { recursive: true });
@@ -220,11 +220,8 @@ async function upgradeCommand(options) {
       if (!f.endsWith(".md")) continue;
       const srcFile = path.join(srcTemplates, f);
       const dstFile = path.join(dstTemplates, f);
-      if (f.endsWith(".instructions.md")) {
-        fs.copyFileSync(srcFile, dstFile);
-      } else {
-        copyWithHeader(srcFile, dstFile);
-      }
+      if (f.endsWith(".instructions.md")) continue;
+      copyWithHeader(srcFile, dstFile);
     }
   }
 

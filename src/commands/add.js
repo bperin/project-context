@@ -129,17 +129,6 @@ async function addCommand(options) {
     content = `# ${finalID}: ${title}\n\n**UUID**: ${uuid}\n**Status**: ${status || 'draft'}\n${prefix === 'TASK' ? `**Parent**: ${parent}\n` : ''}**Dependencies**: ${dependencies || ''}\n**Skills**: ${skills || ''}\n**Triggers**: ${triggers || ''}\n**Commit**: ${commit || ''}\n`;
   }
 
-  // Prepend instructions as XML tags if the instructions file exists.
-  // XML tags are more salient to the LLM than HTML comments — Anthropic
-  // recommends <instructions> tags for separating guidance from content.
-  // The root planning agent sees these when it opens the file to edit.
-  const instructionsName = `${prefix}-NNN.instructions.md`;
-  const instructionsPath = path.join(aiDir, 'templates', instructionsName);
-  if (fs.existsSync(instructionsPath)) {
-    const instructions = fs.readFileSync(instructionsPath, 'utf8');
-    content = `<instructions>\n${instructions}\n</instructions>\n\n${content}`;
-  }
-
   fs.writeFileSync(filePath, content);
 
   // For tasks: also append to tasks.jsonl and plan timeline
