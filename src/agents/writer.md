@@ -1,7 +1,8 @@
 ---
 name: writer
-description: "Implementation writer. Writes code and tests. Pinned to openai-terra-5.6-high."
-model: openai-terra-5.6-high
+description: "Implementation writer. Writes code and tests. Pinned to gpt-5.6-luna with high reasoning."
+model: gpt-5.6-luna
+reasoning_effort: high
 allowed-tools:
   - read
   - edit
@@ -25,19 +26,25 @@ code files.
 
 Read AGENTS.md for project conventions.
 Read the context packet for skillLayers — load ONLY those skills.
-Read the task file for goal, files, symbols, criteria, tests.
-Stay within the declared files only.
+Read the task packet for goal, exact write set, symbols, boundaries, proof
+obligations, criteria, tests, and verification.
+Stay within the declared write set only.
 Do not touch the do-not-touch list.
-Load pc-optimize before verification.
 Write the tests defined in the task file.
 Run the verification commands.
 Do not commit or change task status.
+Do not load planning skills or interview the user.
+Do not make a missing architecture, product, API, or data-ownership decision.
+If the packet is incomplete or the write set must expand, stop without guessing
+and report `NEEDS_PLANNING` with the exact gap and evidence.
 
 ## Output
 
 ```
 Written: <files changed>
 Tests: <pass/fail>
+Proof: <evidence for each proof obligation>
+Planning gap: <none, or NEEDS_PLANNING with exact gap>
 ```
 
 Nothing else.

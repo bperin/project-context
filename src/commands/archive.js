@@ -80,7 +80,8 @@ function collectActiveChildIds(aiDir, parentId) {
   return active;
 }
 
-// archiveOne archives a single spec/plan/task by ID.
+// archiveOne archives a plan/task. Legacy epic/spec IDs remain supported only
+// for explicit migration cleanup.
 function archiveOne(aiDir, id, options) {
   const resolved = resolveType(id);
   if (!resolved) {
@@ -166,7 +167,6 @@ function archiveByStatus(aiDir, options) {
   const results = [];
   const errors = [];
 
-  const specs = readSpecs(aiDir);
   const plans = readPlans(aiDir);
   const taskFiles = readTaskFiles(aiDir);
   const taskStates = getTaskStates(aiDir);
@@ -189,24 +189,6 @@ function archiveByStatus(aiDir, options) {
       } catch (e) { errors.push(e.message); }
     }
   }
-  // Then specs.
-  for (const s of specs) {
-    if (isTerminal(s.status)) {
-      try {
-        results.push(archiveOne(aiDir, s.id, options));
-      } catch (e) { errors.push(e.message); }
-    }
-  }
-  // Then epics (parent of specs).
-  const epics = readEpics(aiDir);
-  for (const r of epics) {
-    if (isTerminal(r.status)) {
-      try {
-        results.push(archiveOne(aiDir, r.id, options));
-      } catch (e) { errors.push(e.message); }
-    }
-  }
-
   return { results, errors };
 }
 

@@ -1,197 +1,74 @@
-const fs = require("fs");
-const path = require("path");
-const assert = require("assert");
-const initCommand = require("../src/commands/init");
-const graphCommand = require("../src/commands/graph");
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+const initCommand = require('../src/commands/init');
 
-async function testAgentProtocolsAndFixtures() {
-  console.log("=== RUNNING AGENT PROTOCOL & FIXTURE INTEGRATION TESTS ===");
-
-  const fixtureDir = path.join(__dirname, "fixtures", "sample-node-project");
-  const ws = ".sample-node-project-manager";
+async function testAgentProtocol() {
+  console.log('=== RUNNING PLAN+TASK PROTOCOL TESTS ===');
+  const fixtureDir = path.join(__dirname, 'fixtures', 'sample-node-project');
+  const ws = '.sample-node-project-manager';
   const aiDir = path.join(fixtureDir, ws);
+  const agentsLink = path.join(fixtureDir, '.agents');
+  const codexDir = path.join(fixtureDir, '.codex');
+  fs.rmSync(aiDir, { recursive: true, force: true });
+  try { fs.unlinkSync(agentsLink); } catch (_) {}
 
-  // Clean prior runs if any
-  if (fs.existsSync(aiDir)) {
-    fs.rmSync(aiDir, { recursive: true, force: true });
-  }
-  // Clean symlink
-  const agentsLink = path.join(fixtureDir, ".agents");
-  try {
-    fs.unlinkSync(agentsLink);
-  } catch (e) {}
-
-  // 1. Initialize workspace on persistent fixture
-  console.log(`Initializing ${ws} workspace on sample-node-project fixture...`);
   await initCommand({ target: fixtureDir, workspace: ws, discover: true });
 
-  // 2. Verify AGENTS.md protocol contains required sections
-  const agentsMd = fs.readFileSync(path.join(aiDir, "AGENTS.md"), "utf8");
-  assert(
-    agentsMd.includes("Session start"),
-    "AGENTS.md missing Session start checklist",
-  );
-  assert(agentsMd.includes("Workflows"), "AGENTS.md missing Workflows table");
-  assert(agentsMd.includes("pc-spec"), "AGENTS.md missing pc-spec reference");
-  assert(agentsMd.includes("pc-epic"), "AGENTS.md missing pc-epic reference");
-  assert(
-    agentsMd.includes("pc-create-tasks"),
-    "AGENTS.md missing pc-create-tasks reference",
-  );
-  assert(
-    agentsMd.includes("Communication budget"),
-    "AGENTS.md missing communication budget",
-  );
-  assert(
-    agentsMd.includes("one to three sentences"),
-    "communication budget is not bounded",
-  );
-  assert(
-    agentsMd.includes("Do not narrate routine file reads"),
-    "communication budget permits routine narration",
-  );
-  assert(
-    !agentsMd.includes("/Users/brian/"),
-    "Generated AGENTS.md contains a machine-specific path",
-  );
+  const agentsMd = fs.readFileSync(path.join(aiDir, 'AGENTS.md'), 'utf8');
+  const planWorkflow = fs.readFileSync(path.join(aiDir, 'workflows', 'pc-plan.md'), 'utf8');
+  const planSkill = fs.readFileSync(path.join(aiDir, '.agents', 'skills', 'pc-plan', 'SKILL.md'), 'utf8');
+  const combined = `${agentsMd}\n${planWorkflow}\n${planSkill}`;
 
-  // 3. Verify workflow files are present and match expectations
-  const workflowsDir = path.join(aiDir, "workflows");
-  assert(
-    fs.existsSync(path.join(workflowsDir, "pc-spec.md")),
-    "pc-spec.md workflow missing",
-  );
-  assert(
-    fs.existsSync(path.join(workflowsDir, "pc-epic.md")),
-    "pc-epic.md workflow missing",
-  );
-  assert(
-    fs.existsSync(path.join(workflowsDir, "pc-create-tasks.md")),
-    "pc-create-tasks.md workflow missing",
-  );
-  assert(
-    fs.existsSync(path.join(workflowsDir, "pc-implement.md")),
-    "pc-implement.md workflow missing",
-  );
-  assert(
-    fs.existsSync(path.join(workflowsDir, "pc-review.md")),
-    "pc-review.md workflow missing",
-  );
-  assert(
-    fs.existsSync(path.join(workflowsDir, "overview.md")),
-    "overview.md workflow missing",
-  );
-  for (const workflow of fs
-    .readdirSync(workflowsDir)
-    .filter((name) => name.endsWith(".md"))) {
-    const content = fs.readFileSync(path.join(workflowsDir, workflow), "utf8");
+  for (const action of ['start', 'continue', 'status', 'run']) {
     assert(
-      !content.includes("/Users/brian/"),
-      `${workflow} contains a machine-specific path`,
+      new RegExp(`(?:/pc-plan|pc-plan).*\\b${action}\\b`, 'i').test(combined),
+      `protocol does not expose /pc-plan ${action}`,
     );
   }
+  assert.match(combined, /one plan|single-active-plan|Only one plan may be active/i, 'protocol does not enforce one active plan');
+  assert.match(combined, /narrow task packet|Narrow task packet contract/i, 'protocol does not require narrow packets');
+  assert.match(combined, /At most three|Maximum three|hard-capped at 3/i, 'protocol does not cap concurrent implementation at three');
+  assert.match(combined, /Human Summary|human-readable|Plain language/i, 'protocol omits human-readable planning output');
+  assert.match(combined, /Resume Checkpoint|resume|reconstruct state/i, 'protocol omits resumable planning state');
+  assert.match(combined, /needs_planning/i, 'protocol omits planning-gap return');
+  assert.match(combined, /advisory/i, 'protocol omits advisory questions');
+  assert.match(combined, /memoryLake\.projectId/i, 'protocol omits project-scoped MemoryLake identity');
+  assert.match(combined, /never (?:perform|run|search).*unfiltered workspace|never search across the workspace/i, 'protocol allows cross-project memory search');
+  assert.match(combined, /root agent.*(?:owns|writes).*memory|only the root agent writes durable memory/i, 'protocol does not reserve memory writes for the root agent');
+  assert(!combined.includes('/Users/brian/'), 'generated protocol contains a machine-specific path');
 
-  // Expensive or disruptive orchestration must use explicit pinned profiles.
-  const profileDir = path.join(aiDir, ".agents", "agents");
-  const expectedPins = {
-    "planning-brain.md": "openai-terra-5.6-high",
-    "writer.md": "openai-terra-5.6-high",
-    "challenger.md": "5.6-luna-medium",
-  };
-  for (const [file, model] of Object.entries(expectedPins)) {
-    const content = fs.readFileSync(path.join(profileDir, file), "utf8");
-    assert(
-      content.includes(`model: ${model}`),
-      `${file} is not pinned to ${model}`,
-    );
-  }
-  for (const file of fs
-    .readdirSync(profileDir)
-    .filter((name) => name.endsWith(".md"))) {
-    const content = fs.readFileSync(path.join(profileDir, file), "utf8");
-    assert(
-      /stream|commentary|narrat/i.test(content),
-      `${file} does not bound progress narration`,
-    );
+  const publicSkills = fs.readdirSync(path.join(aiDir, '.agents', 'skills'))
+    .filter((name) => name.startsWith('pc-')).sort();
+  assert.deepStrictEqual(publicSkills, ['pc-plan'], 'legacy public project-context skills were generated');
+  for (const legacy of ['pc-epic', 'pc-spec', 'pc-create-tasks', 'pc-implement']) {
+    assert(!fs.existsSync(path.join(aiDir, '.agents', 'skills', legacy)), `${legacy} should not be public`);
   }
 
-  const finalReviewSkill = fs.readFileSync(
-    path.join(aiDir, ".agents", "skills", "pc-review", "SKILL.md"),
-    "utf8",
+  const profilesDir = path.join(aiDir, '.agents', 'agents');
+  assert.deepStrictEqual(
+    fs.readdirSync(profilesDir).filter((name) => name.endsWith('.md')).sort(),
+    ['challenger.md', 'writer.md'],
   );
-  assert(
-    !/triggers:\s*[\s\S]*?- model/.test(finalReviewSkill),
-    "pc-review should not auto-trigger from the model",
-  );
+  for (const profile of ['writer.md', 'challenger.md']) {
+    const content = fs.readFileSync(path.join(profilesDir, profile), 'utf8');
+    assert(content.includes('model: gpt-5.6-luna'), `${profile} is not pinned to Luna`);
+    assert(content.includes('reasoning_effort: high'), `${profile} is not high reasoning`);
+  }
 
-  const implementWorkflow = fs.readFileSync(
-    path.join(workflowsDir, "pc-implement.md"),
-    "utf8",
-  );
-  assert(
-    implementWorkflow.includes(
-      "Maximum five simultaneous implementation agents",
-    ),
-    "implementation wave is not capped at five",
-  );
-  assert(
-    implementWorkflow.includes("do not overlap another task"),
-    "parallel implementation lacks an ownership gate",
-  );
-  assert(
-    implementWorkflow.includes("do not commit"),
-    "background implementers may commit independently",
-  );
-  assert(
-    implementWorkflow.includes("project-context ready --limit 5"),
-    "implementation workflow does not use the ready-wave scheduler",
-  );
+  const workflowNames = fs.readdirSync(path.join(aiDir, 'workflows')).filter((name) => name.endsWith('.md'));
+  assert(workflowNames.includes('pc-plan.md'), 'pc-plan workflow missing');
+  for (const legacy of ['pc-epic.md', 'pc-spec.md', 'pc-create-tasks.md', 'pc-implement.md']) {
+    assert(!workflowNames.includes(legacy), `legacy workflow ${legacy} was generated`);
+  }
 
-  // 4. Verify old workflows are NOT present
-  assert(
-    !fs.existsSync(path.join(workflowsDir, "spec-creation.md")),
-    "spec-creation.md should be deleted",
-  );
-  assert(
-    !fs.existsSync(path.join(workflowsDir, "plan-creation.md")),
-    "plan-creation.md should be deleted",
-  );
-  assert(
-    !fs.existsSync(path.join(workflowsDir, "task-creation.md")),
-    "task-creation.md should be deleted",
-  );
-
-  // 5. Verify JSONL data files exist
-  assert(
-    fs.existsSync(path.join(aiDir, "data", "tasks.jsonl")),
-    "tasks.jsonl missing",
-  );
-  assert(
-    fs.existsSync(path.join(aiDir, "data", "identity.json")),
-    "identity.json missing",
-  );
-  assert(
-    fs.existsSync(path.join(aiDir, "data", "skills.json")),
-    "skills.json missing",
-  );
-
-  // 6. Test Graph analysis on fixture
-  console.log("Running graph analysis on sample-node-project fixture...");
-  await graphCommand({ target: fixtureDir, workspace: ws });
-  const nodesDir = path.join(aiDir, "graph", "nodes");
-  const nodes = fs.readdirSync(nodesDir);
-  assert(nodes.length > 0, "Graph nodes should not be empty");
-
-  // Clean up fixture workspace so repository remains clean
   fs.rmSync(aiDir, { recursive: true, force: true });
-  try {
-    fs.unlinkSync(agentsLink);
-  } catch (e) {}
-
-  console.log("=== AGENT PROTOCOL & FIXTURE INTEGRATION TESTS PASSED ===");
+  try { fs.unlinkSync(agentsLink); } catch (_) {}
+  fs.rmSync(codexDir, { recursive: true, force: true });
+  console.log('=== PLAN+TASK PROTOCOL TESTS PASSED ===');
 }
 
-testAgentProtocolsAndFixtures().catch((err) => {
-  console.error("Fixture test failed:", err);
+testAgentProtocol().catch((error) => {
+  console.error('Protocol test failed:', error);
   process.exit(1);
 });

@@ -1,369 +1,89 @@
-# Agent Instructions — project-context skills
+# Shared Instructions for Generated Skills
 
-## Communication budget
+Every generated skill reads this file before acting. `pc-plan` is the only
+generated project-context workflow skill.
 
-Keep reasoning visible but compressed. Report only the start, material
-decisions/results/blockers, changes of direction, and completion. Intermediate
-updates should normally be one to three sentences. Do not narrate routine tool
-calls or repeat the plan; preserve detailed reasoning in artifacts and the final
-handoff.
+## User surface
 
-> All skills in `.agents/skills/` must read this file first. It defines
-> the shared protocol, the tools available, and how the skills work
-> together. Individual SKILL.md files define the skill-specific steps
-> — this file defines the common ground.
-
-## Three concepts — do not conflate them
-
-| Concept | Lives in | What it is |
-|---------|----------|------------|
-| **Workflow** | `workflows/*.md` | The process — steps, order, gates, checks. The source of truth for HOW work flows. |
-| **Skill** | `.agents/skills/pc-*/SKILL.md` | A thin entry point — invoked by the user or model, points at a workflow, lists which agent profiles to dispatch. |
-| **Agent** | `.agents/agents/*.md` | A subagent profile — `model:` + `allowed-tools:` + system prompt. Dispatched via `run_subagent`. |
-
-Skills are not workflows — a skill never contains process steps beyond
-"follow `workflows/X.md`". Workflows are not agents — they describe a
-process, they don't have a model or tools. Agents are not skills — they
-are dispatched, not invoked.
-
-## Project model
-
-This project uses `project-context` to manage AI agent context. The
-workspace directory is named `.{reponame}-manager` (e.g.
-`.trust-manager`, `.fake-project-manager`). A `.agents` symlink at the
-project root points to the workspace's `.agents/` directory so Devin
-discovers the skills.
-
-The directory structure is flat — no nesting:
-
-```
-.{reponame}-manager/
-├── AGENTS.md                        # Workflow protocol (read this too)
-├── .agents/
-│   ├── AGENTS.md                    # Shared skill instructions (this file)
-│   ├── agents/                      # Custom subagent profiles (planning-brain, writer, challenger, test-agent)
-│   └── skills/                      # pc-* workflow + utility skills
-├── workflows/*.md                   # Workflow definitions (mermaid diagrams)
-├── epics/EPIC-NNN.md                # Epic documents (high-level vision, ordered items)
-├── specs/SPEC-NNN.md               # Spec documents
-├── plans/PLAN-NNN.md               # Plan documents
-├── plans/PLAN-NNN.timeline.jsonl   # Per-plan build timeline (append-only)
-├── tasks/TASK-NNN.md               # Task documents
-├── data/
-│   ├── tasks.jsonl                 # Task event log (append-only)
-│   ├── identity.json               # Project identity
-│   ├── skills.json                 # Skill registry + matrix
-│   └── decisions.json              # ADR index
-├── architecture/                    # Architecture docs
-├── decisions/                       # ADRs
-├── identity/                        # Project identity
-└── graph/
-    ├── nodes/                       # Source file nodes (JSON)
-    └── edges/                       # Dependency edges (JSON)
+```text
+/pc-plan start <goal>
+/pc-plan continue [PLAN-NNN]
+/pc-plan status [PLAN-NNN]
+/pc-plan run [PLAN-NNN]
 ```
 
-## Source of truth
-
-JSONL files hold task state. Markdown files hold spec/plan/task
-documents. JSON files hold project metadata.
-
-| File | Content |
-|------|---------|
-| `data/tasks.jsonl` | Task event log — append-only. Each line is an event (created, started, done). |
-| `plans/PLAN-NNN.timeline.jsonl` | Per-plan build timeline — append-only. |
-| `data/identity.json` | Project name, stack, modules, repo |
-| `data/skills.json` | Skill registry and skill matrix |
-| `data/decisions.json` | ADR index |
-| `epics/EPIC-NNN.md` | Epic documents (high-level vision, ordered items) |
-| `specs/SPEC-NNN.md` | Spec documents (human-readable, status in file) |
-| `plans/PLAN-NNN.md` | Plan documents (human-readable, status in file) |
-| `tasks/TASK-NNN.md` | Task documents (human-readable, status in file) |
-
-Do not edit JSONL files directly. Register specs/plans/tasks with
-`project-context add` and update status with `project-context status`.
-The CLI handles UUID generation, event formatting, and timeline updates.
-
-### tasks.jsonl format
-
-Append-only event log. Each line is a JSON object:
-
-```jsonl
-{"id":"TASK-001","event":"created","title":"Add JSONL backend","plan":"PLAN-001","status":"draft","skills":"go-crypto","triggers":"crypto","ts":"2026-09-11T..."}
-{"id":"TASK-001","event":"started","ts":"2026-09-11T..."}
-{"id":"TASK-001","event":"done","ts":"2026-09-11T..."}
-```
-
-The `created` event is written by the planning-brain. The `started` and
-`done` events are written by the `status` command during
-implementation. The log is a historical record — do not modify past
-lines.
-
-### Plan timeline format
-
-```jsonl
-{"plan":"PLAN-001","task":"TASK-001","event":"queued","ts":"2026-09-11T..."}
-{"plan":"PLAN-001","task":"TASK-001","event":"started","ts":"2026-09-11T..."}
-{"plan":"PLAN-001","task":"TASK-001","event":"done","ts":"2026-09-11T..."}
-```
-
-### Skills
-
-The `data/skills.json` file contains the skill registry and matrix:
-
-```json
-{
-  "skills": [
-    {"skill": "go-systems-programmer", "path": "user-level", "layer": "always-on", "workflowTrigger": "all", "purpose": "Base Go style"},
-    {"skill": "golang-testing", "path": "user-level", "layer": "project-local", "workflowTrigger": "all", "purpose": "Testing for Go tasks"}
-  ],
-  "matrix": [
-    {"trigger": "crypto", "language": "Go", "primarySkills": "golang-security", "secondarySkills": "wycheproof", "notes": "Crypto implementation"}
-  ]
-}
-```
-
-Skills cascade downward: a spec lists skills for the whole feature
-area, a plan inherits and adds, a task inherits and adds.
-
-### How attached skills are loaded
-
-Skills are recorded in spec/plan/task metadata during planning and
-task-writing, but they are not loaded until implementation. The
-planner and planning-brain record what skills will be needed; the
-implementer loads them at implementation time.
-
-- **Spec workflow**: the `planning-brain` subagent loads `adhd` for
-  divergent ideation about the problem, then writes the spec. No other
-  skill is loaded. Skills needed for implementation are recorded in
-  the spec/plan metadata.
-- **Plan workflow**: the `planning-brain` loads `adhd` again for
-  divergent ideation about the implementation approach, then writes
-  the plan. No other skill is loaded.
-- **Task workflow**: the planning-brain does not load `adhd` or any
-  skills. It has the spec and plan in context, thinks through concrete
-  implementations, writes tasks, and records each task's skills +
-  triggers in the MD file and JSONL record.
-- **Task implementation**: the implementer reads the task's skills
-  and triggers from the JSONL record and loads them.
-
-## Subagent profiles
-
-`planning-brain`, `workstream-analyst`, `implementer`, `reviewer`, and
-`test-agent` are custom profiles under `.agents/agents/`. They are
-pinned to specific models via the `model:` field in their profile so
-they don't all run on the expensive orchestrator model.
-
-| Profile | Model | Role | Fires when |
-|---------|-------|------|------------|
-| `planning-brain` | `openai-terra-5.6-high` | Think (ADHD) + write specs, plans, tasks, JSONL | All planning phases |
-| `workstream-analyst` | `openai-terra-5.6-high` | Read-only task research | Optional parallel task creation |
-| `implementer` | `openai-terra-5.6-high` | Write code + complete task-level tests | Task implementation |
-| `reviewer` | `openai-terra-5.6-high` | Fast focused review, fixes issues directly | After planning-brain, all creation workflows |
-| `test-agent` | `openai-terra-5.6-high` | Optional specialist for test-only repair | Explicitly requested or isolated test defects |
-
-Code optimization is a **skill** (`pc-optimize`), not a separate agent.
-The implementer loads it while writing code — no extra dispatch step.
-
-The top-level agent is a lightweight orchestrator. The `planning-brain`
-does all the thinking AND writing — specs, plans, tasks, JSONL. No
-separate writer subagents. Never rely on parent-model inheritance.
-
-Do not use the built-in `subagent_general` profile for pipeline work —
-it inherits the parent's model (which may be SOL/expensive). Always
-use the custom profiles above, which are pinned to cheaper models.
-
-During task creation, the planning-brain may dispatch up to four
-pinned read-only `workstream-analyst` subagents in parallel. During
-implementation, up to five pinned `implementer` agents may run in
-parallel only for ready tasks with disjoint write sets. Reviews,
-commits, and manager-state mutations remain serial.
-
-Subagents can have their own subagents. The planning-brain dispatches
-workstream-analysts; it does not ask the orchestrator to do it.
-
-### Dispatch protocol — FOREGROUND, not background
-
-All dispatched pipeline subagents must run as **foreground** subagents.
-
-When you dispatch a subagent with `run_subagent`, you MUST set:
-- `is_background: false` — the subagent blocks the orchestrator until it finishes
-- `profile:` — the subagent profile name (e.g. `implementer`, `reviewer`)
-
-Set `is_background: true` only for pinned read-only `workstream-analyst` agents or
-for a wave of at most five pinned `implementer` agents with exclusive file/symbol
-ownership. Background agents open in their own session tabs — the orchestrator
-continues and collects results via `read_subagent` when notified. Collect every
-result before verification or state changes. All other pipeline agents are
-foreground.
-
-Background agents cannot request new permissions. If a required read is denied,
-resume that analyst in the foreground or continue without its report. Custom
-profiles are experimental in Devin, so `upgrade` keeps both supported project
-locations synchronized.
-
-Graph update may run in the background because it does not affect the pipeline.
-
-Template for dispatching a pipeline subagent:
-```
-run_subagent(
-  title: "Review TASK-NNN implementation",
-  task: "<detailed task with context packet, file paths, AGENTS.md path>",
-  profile: "reviewer",
-  is_background: false
-)
-```
-
-After dispatching, call `read_subagent` with `block: true` to wait for
-the result. Do not poll — block until it finishes.
-
-### Context forwarding — no re-reading
-
-Subagents are fresh — they have no memory of prior phases. When
-dispatching a subagent that needs context from a prior phase, **pass
-the prior artifact content in the task prompt**. Do not make the
-subagent re-read the file.
-
-Examples:
-- When the planning-brain is dispatched again for the architecture
-  brief (phase 2 of pc-spec), the orchestrator includes the full spec
-  text and the phase 1 decision brief in the task prompt.
-- When the planning-brain is dispatched after plan approval, the
-  orchestrator includes the spec content, plan content, and
-  architecture brief in the task prompt.
-
-This preserves fidelity and saves tokens. The subagent has everything
-it needs without re-reading or re-deriving context.
-
-### Language skill matrix
-
-When a task is code-heavy, the implementer, optional `test-agent`, and
-`reviewer` load language-specific skills based on manifests:
-
-| Language | Detected by | implementer (via pc-optimize) | test-agent | reviewer |
-|---|---|---|---|---|
-| Go | `go.mod` | `golang-performance` | `golang-testing` | `go-code-review` |
-| TypeScript | `package.json` | `typescript-code-review` | `typescript-unit-testing` | `typescript-security-review` |
-| Python | `pyproject.toml`, `requirements.txt`, `setup.py` | `python-code-style` | `python-testing-patterns` | `python-code-style` |
-| Rust | `Cargo.toml` | `rust-performance` | `rust-testing` | `rust-security` |
-
-Each specialized agent loads its own column. The implementer loads the task's primary skill from the algorithm registry (not from this matrix). If a language skill is not installed, the subagent uses general knowledge and reports that the skill is missing.
-
-## CLI commands
-
-The CLI is bundled at `./tools/project-context`. Always use the full
-path and pass the workspace name with `-w <workspace>`:
-
-```bash
-./tools/project-context <command> -w <workspace> -t .
-```
-
-The workspace name is the `.{reponame}-manager` directory (e.g.
-`.trust-manager`, `.trakt2-manager`, `.smart-job-search-manager`).
-Check the root `AGENTS.md` for the exact workspace name. Do not guess.
-
-```bash
-# Generate a deterministic v5 UUID from an ID
-./tools/project-context uuid SPEC-001 -w <workspace> -t .
-
-# Build a minimal context packet for a spec/plan/task (JSON output)
-./tools/project-context context TASK-012 -w <workspace> -t .
-
-# Read project state and print specs/plans/tasks with status
-./tools/project-context inspect -w <workspace> -t .
-
-# Refresh project overview from workflow markdown files
-./tools/project-context overview -t .
-
-# Build graph nodes and edges from source files
-./tools/project-context graph -t .
-
-# Scaffold a new .{reponame}-manager workspace
-./tools/project-context init -t . --discover
-
-# Add a epic/spec/plan/task (creates MD file, appends to JSONL for tasks)
-./tools/project-context add --type epic --title "<title>" -w <workspace> -t .
-./tools/project-context add --type spec --title "<title>" --skills "<skills>" --triggers "<triggers>" -t .
-./tools/project-context add --type plan --title "<title>" --parent "SPEC-001" --skills "<skills>" -t .
-./tools/project-context add --type task --title "<title>" --parent "PLAN-001" --skills "<skills>" --triggers "<triggers>" -t .
-./tools/project-context update TASK-001 --skills "<skills>" --triggers "<triggers>" -t .
-
-# Select the next ready implementation wave (maximum five active tasks)
-./tools/project-context ready --limit 5 -t .
-
-# Update a spec/plan/task status (updates MD file, appends to JSONL for tasks)
-./tools/project-context status TASK-001 done -t .
-
-# Archive done/superseded records (moves MD to archive/, appends JSONL event)
-./tools/project-context archive TASK-014 -t .
-./tools/project-context archive --status done -t .
-./tools/project-context inspect -t . --include-archived
-```
-
-## Context packets
-
-Subagents must not receive conversation history. Instead, the
-orchestrator builds a context packet and feeds it to the subagent:
-
-```bash
-./tools/project-context context TASK-012 -t . -o .context-TASK-012.json
-```
-
-The packet contains:
-- **target**: the spec/plan/task (id, uuid, title, status, skills, body)
-- **parent**: the parent plan (if task) or parent spec (if plan)
-- **grandparent**: the grandparent spec (if task)
-- **children**: child plans (if spec) or child tasks (if plan)
-- **modules**: project modules from the graph
-- **skillLayers**: alwaysOn, projectLocal, userLocal, matrixSkills,
-  primarySkills, secondarySkills
-- **allSkills**: minimal set of skills the implementer should load —
-  always-on (filtered by workflow), project-local, matched user-local
-  (by trigger), matrix primary/secondary for the task's triggers, and
-  the task's own declared skills. Not the full parent/grandparent cascade.
-
-The subagent reads the packet + AGENTS.md + the document file. Nothing
-else. This keeps subagent context lean and prevents conversation history
-from leaking into reviews.
-
-## Workflow lifecycle
-
-```
-EPIC → /pc-epic workflow (planning-brain loads adhd → planning-brain → review → [user approves])
-  ↓
-PLAN → /pc-spec workflow (planning-brain loads adhd → planning-brain → review → [user approves] → planning-brain → planning-brain → review → [user approves])
-  ↓
-TASK → /pc-create-tasks workflow (planning-brain reads spec+plan → writes task MDs + JSONL → review)
-  ↓
-IMPLEMENT → /pc-implement workflow (implementer + tests → verify → focused reviewer)
-  ↓
-REVIEW → /pc-review workflow (run checks → verify tasks done → clean diff → open PR)
-  ↓
-ARCHIVE → /pc-archive (move done/superseded records to archive/, append JSONL event)
-```
-
-Planning and review remain gated and serial. Task analysis and implementation may
-use only the bounded parallel waves defined by their workflows.
-
-## Rules for all skills
-
-1. **Read AGENTS.md first.** It has the project workflow protocol.
-2. **Read this file first.** It has the shared instructions.
-3. **JSONL is append-only task history.** Add events; never rewrite old events.
-   Markdown specs, plans, and tasks are living documents and may be edited.
-4. **Bounded parallel work.** Up to four pinned read-only analysts may fan out
-   during task creation. Up to five pinned implementers may run for ready,
-   non-overlapping tasks. Reviews and state mutations are serial.
-5. **Background is explicit.** Only eligible analyst or implementer waves use
-   `is_background: true`. Reviewer stays foreground. Always
-   collect all background results before proceeding.
-6. **Generate UUIDs with the CLI.** Don't make up UUIDs. Use
-   `project-context uuid <ID>`.
-7. **Update state through the CLI.** Never edit JSONL files directly.
-   Use `project-context add` to register records, `project-context update` to
-   append metadata changes, and `project-context status` to update status.
-8. **Skills cascade.** A task inherits skills from its plan and spec.
-   Load all applicable skills before starting work.
-9. **Maximum five implementation tasks.** Dependencies and disjoint ownership
-   determine wave eligibility; JSONL event order breaks ties.
-10. **Hard gates.** Stop and wait for the user after spec review and
-    after plan review. Never auto-progress.
+Do not advertise low-level lifecycle operations as skills or slash commands.
+Task registration, context generation, readiness, status, graph, sync, UUID,
+inspection, review, and archive commands are internal mechanics.
+
+## Persistence and recovery
+
+The durable hierarchy is `PLAN-NNN → TASK-NNN`. Restore state from the plan
+Markdown and append-only task JSONL. Conversation history is never required for
+resumption.
+
+Each action first enforces one non-terminal active plan. With an omitted ID,
+resolve the sole non-terminal plan; never guess among zero or multiple plans.
+Continue and run always start at the first incomplete persisted gate.
+Explicit user acceptance sets plan status to `committed`; the Planning Gate
+separately records `User accepted: yes`.
+
+## Authority
+
+The root planning agent owns repository discovery, the compact plan,
+self-challenge, user questions, revisions, acceptance, task decomposition,
+integration, and all manager-state mutations.
+
+Subagents may gather independent evidence, implement a narrow ready packet, or
+challenge one completed packet. They do not own dependent planning or user
+interaction.
+
+## Planning methods
+
+`grilling` is executable and planning-only; `grill-me` is its wrapper. `adhd` is
+planning-only and reserved for genuinely open-ended design. Blocking questions
+halt task creation. Advisory questions and current assumptions remain in the
+plan without blocking.
+
+The plan's Human Summary is the canonical human-readable output. It explains
+what changes, why, the user-visible outcome, and the main tradeoff before the
+technical contract; do not create a second summary document.
+
+## Project-scoped memory
+
+MemoryLake is supplemental durable context. Read its project binding from
+`data/identity.json`, and include the exact `memoryLake.projectId` in every
+search or write. Never run an unfiltered workspace search. The root agent owns
+memory writes; subagents return evidence-backed memory candidates only. Store
+accepted decisions, durable constraints, and verified outcomes—not credentials,
+raw reasoning, transient output, or speculation. Local plan and task state is
+authoritative.
+
+## Packet and concurrency rules
+
+Each task packet declares exact files and symbols, boundaries, dependencies,
+do-not-touch constraints, tests, verification commands, proof obligations, and
+planning-gap conditions.
+
+At most three implementation agents may run simultaneously. All active packets
+must be dependency-ready and have disjoint exact write sets. Unknown or shared
+ownership forces sequential execution. Many agents may run across successive
+waves.
+
+Implementers load only packet-selected implementation skills. They never ask
+the user, load planning skills, expand scope, commit, or mutate manager state.
+Missing or contradictory planning returns `needs_planning` with evidence. One
+challenger reviews each completed packet; bounded defects receive one correction
+pass, while planning gaps return directly to the root workflow.
+
+## State safety
+
+- JSONL is append-only; never rewrite prior events.
+- Plan/task Markdown may be revised by the root workflow.
+- Commits, checks over combined changes, and manager-state writes are serial.
+- Persist a gate before advancing to the next one.
+- A material plan revision clears acceptance.
+- PR readiness requires all tasks done, proof evidence present, clean scope, and
+  no unresolved `needs_planning` state.
+
+Read `workflows/pc-plan.md` for the full algorithm.

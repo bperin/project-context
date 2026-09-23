@@ -34,8 +34,27 @@ function pathsOverlap(left, right) {
   return false;
 }
 
-function buildReadyWave(aiDir, limit = 5) {
-  const boundedLimit = Math.max(1, Math.min(5, Number(limit) || 5));
+function readPlanningGate(aiDir, planId) {
+  if (!planId) return { ready: false, reason: 'task has no parent plan' };
+  const filePath = path.join(aiDir, 'plans', `${planId}.md`);
+  if (!fs.existsSync(filePath)) return { ready: false, reason: `parent plan ${planId} not found` };
+  const content = fs.readFileSync(filePath, 'utf8');
+  if (!/^## Planning Gate\s*$/im.test(content)) {
+    return { ready: true, legacy: true };
+  }
+  const checks = [
+    ['Self-challenge complete', /\*\*Self-challenge complete\*\*:\s*yes\b/i],
+    ['Blocking questions resolved', /\*\*Blocking questions resolved\*\*:\s*yes\b/i],
+    ['User accepted', /\*\*User accepted\*\*:\s*yes\b/i],
+  ];
+  const missing = checks.filter(([, pattern]) => !pattern.test(content)).map(([name]) => name);
+  return missing.length === 0
+    ? { ready: true }
+    : { ready: false, reason: `planning gate incomplete: ${missing.join(', ')}` };
+}
+
+function buildReadyWave(aiDir, limit = 3) {
+  const boundedLimit = Math.max(1, Math.min(3, Number(limit) || 3));
   const states = getTaskStates(aiDir);
   const files = readTaskFiles(aiDir);
   const active = files.filter((task) => states.get(task.id)?.status === 'in_progress');
@@ -49,16 +68,24 @@ function buildReadyWave(aiDir, limit = 5) {
   );
   const candidates = [];
   const waiting = [];
+  const planningGaps = [];
 
   for (const task of files) {
     const status = states.get(task.id)?.status || task.status;
+    if (status === 'needs_planning') {
+      planningGaps.push({ id: task.id, title: task.title, plan: states.get(task.id)?.plan || task.parent || '' });
+      continue;
+    }
     if (status !== 'draft') continue;
+    const planId = states.get(task.id)?.plan || task.parent || '';
+    const gate = readPlanningGate(aiDir, planId);
     const dependencyText = parseMarkdownField(task.filePath, 'Task Dependencies') || task.dependencies;
     const dependencies = parseTaskIds(dependencyText).filter((id) => id !== task.id);
     const blockedBy = dependencies.filter((id) => !done.has(id));
     const writePaths = extractWritePaths(task.filePath);
-    const record = { id: task.id, title: task.title, dependencies, blockedBy, writePaths };
-    if (blockedBy.length > 0) waiting.push(record);
+    const record = { id: task.id, title: task.title, plan: planId, dependencies, blockedBy, writePaths };
+    if (!gate.ready) waiting.push({ ...record, planningBlocked: gate.reason });
+    else if (blockedBy.length > 0) waiting.push(record);
     else candidates.push(record);
   }
 
@@ -77,8 +104,11 @@ function buildReadyWave(aiDir, limit = 5) {
     slots,
     ready,
     waiting,
+    planningGaps,
     action: ready.length > 0
       ? `Start ${ready.map((task) => task.id).join(', ')}.`
+      : planningGaps.length > 0
+        ? 'Planning gaps must be resolved by the planning agent before dispatch resumes.'
       : active.length > 0
         ? 'No task can start now. Wait for an active subagent completion notification; do not poll.'
         : 'No task is ready. Resolve the reported dependencies or task metadata.',

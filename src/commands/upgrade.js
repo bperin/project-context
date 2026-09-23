@@ -7,6 +7,9 @@ const {
   readIdentity,
   writeJSON,
   ensureContextPacketsIgnored,
+  ensurePlanningSkills,
+  ensureMemoryLakeMcp,
+  ensureMemoryLakeIdentity,
 } = require("./shared");
 
 async function upgradeCommand(options) {
@@ -37,6 +40,10 @@ async function upgradeCommand(options) {
 
   ensureContextPacketsIgnored(targetDir);
   ensureContextPacketsIgnored(wsDir);
+  const memoryLake = ensureMemoryLakeMcp(targetDir);
+  console.log(
+    `${memoryLake.changed ? "Configured" : "Verified"} project MCP memorylake in ${memoryLake.path}`,
+  );
 
   console.log(`Upgrading ${workspace} workspace at ${wsDir}...`);
 
@@ -52,8 +59,8 @@ async function upgradeCommand(options) {
   const srcTemplates = path.join(srcRoot, "templates");
 
   // Clean up obsolete files from older versions. We don't migrate data
-  // from these — we just remove them. Existing specs/plans/tasks MD
-  // files are left alone.
+  // from these — we just remove generated assets. Existing legacy epic/spec
+  // documents and all plan/task data are left alone.
   const obsoleteFiles = [
     path.join(wsDir, "overview.xlsx"),
     path.join(wsDir, "overview.csv"),
@@ -76,8 +83,17 @@ async function upgradeCommand(options) {
     path.join(wsDir, "templates", "architecture.template.md"),
     path.join(wsDir, "templates", "identity.template.md"),
     path.join(wsDir, "templates", "ADR-NNN.template.md"),
-    // Renamed: pc-plan.md → pc-spec.md
-    path.join(wsDir, "workflows", "pc-plan.md"),
+    // PLAN+TASK-only lifecycle. Legacy data remains readable in place.
+    path.join(wsDir, "workflows", "pc-epic.md"),
+    path.join(wsDir, "workflows", "pc-spec.md"),
+    path.join(wsDir, "workflows", "pc-create-tasks.md"),
+    path.join(wsDir, "workflows", "pc-implement.md"),
+    path.join(wsDir, "workflows", "pc-review.md"),
+    path.join(wsDir, "workflows", "test-failure.md"),
+    path.join(wsDir, "templates", "EPIC-NNN.template.md"),
+    path.join(wsDir, "templates", "EPIC-NNN.instructions.md"),
+    path.join(wsDir, "templates", "SPEC-NNN.template.md"),
+    path.join(wsDir, "templates", "SPEC-NNN.instructions.md"),
   ];
   const obsoleteSkillDirs = [
     // Old workflow names (pre-pc- prefix)
@@ -98,8 +114,17 @@ async function upgradeCommand(options) {
     "review",
     "test",
     "uuid",
-    // Renamed: pc-plan → pc-spec
-    "pc-plan",
+    "pc-epic",
+    "pc-spec",
+    "pc-archive",
+    "pc-context",
+    "pc-create-tasks",
+    "pc-implement",
+    "pc-inspect-project",
+    "pc-optimize",
+    "pc-review",
+    "pc-test",
+    "pc-uuid",
     // Removed in favor of writer + challenger
     "implementer",
     "reviewer",
@@ -109,14 +134,15 @@ async function upgradeCommand(options) {
     "plan-optimizer.md",
     "task-optimizer.md",
     "code-optimizer.md",
-    // Merged into planning-brain — no separate writers
+    // Superseded planning/document writer profiles.
     "spec-writer.md",
     "plan-writer.md",
     "task-writer.md",
     // Replaced by writer + challenger
     "implementer.md",
     "reviewer.md",
-    // Removed from profile set — only planning-brain, implementer, reviewer remain
+    "planning-brain.md",
+    // Removed from the current writer + challenger profile set.
     "workstream-analyst.md",
     "test-agent.md",
   ];
@@ -153,8 +179,6 @@ async function upgradeCommand(options) {
   const dirs = [
     path.join(wsDir, ".agents", "skills"),
     path.join(wsDir, "workflows"),
-    path.join(wsDir, "epics"),
-    path.join(wsDir, "specs"),
     path.join(wsDir, "plans"),
     path.join(wsDir, "tasks"),
     path.join(wsDir, "decisions"),
@@ -184,7 +208,7 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Copy document templates (SPEC/PLAN/TASK/ADR/etc.) so the workspace
+  // Copy document templates (PLAN/TASK) so the workspace
   // has the current templates without re-running init.
   // Instructions files (.instructions.md) are copied without the GENERATED
   // header — they get injected into generated files via XML tags, so the
@@ -217,9 +241,14 @@ async function upgradeCommand(options) {
       if (skillName === "AGENTS.md") continue;
       const srcSkillDir = path.join(srcSkills, skillName);
       if (!fs.statSync(srcSkillDir).isDirectory()) continue;
+      const skillFiles = fs.readdirSync(srcSkillDir);
+      if (skillFiles.length === 0) continue;
       const dstSkillDir = path.join(skillsDir, skillName);
       fs.rmSync(dstSkillDir, { recursive: true, force: true });
-      fs.cpSync(srcSkillDir, dstSkillDir, { recursive: true });
+      fs.mkdirSync(dstSkillDir, { recursive: true });
+      for (const f of skillFiles) {
+        fs.cpSync(path.join(srcSkillDir, f), path.join(dstSkillDir, f), { recursive: true });
+      }
     }
   }
 
@@ -272,6 +301,8 @@ async function upgradeCommand(options) {
   if (!fs.existsSync(path.join(dataDir, "identity.json"))) {
     createDataFiles(wsDir, language, repoName, repoName);
   }
+  ensureMemoryLakeIdentity(wsDir, repoName);
+  ensurePlanningSkills(wsDir);
 
   // Ensure .agents symlink exists (unless --no-symlink)
   if (options.symlink !== false) {

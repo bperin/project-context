@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // PostToolUse hook: when a task is marked "done" in tasks.jsonl, inject
 // context into the current session telling it what to do next — the next
-// unblocked task in the current plan, the next plan in the spec, or that
-// the spec is complete and to check for another spec.
+// unblocked task in the current plan, the next plan, or that all plans and
+// tasks are complete.
 //
 // Usage (wired from .devin/hooks.v1.json):
 //   node task-done-hook.js -t <target> -w <workspace> [--tool ...] [--output-file ...]
@@ -24,10 +24,7 @@ const path = require('path');
 // shared.js lives in the package's src/commands/ — resolve relative to this file
 const {
   getTaskStates,
-  readSpecs,
   readPlans,
-  readTaskFiles,
-  appendJSONL,
 } = require(path.join(__dirname, '..', 'src', 'commands', 'shared'));
 
 const DONE_STATUSES = new Set(['done', 'complete', 'completed']);
@@ -103,12 +100,11 @@ function isDone(status) {
 
 // computeNextAction determines what the agent should do after a task is
 // marked done.
-function computeNextAction(newlyDone, tasks, plans, specs) {
+function computeNextAction(newlyDone, tasks, plans) {
   const lines = newlyDone.map((t) => `  - ${t.id} - ${t.title}`);
   const primaryTitle = newlyDone[0].title;
 
   const planId = String(newlyDone[0].plan || '').trim();
-  const plan = plans.find((p) => String(p.id || '').trim() === planId);
 
   const planTasks = tasks.filter(
     (t) => String(t.plan || t.parent || t.dependencies || '').trim() === planId
@@ -124,50 +120,32 @@ function computeNextAction(newlyDone, tasks, plans, specs) {
     };
   }
 
-  // All tasks in the plan are done → plan is complete.
-  const specId = plan ? String(plan.parent || plan.dependencies || '').trim() : '';
-  const specPlans = plans.filter(
-    (p) => String(p.parent || p.dependencies || '').trim() === specId
+  // All tasks in the plan are done → advance to the next plan in order.
+  // Only inspect later plans so stale plan status cannot send the workflow
+  // backward to work whose tasks are already complete.
+  const planIndex = plans.findIndex(
+    (candidate) => String(candidate.id || '').trim() === planId
   );
-  const incompletePlans = specPlans.filter((p) => {
-    if (String(p.id || '').trim() === planId) return false;
-    if (isDone(p.status)) return false;
-    return true;
-  });
+  const remainingPlans = planIndex >= 0 ? plans.slice(planIndex + 1) : plans;
+  const nextPlan = remainingPlans.find((candidate) => !isDone(candidate.status));
 
-  if (incompletePlans.length > 0) {
-    const nextPlan = incompletePlans[0];
+  if (nextPlan) {
     return {
       title: primaryTitle,
       summary: lines.join('\n'),
-      action: `Plan ${planId} is complete (all tasks done). Next plan in ${specId}: ${nextPlan.id} - ${nextPlan.title}. Start fresh, read AGENTS.md and inspect the project state, then create tasks for ${nextPlan.id} (if none exist) or implement its first task.`,
-    };
-  }
-
-  const incompleteSpecs = specs.filter((s) => {
-    if (String(s.id || '').trim() === specId) return false;
-    if (isDone(s.status)) return false;
-    return true;
-  });
-
-  if (incompleteSpecs.length > 0) {
-    const nextSpec = incompleteSpecs[0];
-    return {
-      title: primaryTitle,
-      summary: lines.join('\n'),
-      action: `Spec ${specId} is complete (all plans done). Next spec: ${nextSpec.id} - ${nextSpec.title}. Start fresh, read AGENTS.md and inspect the project state, then create a plan for ${nextSpec.id}.`,
+      action: `Plan ${planId} is complete (all tasks done). Next plan: ${nextPlan.id} - ${nextPlan.title}. Start fresh, read AGENTS.md and inspect the project state, then create tasks for ${nextPlan.id} (if none exist) or implement its first task.`,
     };
   }
 
   return {
     title: primaryTitle,
     summary: lines.join('\n'),
-    action: `All specs, plans, and tasks are complete. The project is done. Commit any remaining work and open a PR if applicable.`,
+    action: `All plans and tasks are complete. The project is done. Commit any remaining work and open a PR if applicable.`,
   };
 }
 
-function buildContext(newlyDone, tasks, plans, specs) {
-  const result = computeNextAction(newlyDone, tasks, plans, specs);
+function buildContext(newlyDone, tasks, plans) {
+  const result = computeNextAction(newlyDone, tasks, plans);
   return [
     '[task-done-hook] A task was just marked done:',
     '',
@@ -249,12 +227,11 @@ async function main() {
   }
 
   const plans = readPlans(aiDir);
-  const specs = readSpecs(aiDir);
 
   const output = {
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext: buildContext(newlyDone, tasks, plans, specs),
+      additionalContext: buildContext(newlyDone, tasks, plans),
     },
   };
   process.stdout.write(JSON.stringify(output));

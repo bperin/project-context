@@ -2,140 +2,249 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const initCommand = require('../src/commands/init');
-const inspectCommand = require('../src/commands/inspect');
 const graphCommand = require('../src/commands/graph');
-const overviewCommand = require('../src/commands/overview');
 const contextCommand = require('../src/commands/context');
 const {
-  readSpecs,
-  readPlans,
-  readTaskFiles,
-  getTaskStates,
+  appendTaskEvent,
+  ensureMemoryLakeIdentity,
+  ensureMemoryLakeMcp,
   readIdentity,
   readSkills,
-  appendTaskEvent,
-  updateMarkdownStatus,
-  parseMarkdownField,
   writeJSON,
 } = require('../src/commands/shared');
 
-async function runTests() {
-  console.log('Running project-context test suite...');
-  const targetDir = path.join('/tmp', 'pc-test-' + Date.now());
-  fs.mkdirSync(targetDir, { recursive: true });
-
-  // Create a minimal source file so graph has something to walk
-  fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true });
-  fs.writeFileSync(path.join(targetDir, 'src', 'index.js'), "module.exports = {};\n");
-  fs.writeFileSync(path.join(targetDir, 'package.json'), '{"name":"test"}\n');
-
-  // --- Test init ---
-  console.log('Testing init...');
-  const ws = '.test-manager';
-  await initCommand({ target: targetDir, workspace: ws, discover: true });
-  assert(fs.existsSync(path.join(targetDir, ws, 'AGENTS.md')), 'AGENTS.md missing');
-  assert(fs.existsSync(path.join(targetDir, ws, 'specs')), 'specs dir missing');
-  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'tasks.jsonl')), 'tasks.jsonl missing');
-  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'identity.json')), 'identity.json missing');
-  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'skills.json')), 'skills.json missing');
-  assert(fs.readFileSync(path.join(targetDir, '.gitignore'), 'utf8').includes('/.context-*.json'), 'root context packets are not ignored');
-  assert(fs.readFileSync(path.join(targetDir, ws, '.gitignore'), 'utf8').includes('/.context-*.json'), 'workspace context packets are not ignored');
-
-  // Verify identity.json has expected fields
-  const identity = readIdentity(path.join(targetDir, ws));
-  assert(identity.stack, 'identity.json missing stack');
-  assert(identity.primaryLanguage, 'identity.json missing primaryLanguage');
-
-  // Verify skills.json has expected structure
-  const skillsData = readSkills(path.join(targetDir, ws));
-  assert(Array.isArray(skillsData.skills), 'skills.json missing skills array');
-  assert(Array.isArray(skillsData.matrix), 'skills.json missing matrix array');
-  assert(skillsData.skills.length > 0, 'skills.json has no skill entries');
-
-  // Verify custom subagent profiles are copied
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'reviewer.md')), 'reviewer agent profile missing');
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'implementer.md')), 'implementer agent profile missing');
-  assert(fs.existsSync(path.join(targetDir, ws, '.agents', 'agents', 'planning-brain.md')), 'planning-brain agent profile missing');
-  // code-optimizer is now a skill (pc-optimize), not an agent profile
-
-  // --- Test graph ---
-  console.log('Testing graph...');
-  await graphCommand({ target: targetDir, workspace: ws });
-  assert(fs.existsSync(path.join(targetDir, ws, 'graph', 'nodes')), 'graph nodes missing');
-  const nodeFiles = fs.readdirSync(path.join(targetDir, ws, 'graph', 'nodes'));
-  assert(nodeFiles.length > 0, 'graph generated no nodes');
-
-  // --- Test overview ---
-  console.log('Testing overview...');
-  await overviewCommand({ target: targetDir, workspace: ws });
-  assert(fs.existsSync(path.join(targetDir, ws, 'data', 'workflows.json')), 'workflows.json missing after overview');
-
-  // --- Test inspect ---
-  console.log('Testing inspect...');
-  // Create spec, plan, task MD files for inspect to read
-  const specsDir = path.join(targetDir, ws, 'specs');
-  const plansDir = path.join(targetDir, ws, 'plans');
-  const tasksDir = path.join(targetDir, ws, 'tasks');
-
-  fs.writeFileSync(path.join(specsDir, 'SPEC-001.md'),
-    '# SPEC-001: Test Spec\n\n**UUID**: test-uuid-001\n**Status**: committed\n**Dependencies**: none\n**Skills**: go-crypto\n**Triggers**: crypto\n');
-  fs.writeFileSync(path.join(plansDir, 'PLAN-001.md'),
-    '# PLAN-001: Test Plan\n\n**UUID**: test-uuid-plan\n**Status**: committed\n**Parent**: SPEC-001\n**Dependencies**: SPEC-001\n**Skills**: go-crypto\n**Triggers**: crypto\n');
-  fs.writeFileSync(path.join(tasksDir, 'TASK-001.md'),
-    '# TASK-001: Test Task\n\n**UUID**: test-uuid-002\n**Status**: committed\n**Parent**: PLAN-001\n**Dependencies**: PLAN-001\n**Skills**: \n**Triggers**: ed25519\n');
-
-  // Append a task event to JSONL
-  appendTaskEvent(path.join(targetDir, ws), {
-    id: 'TASK-001',
-    event: 'created',
-    title: 'Test Task',
-    plan: 'PLAN-001',
-    status: 'draft',
-  });
-
-  // Update skills.json with test layers
-  writeJSON(path.join(targetDir, ws, 'data', 'skills.json'), {
-    skills: [
-      { skill: 'go-systems-programmer', path: 'user-level', layer: 'always-on', workflowTrigger: 'all', purpose: 'Base Go style' },
-      { skill: 'project-linter', path: 'user-level', layer: 'project-local', workflowTrigger: 'all', purpose: 'Base project lint' },
-      { skill: 'security-check', path: 'user-level', layer: 'user-local', workflowTrigger: 'security', purpose: 'Security guardrails' },
-      { skill: 'ed25519-user', path: 'user-level', layer: 'user-local', workflowTrigger: 'ed25519', purpose: 'Ed25519 user helper' },
-    ],
-    matrix: [
-      { trigger: 'ed25519', language: 'Go', primarySkills: 'ed25519-skill', secondarySkills: 'wycheproof, crypto', notes: 'Ed25519 implementation' },
-    ],
-  });
-
-  // Update identity to Go
-  const identityPath = path.join(targetDir, ws, 'data', 'identity.json');
-  const ident = readIdentity(path.join(targetDir, ws));
-  ident.primaryLanguage = 'Go';
-  ident.stack = 'Go';
-  writeJSON(identityPath, ident);
-
-  await inspectCommand({ target: targetDir, workspace: ws });
-
-  // --- Test context (dynamic skill layers) ---
-  console.log('Testing context...');
+function captureContext(options) {
   let output = '';
   const originalLog = console.log;
-  console.log = (msg) => { output += msg + '\n'; };
-  await contextCommand({ target: targetDir, workspace: ws, id: 'TASK-001' });
-  console.log = originalLog;
-  const packet = JSON.parse(output.trim());
-  assert.deepStrictEqual(packet.skillLayers.alwaysOn, ['go-systems-programmer']);
-  assert.deepStrictEqual(packet.skillLayers.projectLocal, ['project-linter']);
-  assert.deepStrictEqual(packet.skillLayers.userLocal, ['ed25519-user']);
-  assert.deepStrictEqual(packet.skillLayers.matrixSkills.sort(), ['ed25519-skill', 'wycheproof', 'crypto'].sort());
-  assert.deepStrictEqual(packet.skillLayers.primarySkills, ['ed25519-skill']);
-  assert.deepStrictEqual(packet.skillLayers.secondarySkills.sort(), ['wycheproof', 'crypto'].sort());
-  assert(packet.allSkills.includes('go-systems-programmer'), 'allSkills missing alwaysOn');
-  assert(packet.allSkills.includes('ed25519-skill'), 'allSkills missing matrix primary');
-
-  console.log('All tests passed successfully!');
+  console.log = (message) => { output += `${message}\n`; };
+  return contextCommand(options).then(() => {
+    console.log = originalLog;
+    return JSON.parse(output.trim());
+  }, (error) => {
+    console.log = originalLog;
+    throw error;
+  });
 }
 
-runTests().catch(err => {
-  console.error('Test failed:', err);
+async function runTests() {
+  console.log('Running project-context PLAN+TASK test suite...');
+  const targetDir = path.join('/tmp', `pc-test-${Date.now()}`);
+  const ws = '.test-manager';
+  const aiDir = path.join(targetDir, ws);
+  fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(targetDir, 'src', 'owned.js'), 'module.exports = {};\n');
+  fs.writeFileSync(path.join(targetDir, 'src', 'other.js'), 'module.exports = {};\n');
+  fs.writeFileSync(path.join(targetDir, 'package.json'), '{"name":"test-repo"}\n');
+  fs.mkdirSync(path.join(targetDir, '.codex'), { recursive: true });
+  fs.writeFileSync(path.join(targetDir, '.codex', 'config.toml'), 'model = "existing-model"\n');
+
+  await initCommand({ target: targetDir, workspace: ws, discover: true });
+  assert(fs.existsSync(path.join(aiDir, 'plans')), 'plans dir missing');
+  assert(fs.existsSync(path.join(aiDir, 'tasks')), 'tasks dir missing');
+  assert(!fs.existsSync(path.join(aiDir, 'epics')), 'init created legacy epics dir');
+  assert(!fs.existsSync(path.join(aiDir, 'specs')), 'init created legacy specs dir');
+  assert(fs.existsSync(path.join(aiDir, 'data', 'tasks.jsonl')), 'tasks.jsonl missing');
+  assert(fs.existsSync(path.join(aiDir, 'data', 'identity.json')), 'identity.json missing');
+  assert(fs.existsSync(path.join(aiDir, 'data', 'skills.json')), 'skills.json missing');
+  const codexConfigPath = path.join(targetDir, '.codex', 'config.toml');
+  const codexConfig = fs.readFileSync(codexConfigPath, 'utf8');
+  assert.match(codexConfig, /model = "existing-model"/, 'existing Codex config was replaced');
+  assert.match(codexConfig, /\[mcp_servers\.memorylake\]/, 'MemoryLake MCP section missing');
+  assert.match(codexConfig, /https:\/\/app\.memorylake\.ai\/memorylake\/mcp\/v2/, 'MemoryLake MCP URL missing');
+  const firstConfig = codexConfig;
+  assert.strictEqual(ensureMemoryLakeMcp(targetDir).changed, false, 'MemoryLake MCP setup is not idempotent');
+  assert.strictEqual(fs.readFileSync(codexConfigPath, 'utf8'), firstConfig, 'idempotent MCP setup changed config');
+
+  const generatedSkills = fs.readdirSync(path.join(aiDir, '.agents', 'skills'))
+    .filter((name) => name.startsWith('pc-')).sort();
+  assert.deepStrictEqual(generatedSkills, ['pc-plan'], 'init generated public legacy workflow skills');
+  const generatedProfiles = fs.readdirSync(path.join(aiDir, '.agents', 'agents'))
+    .filter((name) => name.endsWith('.md')).sort();
+  assert.deepStrictEqual(generatedProfiles, ['challenger.md', 'writer.md'], 'init generated unexpected agent profiles');
+
+  const planTemplate = fs.readFileSync(path.join(aiDir, 'templates', 'PLAN-NNN.template.md'), 'utf8');
+  for (const heading of ['## Human Summary', '## Resume Checkpoint', '## Blocking Questions', '## Advisory Questions', '## Planning Gate']) {
+    assert(planTemplate.includes(heading), `plan template missing ${heading}`);
+  }
+  assert.match(planTemplate, /Self-challenge complete.*no/i);
+  assert.match(planTemplate, /Blocking questions resolved.*no/i);
+  assert.match(planTemplate, /User accepted.*no/i);
+
+  const identity = readIdentity(aiDir);
+  assert(identity.stack && identity.primaryLanguage, 'identity data incomplete');
+  assert.deepStrictEqual(identity.memoryLake, { workspace: 'default', project: path.basename(targetDir) });
+  ensureMemoryLakeIdentity(aiDir, path.basename(targetDir), {
+    workspaceId: 'ws-test',
+    projectId: 'prj-test',
+  });
+  ensureMemoryLakeIdentity(aiDir, path.basename(targetDir));
+  assert.deepStrictEqual(readIdentity(aiDir).memoryLake, {
+    workspace: 'default',
+    project: path.basename(targetDir),
+    workspaceId: 'ws-test',
+    projectId: 'prj-test',
+  }, 'MemoryLake IDs were not preserved');
+  const skillsData = readSkills(aiDir);
+  assert(skillsData.skills.some((skill) => skill.skill === 'grilling' && skill.workflowTrigger === 'planning'));
+  assert(skillsData.skills.some((skill) => skill.skill === 'adhd' && skill.workflowTrigger === 'planning'));
+
+  await graphCommand({ target: targetDir, workspace: ws });
+  fs.writeFileSync(path.join(aiDir, 'plans', 'PLAN-001.md'), `# PLAN-001: Compact plan
+
+**UUID**: plan-uuid
+**Status**: committed
+**Dependencies**:
+**Skills**:
+**Triggers**:
+
+## Goal
+
+Deliver the bounded behavior.
+
+## Human Summary
+
+Human-readable planning summary.
+
+## Scope and Boundaries
+
+Only the owned module changes.
+
+## Repositories
+
+- \`test-repo\`
+
+## Architecture and Data Boundaries
+
+The public API remains stable and data ownership stays local.
+
+## Decisions
+
+Use the existing interface.
+
+## Acceptance and Verification
+
+The exact task verification passes.
+
+## Planning Gate
+
+- **Self-challenge complete**: yes
+- **Blocking questions resolved**: yes
+- **User accepted**: yes
+`);
+  fs.writeFileSync(path.join(aiDir, 'tasks', 'TASK-001.md'), `# TASK-001: Narrow task
+
+**UUID**: task-uuid
+**Status**: draft
+**Parent**: PLAN-001
+**Dependencies**: none
+**Skills**:
+**Triggers**: node
+
+## Goal
+
+Change one owned symbol.
+
+## Repositories
+
+- \`test-repo\`
+
+## Relevant Files
+
+### To create
+
+None.
+
+### To modify
+
+- \`src/owned.js\` — update the owned behavior
+
+## Relevant Symbols
+
+- \`ownedFunction\`
+
+## Required Change
+
+Update the bounded implementation.
+
+## Constraints
+
+Keep the API and data boundary unchanged.
+
+## Proof Obligations
+
+1. Return test output proving the behavior.
+
+## Acceptance Criteria
+
+1. The owned behavior passes.
+
+## Tests
+
+### Success cases
+- expected input succeeds
+
+### Failure cases
+- invalid input fails safely
+
+### Boundary cases
+- empty input is handled
+
+## Verification
+
+\`node test-owned.js\`
+
+## Do-Not-Touch
+
+- \`src/other.js\`
+
+## Planning Gap Protocol
+
+- Stop and return \`needs_planning\` if the write set must expand.
+`);
+  appendTaskEvent(aiDir, {
+    id: 'TASK-001', event: 'created', title: 'Narrow task', plan: 'PLAN-001', status: 'draft', triggers: 'node',
+  });
+  writeJSON(path.join(aiDir, 'data', 'skills.json'), {
+    skills: [
+      { skill: 'grilling', path: 'user-level', layer: 'user-local', workflowTrigger: 'planning' },
+      { skill: 'adhd', path: 'user-level', layer: 'user-local', workflowTrigger: 'planning' },
+      { skill: 'project-linter', path: 'user-level', layer: 'project-local', workflowTrigger: 'all' },
+    ],
+    matrix: [],
+  });
+  writeJSON(path.join(aiDir, 'graph', 'nodes', 'owned.json'), {
+    id: 'owned', path: 'test-repo/src/owned.js', type: 'source',
+  });
+  writeJSON(path.join(aiDir, 'graph', 'nodes', 'other.json'), {
+    id: 'other', path: 'test-repo/src/other.js', type: 'source',
+  });
+
+  const planPacket = await captureContext({ target: targetDir, workspace: ws, id: 'PLAN-001', workflow: 'planning' });
+  assert(planPacket.allSkills.includes('grilling'), 'PLAN context missing grilling');
+  assert(planPacket.allSkills.includes('adhd'), 'PLAN context missing adhd');
+
+  const taskPacket = await captureContext({ target: targetDir, workspace: ws, id: 'TASK-001' });
+  assert(!taskPacket.allSkills.includes('grilling') && !taskPacket.allSkills.includes('adhd'), 'planning skills leaked into TASK context');
+  assert.strictEqual(taskPacket.parent.id, 'PLAN-001');
+  assert(taskPacket.parent.summary, 'TASK context missing compact parent summary');
+  assert(!taskPacket.parent.body, 'TASK context includes full parent plan body');
+  assert.strictEqual(taskPacket.grandparent, null);
+  const contract = taskPacket.target.contract;
+  assert(contract.writeSet.includes('src/owned.js'), 'contract missing exact file');
+  assert(contract.symbols.includes('ownedFunction'), 'contract missing exact symbol');
+  assert(contract.dataApiBoundaries.includes('API and data boundary'), 'contract missing boundary');
+  assert(contract.tests.includes('Success cases') && contract.tests.includes('Failure cases') && contract.tests.includes('Boundary cases'), 'contract missing tests');
+  assert(contract.verification.includes('node test-owned.js'), 'contract missing verification');
+  assert(contract.doNotTouch.includes('src/other.js'), 'contract missing do-not-touch');
+  assert(contract.proofObligations.includes('test output'), 'contract missing proof obligations');
+  assert(contract.planningGapProtocol.includes('needs_planning'), 'contract missing planning-gap protocol');
+  assert.deepStrictEqual(taskPacket.modules.map((module) => module.path), ['test-repo/src/owned.js']);
+
+  fs.rmSync(targetDir, { recursive: true, force: true });
+  console.log('PLAN+TASK tests passed.');
+}
+
+runTests().catch((error) => {
+  console.error('Test failed:', error);
   process.exit(1);
 });

@@ -2,139 +2,84 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const initCommand = require('../src/commands/init');
-const inspectCommand = require('../src/commands/inspect');
 const graphCommand = require('../src/commands/graph');
-const overviewCommand = require('../src/commands/overview');
 const addCommand = require('../src/commands/add');
 const setStatusCommand = require('../src/commands/set-status');
 const syncCommand = require('../src/commands/sync');
 const updateCommand = require('../src/commands/update');
 const upgradeCommand = require('../src/commands/upgrade');
-const {
-  readSpecs,
-  readPlans,
-  readTaskFiles,
-  getTaskStates,
-  readJSONL,
-} = require('../src/commands/shared');
+const { readPlans, getTaskStates, readJSONL } = require('../src/commands/shared');
 
 async function stressTest() {
-  console.log('=== STARTING STRESS TESTS & EDGE CASE VALIDATION ===');
+  console.log('=== STARTING PLAN+TASK STRESS TESTS ===');
+  const emptyDir = path.join('/tmp', `stress-empty-${Date.now()}`);
+  fs.mkdirSync(emptyDir, { recursive: true });
+  await initCommand({ target: emptyDir, workspace: '.test-manager', discover: true });
+  assert(fs.existsSync(path.join(emptyDir, '.test-manager', 'plans')));
+  assert(fs.existsSync(path.join(emptyDir, '.test-manager', 'tasks')));
+  assert(!fs.existsSync(path.join(emptyDir, '.test-manager', 'specs')));
+  assert(!fs.existsSync(path.join(emptyDir, '.test-manager', 'epics')));
 
-  // Scenario 1: Empty directory with --discover
-  const dir1 = path.join('/tmp', 'stress-empty-' + Date.now());
-  fs.mkdirSync(dir1, { recursive: true });
-  console.log('[Scenario 1] Testing empty directory initialization with discover...');
-  const ws1 = '.test-manager';
-  await initCommand({ target: dir1, workspace: ws1, discover: true });
-  assert(fs.existsSync(path.join(dir1, ws1, 'AGENTS.md')));
-  assert(fs.existsSync(path.join(dir1, ws1, 'identity', 'project.md')));
-  assert(fs.existsSync(path.join(dir1, ws1, 'data', 'tasks.jsonl')));
-  assert(fs.existsSync(path.join(dir1, ws1, 'data', 'identity.json')));
+  const goDir = path.join('/tmp', `stress-go-${Date.now()}`);
+  fs.mkdirSync(goDir, { recursive: true });
+  fs.writeFileSync(path.join(goDir, 'go.mod'), 'module example.com/foo\n\ngo 1.22\n');
+  fs.writeFileSync(path.join(goDir, 'main.go'), 'package main\n');
+  await initCommand({ target: goDir, workspace: '.go-manager', discover: true });
+  await graphCommand({ target: goDir, workspace: '.go-manager' });
+  assert(fs.readdirSync(path.join(goDir, '.go-manager', 'graph', 'nodes')).length > 0);
 
-  // Scenario 2: Go project topology
-  const dir2 = path.join('/tmp', 'stress-go-' + Date.now());
-  fs.mkdirSync(dir2, { recursive: true });
-  fs.writeFileSync(path.join(dir2, 'go.mod'), 'module example.com/foo\n\ngo 1.22\n');
-  fs.writeFileSync(path.join(dir2, 'main.go'), 'package main\n\nimport "fmt"\n\nfunc main() { fmt.Println("hello") }\n');
-  console.log('[Scenario 2] Testing Go project initialization & graph parsing...');
-  const ws2 = '.custom-manager';
-  await initCommand({ target: dir2, workspace: ws2, discover: true });
-  await graphCommand({ target: dir2, workspace: ws2 });
-  assert(fs.existsSync(path.join(dir2, ws2, 'graph', 'nodes')));
-  assert(fs.existsSync(path.join(dir2, ws2, 'data', 'tasks.jsonl')));
+  const fullDir = path.join('/tmp', `stress-full-${Date.now()}`);
+  const ws = '.full-manager';
+  const aiDir = path.join(fullDir, ws);
+  fs.mkdirSync(fullDir, { recursive: true });
+  fs.writeFileSync(path.join(fullDir, 'package.json'), '{"name":"stress"}\n');
+  await initCommand({ target: fullDir, workspace: ws, discover: false });
 
-  // Scenario 3: Populating with specs/plans/tasks and testing inspect + overview
-  const dir3 = path.join('/tmp', 'stress-full-' + Date.now());
-  fs.mkdirSync(dir3, { recursive: true });
-  fs.writeFileSync(path.join(dir3, 'package.json'), '{"name":"test"}\n');
-  const ws3 = '.full-manager';
-  await initCommand({ target: dir3, workspace: ws3, discover: false });
+  const legacyAgents = path.join(fullDir, '.devin', 'agents');
+  fs.mkdirSync(legacyAgents, { recursive: true });
+  fs.writeFileSync(path.join(legacyAgents, 'implementer.md'), 'obsolete generated profile\n');
+  fs.writeFileSync(path.join(legacyAgents, 'personal.md'), 'user profile\n');
+  await upgradeCommand({ target: fullDir, workspace: ws });
+  assert(!fs.existsSync(path.join(legacyAgents, 'implementer.md')), 'upgrade kept obsolete managed profile');
+  assert(fs.existsSync(path.join(legacyAgents, 'personal.md')), 'upgrade removed unrelated user profile');
+  assert.deepStrictEqual(
+    fs.readdirSync(path.join(aiDir, '.agents', 'skills')).filter((name) => name.startsWith('pc-')).sort(),
+    ['pc-plan'],
+  );
 
-  // Upgrade removes old duplicate managed profiles from .devin/agents while
-  // preserving unrelated user profiles.
-  const legacyAgentsDir = path.join(dir3, '.devin', 'agents');
-  fs.mkdirSync(legacyAgentsDir, { recursive: true });
-  fs.writeFileSync(path.join(legacyAgentsDir, 'reviewer.md'), 'old generated reviewer\n');
-  fs.writeFileSync(path.join(legacyAgentsDir, 'personal.md'), 'user profile\n');
-  const nestedLegacyAgentsDir = path.join(dir3, ws3, '.devin', 'agents');
-  fs.mkdirSync(nestedLegacyAgentsDir, { recursive: true });
-  fs.writeFileSync(path.join(nestedLegacyAgentsDir, 'implementer.md'), 'old generated implementer\n');
-  fs.writeFileSync(path.join(nestedLegacyAgentsDir, 'architect.md'), 'user profile\n');
-  await upgradeCommand({ target: dir3, workspace: ws3 });
-  assert(fs.readFileSync(path.join(dir3, '.gitignore'), 'utf8').includes('/.context-*.json'), 'upgrade did not ignore root context packets');
-  assert(fs.readFileSync(path.join(dir3, ws3, '.gitignore'), 'utf8').includes('/.context-*.json'), 'upgrade did not ignore workspace context packets');
-  assert(!fs.existsSync(path.join(legacyAgentsDir, 'reviewer.md')), 'upgrade kept duplicate managed reviewer');
-  assert(fs.existsSync(path.join(legacyAgentsDir, 'personal.md')), 'upgrade removed unrelated user profile');
-  assert(!fs.existsSync(path.join(nestedLegacyAgentsDir, 'implementer.md')), 'upgrade kept nested duplicate managed implementer');
-  assert(fs.existsSync(path.join(nestedLegacyAgentsDir, 'architect.md')), 'upgrade removed nested unrelated user profile');
+  await addCommand({ type: 'plan', title: 'First Plan', status: 'committed', target: fullDir, workspace: ws });
+  await syncCommand({ target: fullDir, workspace: ws });
+  assert.strictEqual(readPlans(aiDir)[0].status, 'committed', 'sync changed a childless plan');
 
-  // Add spec, plan, task via CLI
-  await addCommand({ type: 'spec', title: 'Core Engine', target: dir3, workspace: ws3 });
-  await addCommand({ type: 'plan', title: 'Database Layer', parent: 'SPEC-001', status: 'committed', target: dir3, workspace: ws3 });
-
-  // A committed plan remains committed before task creation.
-  await syncCommand({ target: dir3, workspace: ws3 });
-  let plans = readPlans(path.join(dir3, ws3));
-  assert.strictEqual(plans[0].status, 'committed', 'sync demoted a childless committed plan');
-
-  await addCommand({ type: 'task', title: 'Connection Pool', parent: 'PLAN-001', target: dir3, workspace: ws3 });
+  await addCommand({ type: 'task', title: 'First Task', parent: 'PLAN-001', target: fullDir, workspace: ws });
   await updateCommand({
-    id: 'TASK-001',
-    title: 'Bounded Connection Pool',
-    skills: 'database-testing',
-    target: dir3,
-    workspace: ws3,
+    id: 'TASK-001', title: 'Bounded First Task', skills: 'node-testing',
+    target: fullDir, workspace: ws,
   });
+  await setStatusCommand({ id: 'TASK-001', status: 'done', target: fullDir, workspace: ws });
+  await syncCommand({ target: fullDir, workspace: ws });
+  assert.strictEqual(readPlans(aiDir).find((plan) => plan.id === 'PLAN-001').status, 'done', 'tasks did not roll up to plan');
 
-  // Set task to done
-  await setStatusCommand({ id: 'TASK-001', status: 'done', target: dir3, workspace: ws3 });
+  await addCommand({ type: 'plan', title: 'Second Plan', status: 'committed', target: fullDir, workspace: ws });
+  await addCommand({ type: 'task', title: 'Planning Gap', parent: 'PLAN-002', target: fullDir, workspace: ws });
+  await setStatusCommand({ id: 'TASK-002', status: 'needs_planning', target: fullDir, workspace: ws });
+  await syncCommand({ target: fullDir, workspace: ws });
+  assert.strictEqual(readPlans(aiDir).find((plan) => plan.id === 'PLAN-002').status, 'needs_planning', 'needs_planning did not propagate to plan');
 
-  console.log('[Scenario 3] Testing inspect and overview with data...');
-  await inspectCommand({ target: dir3, workspace: ws3 });
-  await overviewCommand({ target: dir3, workspace: ws3 });
+  const states = getTaskStates(aiDir);
+  assert.strictEqual(states.get('TASK-001').title, 'Bounded First Task');
+  assert.strictEqual(states.get('TASK-001').skills, 'node-testing');
+  assert.strictEqual(states.get('TASK-002').status, 'needs_planning');
+  const timeline = readJSONL(path.join(aiDir, 'plans', 'PLAN-002.timeline.jsonl'));
+  assert(timeline.some((event) => event.task === 'TASK-002' && event.status === 'needs_planning'));
 
-  // Verify data persists
-  const specs = readSpecs(path.join(dir3, ws3));
-  assert(specs.length === 1, 'Specs not persisted');
-  plans = readPlans(path.join(dir3, ws3));
-  assert(plans.length === 1, 'Plans not persisted');
-  const taskStates = getTaskStates(path.join(dir3, ws3));
-  assert(taskStates.size === 1, 'Tasks not persisted in JSONL');
-  assert.strictEqual(taskStates.get('TASK-001').status, 'done', 'Task not marked done');
-  assert.strictEqual(taskStates.get('TASK-001').title, 'Bounded Connection Pool', 'Task title update not reduced from JSONL');
-  assert.strictEqual(taskStates.get('TASK-001').skills, 'database-testing', 'Task skills update not reduced from JSONL');
-
-  // Verify plan timeline has events
-  const timeline = readJSONL(path.join(dir3, ws3, 'plans', 'PLAN-001.timeline.jsonl'));
-  assert(timeline.length >= 2, 'Plan timeline should have queued + done events');
-
-  // Scenario 4: Error handling when workspace does not exist
-  console.log('[Scenario 4] Testing error handling when workspace does not exist...');
-  const nonExistent = path.join('/tmp', 'non-existent-dir-' + Date.now());
-  const origExit = process.exit;
-  let exited = false;
-  process.exit = (code) => { exited = true; throw new Error(`process.exit(${code})`); };
-  try {
-    await inspectCommand({ target: nonExistent, workspace: '.test-manager' });
-    assert.fail('Should have thrown or exited for non-existent workspace');
-  } catch (err) {
-    console.log('Caught expected error/exit pathway:', err.message);
-    assert(exited || err.message.includes('does not exist'), 'Expected error about missing workspace');
-  } finally {
-    process.exit = origExit;
-  }
-
-  // Cleanup fake projects
-  console.log('Cleaning up stress test directories...');
-  fs.rmSync(dir1, { recursive: true, force: true });
-  fs.rmSync(dir2, { recursive: true, force: true });
-  fs.rmSync(dir3, { recursive: true, force: true });
-
-  console.log('=== ALL STRESS TESTS PASSED SUCCESSFULLY! ===');
+  fs.rmSync(emptyDir, { recursive: true, force: true });
+  fs.rmSync(goDir, { recursive: true, force: true });
+  fs.rmSync(fullDir, { recursive: true, force: true });
+  console.log('=== PLAN+TASK STRESS TESTS PASSED ===');
 }
 
-stressTest().catch(err => {
-  console.error('Stress test failed:', err);
+stressTest().catch((error) => {
+  console.error('Stress test failed:', error);
   process.exit(1);
 });

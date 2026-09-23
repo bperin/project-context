@@ -42,7 +42,10 @@ function readSkillLayers(skillsData, taskTriggers, workflow = 'all') {
         projectLocal.push(...parseSkills(skill));
       }
     } else if (layer === 'user-local') {
-      if (triggerSet.has(wfOrTrigger)) {
+      // User-local skills may be selected by a task trigger or by an explicit
+      // workflow. Planning methods use the latter so they never leak into a
+      // default/task-implementation packet.
+      if (triggerSet.has(wfOrTrigger) || wfOrTrigger === workflowNorm) {
         userLocal.push(...parseSkills(skill));
       }
     }
@@ -98,6 +101,21 @@ function findChildren(rows, parentId) {
   });
 }
 
+function stripInstructions(content) {
+  return String(content || '').replace(/<instructions>[\s\S]*?<\/instructions>\s*/i, '').trim();
+}
+
+function extractSection(content, name) {
+  content = stripInstructions(content);
+  const heading = new RegExp(`^(#{2,3})\\s+${name}\\s*$`, 'im').exec(content);
+  if (!heading) return '';
+  const start = heading.index + heading[0].length;
+  const nextHeading = new RegExp(`^#{${heading[1].length}}\\s+`, 'gim');
+  nextHeading.lastIndex = start;
+  const next = nextHeading.exec(content);
+  return content.slice(start, next ? next.index : content.length).trim();
+}
+
 // readMarkdown reads a companion markdown file for a epic/spec/plan/task.
 function readMarkdown(aiDir, id) {
   const type = id.toUpperCase().startsWith('EPIC-') ? 'epics'
@@ -110,18 +128,65 @@ function readMarkdown(aiDir, id) {
   const filePath = path.join(aiDir, type, `${id.toUpperCase()}.md`);
   if (!fs.existsSync(filePath)) return { body: '', testing: '', criteria: '' };
 
-  const content = fs.readFileSync(filePath, 'utf8');
-
-  function section(name) {
-    const pattern = new RegExp(`##\\s+${name}[\\r\\n]+([\\s\\S]*?)(?=##\\s|$)`, 'i');
-    const m = content.match(pattern);
-    return m ? m[1].trim() : '';
-  }
+  const content = stripInstructions(fs.readFileSync(filePath, 'utf8'));
 
   return {
     body: content.trim(),
-    testing: section('Testing'),
-    criteria: section('Completion Criteria') || section('Acceptance Criteria') || section('Success Criteria'),
+    testing: extractSection(content, 'Testing') || extractSection(content, 'Tests'),
+    criteria: extractSection(content, 'Completion Criteria') || extractSection(content, 'Acceptance Criteria') || extractSection(content, 'Success Criteria'),
+  };
+}
+
+function firstSection(content, names) {
+  for (const name of names) {
+    const section = extractSection(content, name);
+    if (section) return section;
+  }
+  return '';
+}
+
+function compactMarkdownContext(markdown) {
+  const body = markdown.body || '';
+  const boundaries = [
+    firstSection(body, ['Architecture and Data Boundaries']),
+    firstSection(body, ['API/Data Boundary', 'API and Data Boundary', 'API Boundary']),
+    firstSection(body, ['Data Boundary']),
+    firstSection(body, ['Constraints']),
+  ].filter(Boolean).join('\n\n');
+
+  return {
+    goal: firstSection(body, ['Goal', 'Purpose', 'Objective']),
+    scope: firstSection(body, ['Scope and Boundaries', 'Scope', 'Required Change', 'Architecture']),
+    repositories: firstSection(body, ['Repositories']),
+    boundaries,
+    acceptanceCriteria: markdown.criteria || firstSection(body, ['Acceptance Criteria', 'Completion Criteria', 'Success Criteria']),
+    testing: markdown.testing || firstSection(body, ['Testing', 'Tests']),
+    verification: firstSection(body, ['Verification']),
+    doNotTouch: firstSection(body, ['Do-Not-Touch', 'Do Not Touch']),
+    decisions: firstSection(body, ['Decisions']),
+  };
+}
+
+function taskContract(row, markdown) {
+  const body = markdown.body || '';
+  return {
+    goal: firstSection(body, ['Goal', 'Purpose', 'Objective']),
+    repositories: firstSection(body, ['Repositories']),
+    writeSet: firstSection(body, ['Relevant Files', 'Write Set', 'Files']),
+    symbols: firstSection(body, ['Relevant Symbols', 'Symbols']),
+    requiredChange: firstSection(body, ['Required Change', 'Implementation']),
+    dataApiBoundaries: [
+      firstSection(body, ['API/Data Boundary', 'API and Data Boundary', 'API Boundary']),
+      firstSection(body, ['Data Boundary']),
+      firstSection(body, ['Constraints']),
+    ].filter(Boolean).join('\n\n'),
+    dependencies: row.dependencies || row.parent || '',
+    acceptanceCriteria: markdown.criteria || firstSection(body, ['Acceptance Criteria', 'Completion Criteria', 'Success Criteria']),
+    tests: firstSection(body, ['Tests', 'Testing']),
+    verification: firstSection(body, ['Verification']),
+    doNotTouch: firstSection(body, ['Do-Not-Touch', 'Do Not Touch']),
+    proofObligations: firstSection(body, ['Proof Obligations']),
+    planningGapProtocol: firstSection(body, ['Planning Gap Protocol']),
   };
 }
 
@@ -136,16 +201,28 @@ function collectSkills(row, matrix) {
 // parseRepositories extracts repository names from a Markdown body's
 // ## Repositories section. Returns an array of repo names (e.g. ['trakt2-api']).
 function parseRepositories(body) {
+  body = stripInstructions(body);
   if (!body) return [];
   const pattern = /##\s+Repositories[\r\n]+([\s\S]*?)(?=##\s|$)/i;
   const m = body.match(pattern);
   if (!m) return [];
   const repos = [];
   for (const line of m[1].split('\n')) {
-    const repoMatch = line.match(/[-*]\s+`([^`/]+)\/?`/);
-    if (repoMatch) repos.push(repoMatch[1]);
+    const repoMatch = line.match(/[-*]\s+(?:`([^`]+)`|(\S+))/);
+    if (!repoMatch) continue;
+    const value = (repoMatch[1] || repoMatch[2]).replace(/[\\/]$/, '');
+    const repo = value.startsWith('/') ? path.basename(value) : value.split('/')[0];
+    if (repo) repos.push(repo);
   }
   return repos;
+}
+
+function parseRelevantFiles(body) {
+  const section = extractSection(body, 'Relevant Files') || extractSection(body, 'Write Set') || extractSection(body, 'Files');
+  if (!section) return [];
+  return [...section.matchAll(/`([^`]+)`/g)]
+    .map(match => match[1].replace(/[\\/]$/, ''))
+    .filter(value => value && !value.includes(' — '));
 }
 
 // buildPacket constructs a minimal context packet for a spec/plan/task.
@@ -172,7 +249,7 @@ async function buildPacket(aiDir, targetId, options = {}) {
   let modules = [];
   let components = [];
 
-  let type, row, parent, children, grandparent;
+  let type, row, parent, children;
 
   if (targetId.toUpperCase().startsWith('EPIC-')) {
     type = 'epic';
@@ -189,16 +266,13 @@ async function buildPacket(aiDir, targetId, options = {}) {
     type = 'plan';
     row = findRow(plans, targetId);
     if (!row) throw new Error(`Plan ${targetId} not found`);
-    parent = findRow(specs, row.parent || row.dependencies || '');
+    parent = findRow(specs, row.parent || row.dependencies || row.source || '');
     children = findChildren(tasks, targetId);
   } else if (targetId.toUpperCase().startsWith('TASK-')) {
     type = 'task';
     row = findRow(tasks, targetId);
     if (!row) throw new Error(`Task ${targetId} not found`);
     parent = findRow(plans, row.parent || row.dependencies || '');
-    if (parent) {
-      grandparent = findRow(specs, parent.parent || parent.dependencies || '');
-    }
   } else {
     throw new Error(`Unknown ID format: ${targetId}. Expected EPIC-NNN, SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
   }
@@ -213,7 +287,6 @@ async function buildPacket(aiDir, targetId, options = {}) {
 
   const targetSkills = collectSkills(row, skillMatrix);
   const parentSkills = parent ? collectSkills(parent, skillMatrix) : [];
-  const grandparentSkills = grandparent ? collectSkills(grandparent, skillMatrix) : [];
   const matrixSkills = collectMatrixSkills(skillMatrix, row.triggers);
 
   const triggers = parseSkills(row.triggers || '');
@@ -235,14 +308,12 @@ async function buildPacket(aiDir, targetId, options = {}) {
 
   const targetMd = readMarkdown(aiDir, row.id);
   const parentMd = parent ? readMarkdown(aiDir, parent.id) : { body: '', testing: '', criteria: '' };
-  const grandparentMd = grandparent ? readMarkdown(aiDir, grandparent.id) : { body: '', testing: '', criteria: '' };
 
-  // Collect declared repositories from target + parent + grandparent bodies
+  // Collect declared repositories from the task and its single planning parent.
   // to filter graph modules to only those repos.
   const declaredRepos = new Set([
     ...parseRepositories(targetMd.body),
     ...parseRepositories(parentMd.body),
-    ...parseRepositories(grandparentMd.body),
   ]);
 
   try {
@@ -261,6 +332,17 @@ async function buildPacket(aiDir, targetId, options = {}) {
           return declaredRepos.has(repo);
         });
       }
+      // Implementation packets already carry the exact task write set. Keep
+      // only graph nodes for those files instead of forwarding every module
+      // in a large repository.
+      if (type === 'task') {
+        const relevantFiles = parseRelevantFiles(targetMd.body);
+        if (relevantFiles.length > 0 && declaredRepos.size > 0) {
+          modules = modules.filter(m => [...declaredRepos].some(repo =>
+            relevantFiles.some(file => m.path === `${repo}/${file}` || m.path.startsWith(`${repo}/${file}/`))
+          ));
+        }
+      }
     }
   } catch (e) {}
 
@@ -277,6 +359,7 @@ async function buildPacket(aiDir, targetId, options = {}) {
       body: targetMd.body,
       testing: targetMd.testing,
       criteria: targetMd.criteria,
+      ...(type === 'task' ? { contract: taskContract(row, targetMd) } : {}),
     },
     parent: parent ? {
       type: parent.id.startsWith('EPIC-') ? 'epic' : parent.id.startsWith('SPEC-') ? 'spec' : 'plan',
@@ -284,20 +367,11 @@ async function buildPacket(aiDir, targetId, options = {}) {
       title: parent.title || '',
       status: parent.status || '',
       skills: parentSkills,
-      body: parentMd.body,
-      testing: parentMd.testing,
-      criteria: parentMd.criteria,
+      ...(type === 'task'
+        ? { summary: compactMarkdownContext(parentMd) }
+        : { body: parentMd.body, testing: parentMd.testing, criteria: parentMd.criteria }),
     } : null,
-    grandparent: grandparent ? {
-      type: 'spec',
-      id: grandparent.id,
-      title: grandparent.title || '',
-      status: grandparent.status || '',
-      skills: grandparentSkills,
-      body: grandparentMd.body,
-      testing: grandparentMd.testing,
-      criteria: grandparentMd.criteria,
-    } : null,
+    grandparent: null,
     children: children ? children.map(c => ({
       id: c.id,
       title: c.title || '',

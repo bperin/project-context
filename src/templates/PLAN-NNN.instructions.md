@@ -1,89 +1,51 @@
 # PLAN-NNN Instructions
 
-You are writing a plan. This defines HOW the system is built — the
-implementation architecture. Some text for design decisions, but
-mostly structure: system map, workstreams, dependencies, file
-layout. The spec already defined the problem. Be technically
-precise — name specific modules, interfaces, data flows, algorithms.
+This is the only durable planning artifact. There are no epics or separate
+specifications. One root planning agent owns discovery, challenge, user
+questions, revision, architecture, and task decomposition.
 
-## What a plan is
+The plan serves humans and agents in one file. Start with a short plain-language
+summary explaining what changes, why it matters, the user-visible outcome, and
+the main tradeoff. Then use exact bullets, tables, file paths, symbols, and
+commands for the implementation contract. Do not create a second summary
+document or repeat repository facts that are not needed to bound implementation.
+Keep the Resume Checkpoint current so `/pc-plan continue` can restart from disk
+without relying on conversation history.
 
-The plan designs the implementation. It maps every spec behavior to
-a workstream. It defines the architecture, the dependency order, and
-the verification strategy. It does NOT write the code — that's the
-task phase. Less narrative than the spec — this is engineering
-design, not storytelling.
+## Required planning loop
 
-## How to fill each section
+1. Inspect the repository and record evidence.
+2. Draft the human summary, goal, boundaries, architecture, data/API ownership,
+   and task strategy.
+3. Challenge the draft for missing assumptions, unsafe boundaries, write-set
+   conflicts, and unverifiable acceptance criteria.
+4. Ask the user every blocking question in one round. Record non-blocking
+   questions as advisory.
+5. Revise the same plan. Do not create another planning layer.
+6. Stop until the user accepts the plan and every blocking question is
+   resolved. Then set plan status to `committed` and record `User accepted: yes`
+   in the Planning Gate.
+7. Create narrow tasks from the accepted plan.
 
-### Requirements
+Use executable `grilling` for the user-question loop. Use `adhd` only when the
+design is genuinely open-ended and multiple materially different architectures
+remain viable.
 
-Copy the requirements from the source spec that this plan
-implements. Each workstream below must trace to one or more of these.
+## Dispatch gate
 
-### Objective
+Tasks are not ready unless the plan says self-challenge complete, blocking
+questions resolved, and user accepted. A task must name an exact write set,
+symbols, dependencies, boundaries, do-not-touch list, tests, verification, and
+proof obligations.
 
-One paragraph. What this plan achieves. Name the architecture, not
-the features.
-
-### System Map
-
-ASCII diagram of the major components and their relationships. Show
-every process boundary, transport, and data flow. Not optional —
-draw it. This is the most important section — the implementer reads
-this to understand the whole system.
-
-### Architecture
-
-New packages with file structure. Key design decisions with
-rationale. Name the pattern, the interface, the data structure.
-
-Bad: "Use a service layer."
-Good: "Organization repository pattern — OrganizationStore
-interface in internal/store, backed by bbolt. RegisterOrg
-writes to the store and emits an event on the org-created
-channel."
-
-### Communication Topology
-
-Every inter-component communication path and its transport. Do not
-assume HTTP. Consider WebSocket, gRPC, SSE, queues, Pub/Sub.
-
-### Workstreams
-
-Group tasks by concern. Each workstream traces to spec requirements.
-For algorithm workstreams, list:
-- Algorithm IDs from the project's algorithm registry
-- Primary and secondary skills
-- Exact test vector sources (RFC section, NIST case ID)
-- Negative tests
-- File paths to create/modify
-
-Bad: "W1: Crypto stuff."
-Good: "W1: Ed25519 signing. Algorithms: ed25519. Primary skill:
-implementing-digital-signatures-with-ed25519. Test vectors: RFC
-8032 §5.1 Test 1. Negative tests: tampered signature, wrong key.
-Files: internal/sign/ed25519.go, internal/sign/ed25519_test.go."
-
-### Dependencies
-
-External packages to add. Existing code dependencies (read-only).
-Name the import path and version.
-
-### Completion Criteria
-
-Observable, testable conditions that mean the plan is fully
-delivered. Each verifiable by command.
-
-### Current Focus
-
-The single task that should be executed next, with a one-line
-rationale.
+If implementation exposes a missing decision, the worker halts. The task moves
+to `needs_planning`, and this same planning agent revises the plan and task
+before dispatch resumes.
 
 ## Anti-patterns
 
-- Duplicating spec content — the spec defines what/why, don't repeat
-- Vague workstreams — name the algorithms, skills, vectors, files
-- No system map — draw it, always
-- Too much narrative — this is engineering design, not storytelling
-- Missing dependency order — workstreams must be ordered
+- Another epic, spec, roadmap, or planning document above or below this plan
+- Long product prose repeated from the conversation
+- Tasks that require an implementer to choose architecture or ask the user
+- Unresolved blocking questions disguised as assumptions
+- Broad write sets used to increase parallelism

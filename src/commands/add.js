@@ -3,9 +3,6 @@ const path = require('path');
 const {
   appendTaskEvent,
   appendTimelineEvent,
-  parseMarkdownField,
-  readSpecs,
-  readEpics,
   readPlans,
   readTaskFiles,
   getTaskStates,
@@ -48,12 +45,12 @@ function readTemplate(aiDir, templateName, vars) {
   return content;
 }
 
-// addCommand handles adding a spec, plan, or task.
+// addCommand handles adding the single planning artifact or a task.
 async function addCommand(options) {
   const { type, title, status, dependencies, skills, triggers, commit, id } = options;
 
   if (!type || !title) {
-    console.error('Usage: project-context add --type <spec|plan|task> --title <title> [options]');
+    console.error('Usage: project-context add --type <plan|task> --title <title> [options]');
     process.exit(1);
   }
 
@@ -65,18 +62,25 @@ async function addCommand(options) {
     process.exit(1);
   }
 
-  const prefix = type.toUpperCase().startsWith('SPEC-') ? 'SPEC'
-    : type.toUpperCase().startsWith('PLAN-') ? 'PLAN'
+  if (String(type).toUpperCase().replace(/-.*/, '') === 'PLAN') {
+    const activePlans = readPlans(aiDir).filter((plan) =>
+      !['done', 'superseded', 'archived'].includes(String(plan.status || '').toLowerCase())
+    );
+    if (activePlans.length > 0) {
+      throw new Error(
+        `Only one plan may be active. Continue ${activePlans[0].id} or finish/supersede it before starting another.`
+      );
+    }
+  }
+
+  const prefix = type.toUpperCase().startsWith('PLAN-') ? 'PLAN'
     : type.toUpperCase().startsWith('TASK-') ? 'TASK'
-    : type.toUpperCase().startsWith('EPIC-') ? 'EPIC'
-    : type.toUpperCase() === 'SPEC' ? 'SPEC'
     : type.toUpperCase() === 'PLAN' ? 'PLAN'
     : type.toUpperCase() === 'TASK' ? 'TASK'
-    : type.toUpperCase() === 'EPIC' ? 'EPIC'
     : null;
 
   if (!prefix) {
-    console.error(`Invalid type: ${type}. Use spec, plan, task, or epic.`);
+    console.error(`Invalid type: ${type}. Use plan or task. Specs and epics are legacy read-only artifacts.`);
     process.exit(1);
   }
 
@@ -84,9 +88,7 @@ async function addCommand(options) {
   let finalID = id;
   if (!finalID) {
     let existing;
-    if (prefix === 'SPEC') existing = readSpecs(aiDir);
-    else if (prefix === 'EPIC') existing = readEpics(aiDir);
-    else if (prefix === 'PLAN') existing = readPlans(aiDir);
+    if (prefix === 'PLAN') existing = readPlans(aiDir);
     else existing = [...readTaskFiles(aiDir), ...getTaskStates(aiDir).values()];
     finalID = nextID(existing, prefix);
   }
@@ -97,7 +99,7 @@ async function addCommand(options) {
   const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
   const uuid = v5(finalID, NAMESPACE);
 
-  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : prefix === 'EPIC' ? 'epics' : 'tasks';
+  const dirName = prefix === 'PLAN' ? 'plans' : 'tasks';
   const filePath = path.join(aiDir, dirName, `${finalID}.md`);
 
   // Check for duplicates
@@ -108,14 +110,14 @@ async function addCommand(options) {
 
   // Create the MD file from template
   const templateName = `${prefix}-NNN.template.md`;
-  const parent = options.parent || dependencies || '';
+  const parent = prefix === 'TASK' ? (options.parent || '') : '';
   const templateVars = {
     ID: finalID,
     UUID: uuid,
     TITLE: title,
     STATUS: status || 'draft',
     PARENT: parent,
-    DEPENDENCIES: dependencies || parent,
+    DEPENDENCIES: dependencies || '',
     SKILLS: skills || '',
     TRIGGERS: triggers || '',
     COMMIT: commit || '',
@@ -124,13 +126,13 @@ async function addCommand(options) {
   let content = readTemplate(aiDir, templateName, templateVars);
   if (!content) {
     // No template — write a minimal file
-    content = `# ${finalID}: ${title}\n\n**UUID**: ${uuid}\n**Status**: ${status || 'draft'}\n**Parent**: ${parent}\n**Dependencies**: ${dependencies || parent}\n**Skills**: ${skills || ''}\n**Triggers**: ${triggers || ''}\n**Commit**: ${commit || ''}\n`;
+    content = `# ${finalID}: ${title}\n\n**UUID**: ${uuid}\n**Status**: ${status || 'draft'}\n${prefix === 'TASK' ? `**Parent**: ${parent}\n` : ''}**Dependencies**: ${dependencies || ''}\n**Skills**: ${skills || ''}\n**Triggers**: ${triggers || ''}\n**Commit**: ${commit || ''}\n`;
   }
 
   // Prepend instructions as XML tags if the instructions file exists.
   // XML tags are more salient to the LLM than HTML comments — Anthropic
   // recommends <instructions> tags for separating guidance from content.
-  // The planning-brain sees these when it opens the file to edit.
+  // The root planning agent sees these when it opens the file to edit.
   const instructionsName = `${prefix}-NNN.instructions.md`;
   const instructionsPath = path.join(aiDir, 'templates', instructionsName);
   if (fs.existsSync(instructionsPath)) {
@@ -142,7 +144,7 @@ async function addCommand(options) {
 
   // For tasks: also append to tasks.jsonl and plan timeline
   if (prefix === 'TASK') {
-    const planId = parent || dependencies || '';
+    const planId = parent;
     appendTaskEvent(aiDir, {
       id: finalID,
       event: 'created',

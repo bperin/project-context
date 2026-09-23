@@ -35,13 +35,12 @@ function replaceField(content, field, value) {
 
 async function updateCommand(options) {
   const id = String(options.id || '').toUpperCase();
-  const prefix = id.startsWith('SPEC-') ? 'SPEC'
-    : id.startsWith('PLAN-') ? 'PLAN'
+  const prefix = id.startsWith('PLAN-') ? 'PLAN'
     : id.startsWith('TASK-') ? 'TASK'
     : null;
 
   if (!prefix) {
-    throw new Error(`Could not determine type for ID: ${options.id}. Use SPEC-NNN, PLAN-NNN, or TASK-NNN.`);
+    throw new Error(`Could not determine type for ID: ${options.id}. Use PLAN-NNN or TASK-NNN.`);
   }
 
   const changes = Object.entries(FIELD_OPTIONS)
@@ -52,7 +51,7 @@ async function updateCommand(options) {
 
   const targetDir = path.resolve(options.target || '.');
   const aiDir = path.join(targetDir, options.workspace);
-  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : 'tasks';
+  const dirName = prefix === 'PLAN' ? 'plans' : 'tasks';
   const filePath = path.join(aiDir, dirName, `${id}.md`);
   if (!fs.existsSync(filePath)) throw new Error(`${id} not found: ${filePath}`);
 

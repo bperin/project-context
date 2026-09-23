@@ -85,7 +85,7 @@ program
 
 program
   .command('inspect')
-  .description('Read project state and report specs/plans/tasks status')
+  .description('Read project state and report plans/tasks status')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .option('--include-archived', 'Include archived records in the report')
@@ -131,7 +131,7 @@ program
 
 program
   .command('uuid <id>')
-  .description('Generate a deterministic v5 UUID from an ID (e.g. SPEC-001, TASK-010)')
+  .description('Generate a deterministic v5 UUID from an ID (e.g. PLAN-001, TASK-010)')
   .action((id) => {
     try {
       uuidCommand({ id });
@@ -143,7 +143,7 @@ program
 
 program
   .command('context <id>')
-  .description('Build a minimal context packet for a spec/plan/task (for feeding subagents)')
+  .description('Build a minimal context packet for a plan/task (for feeding subagents)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .option('--workflow <name>', 'Workflow context for always-on/project-local skill filtering (default: all)')
@@ -160,17 +160,16 @@ program
 
 program
   .command('add')
-  .description('Add a spec/plan/task (creates MD file, appends to JSONL for tasks)')
-  .requiredOption('--type <type>', 'spec, plan, or task')
+  .description('Add a plan/task (creates MD file, appends to JSONL for tasks)')
+  .requiredOption('--type <type>', 'plan or task')
   .requiredOption('--title <title>', 'Title')
-  .option('--id <id>', 'Override the auto-assigned ID (e.g. SPEC-001)')
+  .option('--id <id>', 'Override the auto-assigned ID (e.g. PLAN-001)')
   .option('--status <status>', 'Initial status (default: draft)')
-  .option('--parent <id>', 'Parent ID (SPEC-NNN for plans, PLAN-NNN for tasks)')
+  .option('--parent <id>', 'Parent plan ID (PLAN-NNN for tasks)')
   .option('--dependencies <deps>', 'Comma-separated dependency IDs')
   .option('--skills <skills>', 'Comma-separated skill names')
   .option('--triggers <triggers>', 'Comma-separated trigger names (resolved via Skill Matrix)')
   .option('--commit <hash>', 'Commit hash')
-  .option('--progress <pct>', 'Progress percentage (specs/plans only)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (options) => {
@@ -186,7 +185,7 @@ program
 program
   .command('ready')
   .description('Select the next dependency-ready, non-overlapping implementation wave')
-  .option('--limit <count>', 'Maximum total active tasks (hard-capped at 5)', '5')
+  .option('--limit <count>', 'Maximum total active tasks (hard-capped at 3)', '3')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action((options) => {
@@ -201,7 +200,7 @@ program
 
 program
   .command('update <id>')
-  .description('Update spec/plan/task metadata without replacing history')
+  .description('Update plan/task metadata without replacing history')
   .option('--title <title>', 'Title')
   .option('--parent <id>', 'Parent ID')
   .option('--dependencies <deps>', 'Comma-separated dependency IDs')
@@ -222,7 +221,7 @@ program
 
 program
   .command('status <id> <status>')
-  .description('Set the status for a SPEC/PLAN/TASK (updates MD file, appends to JSONL for tasks)')
+  .description('Set the status for a PLAN/TASK (updates MD file, appends to JSONL for tasks)')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (id, status, options) => {
@@ -239,7 +238,7 @@ program
 
 program
   .command('sync')
-  .description('Recompute plan/spec Status bottom-up from child tasks/plans')
+  .description('Recompute plan status bottom-up from child tasks')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')
   .option('-t, --target <path>', 'Target project directory', '.')
   .action(async (options) => {
@@ -254,7 +253,7 @@ program
 
 program
   .command('archive [id]')
-  .description('Archive a done/superseded spec/plan/task (moves MD to archive/, appends JSONL event)')
+  .description('Archive a done/superseded plan/task (moves MD to archive/, appends JSONL event)')
   .option('--status <status>', 'Archive all active records with terminal status (done|superseded)')
   .option('--force', 'Archive even if non-terminal or has active children')
   .option('-w, --workspace <path>', 'Workspace directory name (auto-detected)')

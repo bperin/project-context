@@ -16,6 +16,10 @@ implementer should not need to make design decisions — the task
 already made them. This is the most granular artifact in the
 hierarchy.
 
+The worker does not interview the user, broaden the write set, or fill in a
+missing planning decision. If the packet is incomplete, the worker halts and
+returns the task as `needs_planning` with the exact gap and evidence.
+
 ## How to fill each section
 
 ### Goal
@@ -96,11 +100,17 @@ Good: "go test ./internal/sign/ -v -count=1"
 Files/modules the worker must not modify under any circumstance.
 Name them explicitly.
 
+### Proof Obligations
+
+List the concrete evidence the worker must return: tests, generated artifacts,
+API examples, schema checks, or other falsifiable results. The challenger checks
+these directly against the packet.
+
 ## Parallelism
 
-Maximize parallelism. Minimize dependencies between tasks. If two
-tasks can run independently, do not add a dependency. The more tasks
-that can run in parallel, the faster implementation goes.
+Create as many narrow tasks as the accepted plan needs, but run at most three
+at once. Only dependency-ready tasks with disjoint exact write sets may run in
+parallel. Do not make tasks broader just to reduce their count.
 
 ## Anti-patterns
 

@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  readSpecs,
   readPlans,
   readTaskFiles,
   getTaskStates,
@@ -18,8 +17,7 @@ function pct(done, total) {
   return total === 0 ? 0 : Math.round((done / total) * 100);
 }
 
-// syncCommand recomputes Status bottom-up:
-//   tasks -> plans -> specs
+// syncCommand recomputes plan status from its tasks.
 // It updates the **Status** line in the MD files.
 async function syncCommand(options) {
   const targetDir = path.resolve(options.target);
@@ -30,7 +28,6 @@ async function syncCommand(options) {
     process.exit(1);
   }
 
-  const specs = readSpecs(aiDir);
   const plans = readPlans(aiDir);
   const taskFiles = readTaskFiles(aiDir);
   const taskStates = getTaskStates(aiDir);
@@ -46,9 +43,6 @@ async function syncCommand(options) {
   for (const t of tasks) {
     if (!t.parent && !t.dependencies) warnings.push(`${t.id} has no Parent — not counted toward any plan`);
   }
-  for (const p of plans) {
-    if (!p.parent && !p.dependencies) warnings.push(`${p.id} has no Parent — not counted toward any spec`);
-  }
   for (const t of tasks) {
     if (isDone(t.status) && !t.commit) {
       warnings.push(`${t.id} is done but has no Commit`);
@@ -58,7 +52,7 @@ async function syncCommand(options) {
   // --- Tasks -> Plans ---
   const tasksByPlan = {};
   for (const t of tasks) {
-    const plan = t.parent || t.plan || t.dependencies || '';
+    const plan = t.plan || t.parent || '';
     if (!plan) continue;
     (tasksByPlan[String(plan).trim().toUpperCase()] ||= []).push(t);
   }
@@ -66,6 +60,7 @@ async function syncCommand(options) {
   for (const p of plans) {
     const kids = tasksByPlan[String(p.id).toUpperCase()] || [];
     const done = kids.filter(k => isDone(k.status)).length;
+    const needsPlanning = kids.filter(k => String(k.status || '').toLowerCase() === 'needs_planning').length;
     const total = kids.length;
 
     let newStatus = String(p.status || 'draft');
@@ -73,6 +68,8 @@ async function syncCommand(options) {
       // A reviewed plan is committed before its tasks are created. With no
       // children there is no derived progress, so preserve its explicit state.
       continue;
+    } else if (needsPlanning > 0) {
+      newStatus = 'needs_planning';
     } else if (done === total) {
       newStatus = 'done';
     } else if (done > 0) {
@@ -84,32 +81,6 @@ async function syncCommand(options) {
     if (String(p.status) !== newStatus) {
       changes.push(`${p.id}: ${p.status || '—'} -> ${newStatus} (${done}/${total} tasks done)`);
       updateMarkdownStatus(p.filePath, newStatus);
-    }
-  }
-
-  // --- Plans -> Specs ---
-  const plansBySpec = {};
-  for (const p of plans) {
-    const spec = p.parent || p.dependencies || '';
-    if (!spec) continue;
-    (plansBySpec[String(spec).trim().toUpperCase()] ||= []).push(p);
-  }
-
-  for (const s of specs) {
-    const kids = plansBySpec[String(s.id).toUpperCase()] || [];
-    const done = kids.filter(k => isDone(k.status)).length;
-    const total = kids.length;
-
-    let newStatus = String(s.status || 'draft');
-    if (total > 0 && done === total) {
-      newStatus = 'done';
-    } else if (done > 0) {
-      newStatus = 'in_progress';
-    }
-
-    if (String(s.status) !== newStatus) {
-      changes.push(`${s.id}: ${s.status || '—'} -> ${newStatus} (${done}/${total} plans done)`);
-      updateMarkdownStatus(s.filePath, newStatus);
     }
   }
 

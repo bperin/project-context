@@ -1,0 +1,67 @@
+---
+name: pc-plan
+description: "Single project-context entry point: start, resume, inspect, or run one PLAN-NNN through planning and bounded implementation."
+argument-hint: "<start <goal> | continue [PLAN-NNN] | status [PLAN-NNN] | run [PLAN-NNN]>"
+triggers:
+  - user
+  - model
+allowed-tools:
+  - read
+  - edit
+  - write
+  - grep
+  - glob
+  - exec
+  - skill
+  - run_subagent
+  - read_subagent
+  - ask_user_question
+permissions:
+  allow:
+    - Read(**)
+    - Write(**)
+    - Edit(**)
+    - Exec(node **)
+    - Exec(npm **)
+    - Exec(go **)
+    - Exec(git **)
+---
+
+> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines persistence,
+> authority, packet, concurrency, and state-transition rules.
+
+`pc-plan` is the only user-facing project-context workflow skill. Follow
+`workflows/pc-plan.md` for every action.
+
+## Actions
+
+- `start <goal>` — refuse if another non-terminal plan exists; otherwise create
+  one compact plan and enter the planning loop.
+- `continue [PLAN-NNN]` — reconstruct state from the plan file and task JSONL,
+  then continue at the first incomplete gate. Ask only the blocking questions
+  required by that gate.
+- `status [PLAN-NNN]` — print persisted state, current gate, unresolved
+  questions, task readiness, active workers, proof progress, and the next action.
+  Do not mutate state.
+- `run [PLAN-NNN]` — resume at the first incomplete gate and keep progressing
+  through ready work. Stop for explicit plan acceptance, a blocking user
+  decision, `needs_planning`, a failed hard check, or completion.
+
+When an ID is omitted, resolve the sole non-terminal plan. Never guess when
+zero or multiple candidates exist.
+
+Before planning or resuming, read `data/identity.json`. When MemoryLake is
+configured, use only the exact `memoryLake.projectId`; never perform an
+unfiltered workspace search. The root agent owns durable memory writes and may
+persist accepted decisions or verified outcomes. Subagents only return memory
+candidates. Never store credentials, secrets, raw reasoning, or transient tool
+output. Local plan and task state remains authoritative.
+
+Low-level project-context CLI operations are internal mechanics. Do not send the
+user to separate context, task, implementation, review, archive, inspect, UUID,
+epic, or specification skills.
+
+Planning loads executable `grilling`; `grill-me` is only its wrapper. Load
+`adhd` only for genuinely open-ended design. Implementers never load planning
+skills, question the user, or widen a packet. Missing planning returns
+`needs_planning` to this root workflow.

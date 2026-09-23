@@ -1,99 +1,130 @@
 # AGENTS.md — project-context
 
-> **Source of truth for this repository.** This is the reusable tool that scaffolds `.{reponame}-manager` workspaces into other projects. It is not a project-context workspace itself.
+> **Source of truth for this repository.** This package generates
+> `.{reponame}-manager` workspaces in other repositories. It is not itself a
+> generated manager workspace.
 
-## What this project is
+## Product contract
 
-`project-context` is an npm package that generates a project-management workspace for AI agents. When run against a target repository, it creates `.{reponame}-manager` with append-only JSONL state, Markdown specs/plans/tasks, `.agents/` skills, workflow definitions, templates, and hooks.
-
-## Current layout
-
-```
-project-context/
-├── bin/cli.js                    # CLI entry point
-├── src/
-│   ├── agents/                  # Custom subagent profiles (planning-brain, implementer, reviewer)
-│   ├── commands/                # init, inspect, graph, overview, uuid, context, status, add, sync, archive, upgrade
-│   ├── skills/                  # Source skill templates copied to .agents/skills/
-│   │   ├── AGENTS.md            # Shared instructions for generated skills
-│   │   ├── pc-context/
-│   │   ├── pc-create-tasks/
-│   │   ├── pc-implement/
-│   │   ├── pc-inspect-project/
-│   │   ├── pc-spec/
-│   │   ├── pc-review/
-│   │   └── pc-uuid/
-│   ├── templates/               # Document templates (SPEC, PLAN, TASK, AGENTS.md)
-│   └── workflows/               # Workflow definitions (plan, task, task-implementation, test-failure, code-review, overview)
-├── scripts/task-done-hook.js     # Generic PostToolUse hook for task-done detection
-└── test/                        # Test suite
-```
-
-## Generated output
-
-`init` produces:
+The canonical hierarchy is `PLAN-NNN → TASK-NNN`. There are no epic or separate
+specification artifacts. A generated workspace exposes one user-facing workflow
+skill:
 
 ```text
-.{reponame}-manager/
-├── AGENTS.md                     # Workflow protocol
+/pc-plan start <goal>
+/pc-plan continue [PLAN-NNN]
+/pc-plan status [PLAN-NNN]
+/pc-plan run [PLAN-NNN]
+```
+
+All lower-level commands are internal mechanics of this workflow.
+
+Only one plan may be non-terminal. The plan and append-only task JSONL are the
+recovery state; `continue` and `run` resume at the first incomplete persisted
+gate without requiring conversation history.
+
+Plan states use `committed` after explicit user acceptance. The Planning Gate
+still records `User accepted: yes`.
+
+## Source layout
+
+```text
+project-context/
+├── bin/cli.js
+├── src/
+│   ├── agents/                  # Narrow writer and challenger profiles
+│   ├── commands/                # Internal CLI mechanics
+│   ├── skills/
+│   │   ├── AGENTS.md
+│   │   └── pc-plan/SKILL.md     # Sole generated workflow skill
+│   ├── templates/               # PLAN, TASK, and generated AGENTS assets
+│   └── workflows/
+│       ├── pc-plan.md           # Full persisted lifecycle
+│       └── overview.md          # Compact lifecycle map
+├── scripts/task-done-hook.js
+└── test/
+```
+
+## Generated model
+
+```text
+.<repository>-manager/
+├── AGENTS.md
 ├── .agents/
-│   ├── AGENTS.md                # Shared skill instructions
-│   └── skills/                  # pc-* skill wrappers
-├── workflows/                   # Workflow definitions
-├── templates/                   # Document templates
-├── specs/, plans/, tasks/, epics/  # Document output directories
-├── data/
-│   ├── tasks.jsonl              # Append-only task event log
-│   ├── identity.json            # Project identity
-│   ├── skills.json              # Skill registry + matrix
-│   └── decisions.json           # ADR index
-├── architecture/, decisions/, identity/, graph/
-└── .devin/hooks.v1.json        # Task-done hook configuration
+│   ├── AGENTS.md
+│   ├── agents/
+│   └── skills/pc-plan/SKILL.md
+├── workflows/{pc-plan.md,overview.md}
+├── templates/{PLAN-NNN.template.md,TASK-NNN.template.md}
+├── plans/PLAN-NNN.md
+├── tasks/TASK-NNN.md
+├── data/tasks.jsonl
+├── graph/
+└── tools/project-context
 ```
 
-## Commands
+Plan and task Markdown are living artifacts. Task and timeline JSONL are
+append-only; never rewrite prior events.
 
-```bash
-node bin/cli.js init -t <target> [--discover] [-w <workspace>]
-node bin/cli.js inspect -t <target>
-node bin/cli.js graph -t <target>
-node bin/cli.js overview -t <target>
-node bin/cli.js uuid <ID>
-node bin/cli.js context <ID> -t <target> [-o <output.json>]
-node bin/cli.js add --type <epic|spec|plan|task> --title <title> [options] -t <target>
-node bin/cli.js ready -t <target> [--limit 3]
-node bin/cli.js status <ID> <status> -t <target>
-node bin/cli.js sync -t <target>
-node bin/cli.js archive <ID> -t <target> [--force]
-node bin/cli.js archive --status <done|superseded> -t <target>
-node bin/cli.js upgrade -t <target>
+## Planning ownership
+
+The root planning agent owns repository discovery, the compact draft,
+self-challenge, user questions, revision, acceptance, task decomposition,
+integration, and manager-state writes.
+
+The gate order is:
+
+```text
+discover → draft → self-challenge → questions → revise
+→ explicit acceptance → decompose → implement → verify → complete
 ```
 
-## Conventions
+Planning uses executable `grilling`; `grill-me` is its wrapper. `adhd` is used
+only for genuinely open-ended design. Blocking questions halt acceptance and
+task creation. Advisory questions remain in the plan with a current assumption.
 
-- **No Python.** The Python scripts in `scripts/` are dead — do not modify them.
-- **No bash for core logic.** Bash is fine for CI, not for the tool.
-- **JSONL is task history.** Keep adding events; do not rewrite prior events. Use `add`, `update`, and `status`. Markdown specs, plans, and tasks are living documents and may be edited normally.
-- **Markdown for documents.** Specs, plans, and tasks are human-readable Markdown. Status for specs/plans lives in the MD files. Status for tasks lives in JSONL.
-- **Bounded parallel work.** Task creation may use up to four pinned read-only analysts. Implementation may run up to three pinned implementers only for dependency-ready tasks with disjoint write sets. Reviews, commits, and manager-state mutations remain serial.
-- **The tool does not carry project-specific content.** It carries the framework. Target projects create their own specs/plans/tasks.
-- **Generated files are marked.** `init` prepends `<!-- GENERATED BY project-context init — DO NOT EDIT. -->` to all generated `.md` files.
-- **Conventional commits.** All commits use [conventional commit](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `docs:`, `chore:`, etc.). semantic-release auto-versions based on commit messages. Subject line under 72 chars, imperative mood, no AI co-authorship.
-- **No AI attribution.** Never add `Co-Authored-By: Devin`, `Generated with Devin`, or any AI co-authorship lines to commits. Humanize commit messages with the `content-humanizer` skill before committing.
+Material revisions clear acceptance. Persist each gate before advancing.
 
-## State machines
+## Project memory
 
-- **Epic**: `draft → committed → in_progress → done → superseded → archived`
-- **Spec**: `draft → committed → done → superseded → archived`
-- **Plan**: `draft → committed → in_progress → done → superseded → archived`
-- **Task**: `draft → in_progress → done → superseded → archived`
+Generated repositories configure the MemoryLake MCP endpoint in their local
+`.codex/config.toml`. The manager's `data/identity.json` carries the logical
+workspace/project binding and optional non-secret IDs. Every MemoryLake search
+or write must use the exact project ID; never mix project memories through an
+unfiltered workspace search.
 
-`archive` moves terminal records (`done`/`superseded`) into `archive/`
-and (for tasks) appends an `archived` event to `data/tasks.jsonl`.
-Archived records are hidden from `inspect` and skipped by `sync` by
-default. JSONL history is never rewritten.
+The root planning agent owns durable memory writes. Subagents return candidate
+facts with evidence. Store accepted decisions, durable constraints, and verified
+outcomes only—never credentials, raw reasoning, transient output, or speculation.
+Local plan/task state remains authoritative.
 
-Plans and specs show progress as a percentage of children done.
+## Implementation contract
+
+Every task packet has exact files and symbols, boundaries, dependencies,
+do-not-touch constraints, tests, verification commands, proof obligations, and
+planning-gap conditions.
+
+Many writers may run over the lifetime of a plan, but at most three may run
+simultaneously. They must be dependency-ready and have disjoint exact write
+sets. Unknown ownership is sequential.
+
+Writers never ask the user, load planning skills, expand scope, commit, or
+mutate manager state. Missing or contradictory planning returns
+`needs_planning` with evidence to the root planning agent. Exactly one
+challenger reviews each completed packet. Commits and state mutations are
+serial.
+
+## Engineering conventions
+
+- No Python for core tooling. Do not modify dead Python scripts.
+- No shell scripts for core logic; shell is acceptable for CI.
+- Use append-only events for task history.
+- Preserve unrelated work in dirty worktrees.
+- Use `apply_patch` for manual source edits.
+- Use conventional commits with imperative subjects under 72 characters.
+- Never add AI attribution or co-authorship trailers.
+- Generated Markdown is marked as generated and updated through `upgrade`.
+- The framework carries workflow structure, not project-specific content.
 
 ## Testing
 
@@ -101,4 +132,6 @@ Plans and specs show progress as a percentage of children done.
 npm test
 ```
 
-Runs `test/test.js`, `test/stress-test.js`, and `test/agent-protocol.js`.
+Run focused checks while iterating and the full suite before handoff when code or
+tests change. Documentation-only work still requires `git diff --check` and a
+stale-reference scan.

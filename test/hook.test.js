@@ -22,30 +22,21 @@ const tasksPlan1AllDone = [
   { id: 'TASK-003', title: 'Task 3', status: 'done', plan: 'PLAN-001' },
 ];
 
-const plansSpec1 = [
-  { id: 'PLAN-001', title: 'Plan 1', status: 'committed', parent: 'SPEC-001' },
-  { id: 'PLAN-002', title: 'Plan 2', status: 'committed', parent: 'SPEC-001' },
+const plans = [
+  { id: 'PLAN-001', title: 'Plan 1', status: 'committed' },
+  { id: 'PLAN-002', title: 'Plan 2', status: 'committed' },
 ];
 
-const plansSpec1AllDone = [
-  { id: 'PLAN-001', title: 'Plan 1', status: 'done', parent: 'SPEC-001' },
-  { id: 'PLAN-002', title: 'Plan 2', status: 'done', parent: 'SPEC-001' },
-];
-
-const specs = [
-  { id: 'SPEC-001', title: 'Spec 1', status: 'committed' },
-  { id: 'SPEC-002', title: 'Spec 2', status: 'committed' },
-];
-
-const specsAllDone = [
-  { id: 'SPEC-001', title: 'Spec 1', status: 'done' },
+const plansAllDone = [
+  { id: 'PLAN-001', title: 'Plan 1', status: 'done' },
+  { id: 'PLAN-002', title: 'Plan 2', status: 'done' },
 ];
 
 // === computeNextAction tests ===
 
 test('computeNextAction: remaining tasks in plan → returns next task', () => {
   const newlyDone = [{ id: 'TASK-002', title: 'Task 2', plan: 'PLAN-001' }];
-  const result = computeNextAction(newlyDone, tasksPlan1, plansSpec1, specs);
+  const result = computeNextAction(newlyDone, tasksPlan1, plans);
   assert.match(result.action, /TASK-003/);
   assert.match(result.action, /Task 3/);
   assert.match(result.action, /PLAN-001/);
@@ -53,29 +44,39 @@ test('computeNextAction: remaining tasks in plan → returns next task', () => {
 
 test('computeNextAction: all tasks in plan done, next plan exists → returns next plan', () => {
   const newlyDone = [{ id: 'TASK-003', title: 'Task 3', plan: 'PLAN-001' }];
-  const result = computeNextAction(newlyDone, tasksPlan1AllDone, plansSpec1, specs);
+  const result = computeNextAction(newlyDone, tasksPlan1AllDone, plans);
   assert.match(result.action, /Plan PLAN-001 is complete/);
   assert.match(result.action, /PLAN-002/);
   assert.match(result.action, /Plan 2/);
-  assert.match(result.action, /SPEC-001/);
 });
 
-test('computeNextAction: all plans in spec done, next spec exists → returns next spec', () => {
-  const newlyDone = [{ id: 'TASK-003', title: 'Task 3', plan: 'PLAN-002' }];
+test('computeNextAction: skips done plans and returns the next non-done plan', () => {
+  const newlyDone = [{ id: 'TASK-003', title: 'Task 3', plan: 'PLAN-001' }];
+  const orderedPlans = [
+    { id: 'PLAN-001', title: 'Plan 1', status: 'committed' },
+    { id: 'PLAN-002', title: 'Plan 2', status: 'done' },
+    { id: 'PLAN-003', title: 'Plan 3', status: 'committed' },
+  ];
+  const result = computeNextAction(newlyDone, tasksPlan1AllDone, orderedPlans);
+  assert.match(result.action, /PLAN-003/);
+  assert.doesNotMatch(result.action, /PLAN-002/);
+});
+
+test('computeNextAction: does not return to an earlier plan with stale status', () => {
+  const newlyDone = [{ id: 'TASK-004', title: 'Task 4', plan: 'PLAN-002' }];
   const tasksAllDone = [
     ...tasksPlan1AllDone,
     { id: 'TASK-004', title: 'Task 4', status: 'done', plan: 'PLAN-002' },
   ];
-  const result = computeNextAction(newlyDone, tasksAllDone, plansSpec1AllDone, specs);
-  assert.match(result.action, /Spec SPEC-001 is complete/);
-  assert.match(result.action, /SPEC-002/);
-  assert.match(result.action, /Spec 2/);
+  const result = computeNextAction(newlyDone, tasksAllDone, plans);
+  assert.match(result.action, /All plans and tasks are complete/);
+  assert.doesNotMatch(result.action, /Next plan/);
 });
 
-test('computeNextAction: all specs done → project complete', () => {
+test('computeNextAction: all plans done → project complete', () => {
   const newlyDone = [{ id: 'TASK-003', title: 'Task 3', plan: 'PLAN-001' }];
-  const result = computeNextAction(newlyDone, tasksPlan1AllDone, plansSpec1AllDone, specsAllDone);
-  assert.match(result.action, /All specs, plans, and tasks are complete/);
+  const result = computeNextAction(newlyDone, tasksPlan1AllDone, plansAllDone);
+  assert.match(result.action, /All plans and tasks are complete/);
   assert.match(result.action, /project is done/);
 });
 
@@ -84,17 +85,17 @@ test('computeNextAction: handles multiple newly-done tasks', () => {
     { id: 'TASK-002', title: 'Task 2', plan: 'PLAN-001' },
     { id: 'TASK-003', title: 'Task 3', plan: 'PLAN-001' },
   ];
-  const result = computeNextAction(newlyDone, tasksPlan1, plansSpec1, specs);
+  const result = computeNextAction(newlyDone, tasksPlan1, plans);
   assert.match(result.action, /TASK-003/);
 });
 
 test('computeNextAction: plan with no remaining tasks but plan status not "done" still advances', () => {
   const newlyDone = [{ id: 'TASK-003', title: 'Task 3', plan: 'PLAN-001' }];
   const plansNotDone = [
-    { id: 'PLAN-001', title: 'Plan 1', status: 'committed', parent: 'SPEC-001' },
-    { id: 'PLAN-002', title: 'Plan 2', status: 'committed', parent: 'SPEC-001' },
+    { id: 'PLAN-001', title: 'Plan 1', status: 'committed' },
+    { id: 'PLAN-002', title: 'Plan 2', status: 'committed' },
   ];
-  const result = computeNextAction(newlyDone, tasksPlan1AllDone, plansNotDone, specs);
+  const result = computeNextAction(newlyDone, tasksPlan1AllDone, plansNotDone);
   assert.match(result.action, /Plan PLAN-001 is complete/);
   assert.match(result.action, /PLAN-002/);
 });
@@ -103,7 +104,7 @@ test('computeNextAction: plan with no remaining tasks but plan status not "done"
 
 test('buildContext: includes next action in output', () => {
   const newlyDone = [{ id: 'TASK-002', title: 'Task 2', plan: 'PLAN-001' }];
-  const ctx = buildContext(newlyDone, tasksPlan1, plansSpec1, specs);
+  const ctx = buildContext(newlyDone, tasksPlan1, plans);
   assert.match(ctx, /task-done-hook/);
   assert.match(ctx, /TASK-002/);
   assert.match(ctx, /Next action:/);
@@ -112,7 +113,7 @@ test('buildContext: includes next action in output', () => {
 
 test('buildContext: includes session rename suggestion', () => {
   const newlyDone = [{ id: 'TASK-002', title: 'Task 2', plan: 'PLAN-001' }];
-  const ctx = buildContext(newlyDone, tasksPlan1, plansSpec1, specs);
+  const ctx = buildContext(newlyDone, tasksPlan1, plans);
   assert.match(ctx, /Rename this session/);
   assert.match(ctx, /Task 2/);
 });

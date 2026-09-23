@@ -83,6 +83,14 @@ const LANGUAGE_PRESETS = {
   },
 };
 
+// Planning methods are shared user-level skills. They are registered in every
+// generated manager so IDEs can discover the names and the workflow that may
+// load them, but they are deliberately excluded from implementation packets.
+const PLANNING_SKILLS = [
+  ['grilling', 'user-level', 'user-local', 'planning', 'Executable planning interrogation; the grill-me package is only a wrapper'],
+  ['adhd', 'user-level', 'user-local', 'planning', 'Open-ended divergent exploration for planning only'],
+];
+
 function detectLanguage(targetDir) {
   if (fs.existsSync(path.join(targetDir, 'package.json'))) return 'node';
   if (fs.existsSync(path.join(targetDir, 'go.mod'))) return 'go';
@@ -126,6 +134,70 @@ function ensureContextPacketsIgnored(dir) {
   if (content && !content.endsWith('\n\n')) content += '\n';
   content += `# project-context transient context packets\n${rule}\n`;
   fs.writeFileSync(gitignorePath, content);
+}
+
+const MEMORY_LAKE_MCP_URL = 'https://app.memorylake.ai/memorylake/mcp/v2';
+
+// ensureProjectMcpServer adds or updates one project-local MCP server without
+// replacing unrelated Codex settings. Project config is loaded only when the
+// repository is trusted by Codex.
+function ensureProjectMcpServer(targetDir, name, url) {
+  if (!/^[A-Za-z0-9_-]+$/.test(name)) throw new Error(`Invalid MCP server name: ${name}`);
+  const codexDir = path.join(targetDir, '.codex');
+  const configPath = path.join(codexDir, 'config.toml');
+  fs.mkdirSync(codexDir, { recursive: true });
+
+  let content = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
+  const sectionHeader = `[mcp_servers.${name}]`;
+  const headerPattern = new RegExp(`^\\[mcp_servers\\.${name}\\]\\s*$`, 'm');
+  const header = headerPattern.exec(content);
+  const urlLine = `url = ${JSON.stringify(url)}`;
+
+  if (header) {
+    const sectionStart = header.index + header[0].length;
+    const nextHeader = /^\s*\[[^\]]+\]\s*$/gm;
+    nextHeader.lastIndex = sectionStart;
+    const next = nextHeader.exec(content);
+    const sectionEnd = next ? next.index : content.length;
+    const section = content.slice(sectionStart, sectionEnd);
+    const updatedSection = /^\s*url\s*=.*$/m.test(section)
+      ? section.replace(/^\s*url\s*=.*$/m, (line) => {
+        const leadingNewline = line.startsWith('\n') ? '\n' : '';
+        return `${leadingNewline}${urlLine}`;
+      })
+      : `${section.replace(/\s*$/, '')}\n${urlLine}\n`;
+    content = content.slice(0, sectionStart) + updatedSection + content.slice(sectionEnd);
+  } else {
+    if (content && !content.endsWith('\n')) content += '\n';
+    if (content && !content.endsWith('\n\n')) content += '\n';
+    content += `${sectionHeader}\n${urlLine}\n`;
+  }
+
+  const previous = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : null;
+  if (previous !== content) fs.writeFileSync(configPath, content);
+  return { path: configPath, changed: previous !== content };
+}
+
+function ensureMemoryLakeMcp(targetDir) {
+  return ensureProjectMcpServer(targetDir, 'memorylake', MEMORY_LAKE_MCP_URL);
+}
+
+function ensureMemoryLakeIdentity(aiDir, projectName, values = {}) {
+  const identityPath = path.join(aiDir, 'data', 'identity.json');
+  const identity = readJSON(identityPath) || {};
+  const current = identity.memoryLake && typeof identity.memoryLake === 'object'
+    ? identity.memoryLake
+    : {};
+  identity.memoryLake = {
+    workspace: values.workspace || current.workspace || 'default',
+    project: values.project || current.project || projectName,
+  };
+  const workspaceId = values.workspaceId || current.workspaceId;
+  const projectId = values.projectId || current.projectId;
+  if (workspaceId) identity.memoryLake.workspaceId = workspaceId;
+  if (projectId) identity.memoryLake.projectId = projectId;
+  writeJSON(identityPath, identity);
+  return identity.memoryLake;
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +414,7 @@ function readPlans(aiDir) {
         status: parseMarkdownStatus(fp),
         uuid: parseMarkdownField(fp, 'UUID'),
         parent: parseMarkdownField(fp, 'Parent'),
+        source: parseMarkdownField(fp, 'Source'),
         dependencies: parseMarkdownField(fp, 'Dependencies'),
         skills: parseMarkdownField(fp, 'Skills'),
         triggers: parseMarkdownField(fp, 'Triggers'),
@@ -407,12 +480,16 @@ function createDataFiles(aiDir, language, projectName, repoName) {
     repository: `git@github.com:bperin/${repoName}.git`,
     manifests: '',
     primaryLanguage: language,
+    memoryLake: {
+      workspace: 'default',
+      project: repoName,
+    },
     discoveredAt: new Date().toISOString(),
   });
 
   // skills.json
   writeJSON(path.join(dataDir, 'skills.json'), {
-    skills: preset.skills.map(row => ({
+    skills: [...PLANNING_SKILLS, ...preset.skills].map(row => ({
       skill: row[0],
       path: row[1],
       layer: row[2],
@@ -435,11 +512,39 @@ function createDataFiles(aiDir, language, projectName, repoName) {
   appendJSONL(path.join(dataDir, 'tasks.jsonl'), { _init: true, ts: new Date().toISOString() });
 }
 
+// Ensure existing managers learn about the shared planning methods during
+// upgrade without replacing project-specific skill registrations.
+function ensurePlanningSkills(aiDir) {
+  const skillsPath = path.join(aiDir, 'data', 'skills.json');
+  const data = readJSON(skillsPath) || { skills: [], matrix: [] };
+  if (!Array.isArray(data.skills)) data.skills = [];
+  const existing = new Set(data.skills.map(entry => entry && entry.skill));
+  let changed = false;
+  for (const row of PLANNING_SKILLS) {
+    if (existing.has(row[0])) continue;
+    data.skills.unshift({
+      skill: row[0],
+      path: row[1],
+      layer: row[2],
+      workflowTrigger: row[3],
+      purpose: row[4],
+    });
+    existing.add(row[0]);
+    changed = true;
+  }
+  if (changed || !fs.existsSync(skillsPath)) writeJSON(skillsPath, data);
+  return data;
+}
+
 module.exports = {
   LANGUAGE_PRESETS,
   detectLanguage,
   copyWithHeader,
   ensureContextPacketsIgnored,
+  MEMORY_LAKE_MCP_URL,
+  ensureProjectMcpServer,
+  ensureMemoryLakeMcp,
+  ensureMemoryLakeIdentity,
   // JSONL utilities
   readJSONL,
   appendJSONL,
@@ -463,6 +568,8 @@ module.exports = {
   // Identity and skills
   readIdentity,
   readSkills,
+  PLANNING_SKILLS,
   // Init
   createDataFiles,
+  ensurePlanningSkills,
 };

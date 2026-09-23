@@ -1,14 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  readSpecs,
   readPlans,
   readTaskFiles,
   getTaskStates,
   readIdentity,
   readSkills,
   writeJSON,
-  readJSON,
 } = require('./shared');
 
 // parseWorkflows reads all workflow .md files and extracts name, trigger, and path.
@@ -47,7 +45,6 @@ async function overviewCommand(options) {
   console.log(`Updating project overview at ${aiDir}...`);
 
   // Read current state from JSONL and MD files
-  const specs = readSpecs(aiDir);
   const plans = readPlans(aiDir);
   const taskFiles = readTaskFiles(aiDir);
   const taskStates = getTaskStates(aiDir);
@@ -68,10 +65,6 @@ async function overviewCommand(options) {
   const inProgressTasks = tasks.filter(t => String(t.status || '').toLowerCase() === 'in_progress').length;
 
   console.log(`\n--- Project Overview ---`);
-  console.log(`  Specs: ${specs.length}`);
-  for (const s of specs) {
-    console.log(`    ${s.id} [${s.status}] ${s.title}`);
-  }
   console.log(`  Plans: ${plans.length}`);
   for (const p of plans) {
     console.log(`    ${p.id} [${p.status}] ${p.title}`);

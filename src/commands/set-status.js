@@ -24,18 +24,16 @@ async function setStatusCommand(options) {
     process.exit(1);
   }
 
-  const prefix = id.toUpperCase().startsWith('SPEC-') ? 'SPEC'
-    : id.toUpperCase().startsWith('PLAN-') ? 'PLAN'
+  const prefix = id.toUpperCase().startsWith('PLAN-') ? 'PLAN'
     : id.toUpperCase().startsWith('TASK-') ? 'TASK'
-    : id.toUpperCase().startsWith('EPIC-') ? 'EPIC'
     : null;
 
   if (!prefix) {
-    console.error(`Could not determine type for ID: ${id}. Use SPEC-NNN, PLAN-NNN, TASK-NNN, or EPIC-NNN.`);
+    console.error(`Could not determine type for ID: ${id}. Use PLAN-NNN or TASK-NNN.`);
     process.exit(1);
   }
 
-  const dirName = prefix === 'SPEC' ? 'specs' : prefix === 'PLAN' ? 'plans' : prefix === 'EPIC' ? 'epics' : 'tasks';
+  const dirName = prefix === 'PLAN' ? 'plans' : 'tasks';
   const filePath = path.join(aiDir, dirName, `${id.toUpperCase()}.md`);
 
   if (!fs.existsSync(filePath)) {
@@ -60,21 +58,21 @@ async function setStatusCommand(options) {
     const planId = taskState ? taskState.plan : parseMarkdownField(filePath, 'Parent');
 
     // Map status to event type
-    let eventType = null;
+    let eventType = 'status_changed';
     if (status === 'in_progress' || status === 'implementing') eventType = 'started';
     else if (status === 'done' || status === 'complete') eventType = 'done';
 
-    if (eventType) {
-      appendTaskEvent(aiDir, {
-        id: id.toUpperCase(),
+    appendTaskEvent(aiDir, {
+      id: id.toUpperCase(),
+      event: eventType,
+      status,
+    });
+    if (planId) {
+      appendTimelineEvent(aiDir, planId, {
+        task: id.toUpperCase(),
         event: eventType,
+        status,
       });
-      if (planId) {
-        appendTimelineEvent(aiDir, planId, {
-          task: id.toUpperCase(),
-          event: eventType,
-        });
-      }
     }
   }
 

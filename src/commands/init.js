@@ -7,11 +7,8 @@ const {
   createDataFiles,
   readIdentity,
   writeJSON,
-  readSpecs,
-  readPlans,
-  readTaskFiles,
-  appendJSONL,
   ensureContextPacketsIgnored,
+  ensureMemoryLakeMcp,
 } = require('./shared');
 
 const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
@@ -99,8 +96,6 @@ async function initCommand(options) {
     wsDir,
     path.join(wsDir, '.agents', 'skills'),
     path.join(wsDir, 'workflows'),
-    path.join(wsDir, 'epics'),
-    path.join(wsDir, 'specs'),
     path.join(wsDir, 'plans'),
     path.join(wsDir, 'tasks'),
     path.join(wsDir, 'decisions'),
@@ -114,6 +109,8 @@ async function initCommand(options) {
 
   ensureContextPacketsIgnored(targetDir);
   ensureContextPacketsIgnored(wsDir);
+  const memoryLake = ensureMemoryLakeMcp(targetDir);
+  console.log(`${memoryLake.changed ? 'Configured' : 'Verified'} project MCP memorylake in ${memoryLake.path}`);
 
   // Copy AGENTS.md (workflow protocol)
   const agentsTemplate = path.join(__dirname, '..', 'templates', 'AGENTS.md');
@@ -133,7 +130,7 @@ async function initCommand(options) {
     }
   }
 
-  // Copy document templates (SPEC/PLAN/TASK/ADR/etc.)
+  // Copy document templates (PLAN/TASK).
   const srcTemplates = path.join(__dirname, '..', 'templates');
   if (fs.existsSync(srcTemplates)) {
     const dstTemplates = path.join(wsDir, 'templates');
@@ -170,9 +167,11 @@ async function initCommand(options) {
       if (skillName === 'AGENTS.md') continue;
       const srcSkillDir = path.join(srcSkills, skillName);
       if (!fs.statSync(srcSkillDir).isDirectory()) continue;
+      const skillFiles = fs.readdirSync(srcSkillDir);
+      if (skillFiles.length === 0) continue;
       const dstSkillDir = path.join(skillsDir, skillName);
       fs.mkdirSync(dstSkillDir, { recursive: true });
-      for (const f of fs.readdirSync(srcSkillDir)) {
+      for (const f of skillFiles) {
         copyWithHeader(path.join(srcSkillDir, f), path.join(dstSkillDir, f));
       }
     }

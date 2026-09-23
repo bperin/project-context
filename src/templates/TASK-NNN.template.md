@@ -11,7 +11,6 @@
 ## Parent
 
 - Plan: `plans/PLAN-NNN.md` (or **standalone**)
-- SPEC: `specs/SPEC-NNN.md` (if applicable)
 
 ## Supersedes
 
@@ -63,6 +62,10 @@
 
 -
 
+## Proof Obligations
+
+1. <!-- Evidence the worker must return, not merely a claim. -->
+
 ## Acceptance Criteria
 
 1.
@@ -88,6 +91,12 @@
 ## Do-Not-Touch
 
 -
+
+## Planning Gap Protocol
+
+- Do not make a new architecture, product, API, or data-ownership decision.
+- If a required decision is missing or the write set must expand, stop and set
+  this task to `needs_planning` with the exact gap and evidence.
 
 ## Commit Log
 

@@ -2,131 +2,88 @@
 
 **UUID**: {{UUID}}
 **Status**: {{STATUS}}
-**Parent**: {{PARENT}}
 **Dependencies**: {{DEPENDENCIES}}
 **Skills**: {{SKILLS}}
 **Triggers**: {{TRIGGERS}}
 **Commit**: {{COMMIT}}
 
-## Supersedes
+## Goal
 
-- Supersedes: <!-- PLAN-NNN, or "none" -->
-- Reason:
-- Superseded by: <!-- PLAN-NNN, or "none" -->
+<!-- One or two sentences describing the observable outcome. -->
 
-## Status
+## Human Summary
 
-- **Progress**: 0% (0 of N tasks done)
-- **Tasks**: <!-- TASK-NNN IDs, or "none yet" -->
+<!-- Plain language: what changes, why it matters, who notices, and the main tradeoff. -->
 
-## Source Specification
+- What changes:
+- Why:
+- User-visible outcome:
+- Main tradeoff:
 
-SPEC-NNN — <short title> (`specs/SPEC-NNN.md`)
+## Resume Checkpoint
 
-## Requirements
+- **Phase**: discovery
+- **Next action**: inspect the repository and record evidence
+- **Last updated**: <!-- ISO-8601 timestamp -->
 
-<!-- Requirements from the source spec that this plan implements. -->
+## Scope and Boundaries
 
-1.
-
-## Objective
-
-<!-- What this plan achieves. -->
-
-## System Map
-
-```
-┌─────────────────────────────────────┐
-│  <Component A>                      │
-│  - <responsibility>                 │
-└──────────┬──────────────────────────┘
-           │  <transport>
-     ┌─────▼──────────────────────────┐
-     │  <Component B>                  │
-     │  - <responsibility>             │
-     └────────────────────────────────┘
-```
+- In scope:
+- Out of scope:
+- Do not touch:
 
 ## Repositories
 
-| Path | Role | Description |
+- `<repo-path>` — <role>
+
+## Evidence and Current State
+
+- `<file or command>` — <what it proves>
+
+## Decisions
+
+| Decision | Choice | Reason |
 |---|---|---|
-| `<repo>/` | | |
+| | | |
 
-## Architecture
+## Blocking Questions
 
-### New package: `<name>/`
+<!-- Every item must be resolved before tasks become ready. Use "None" when clear. -->
 
-```
-<package>/
-├── <module>          # <one-line responsibility>
-└── ...
-```
+- None.
 
-### Key design decisions
+## Advisory Questions
 
-1. **<decision>** — <rationale>
+<!-- Record useful questions that do not block implementation. -->
 
-## Communication Topology
+- None.
 
-| Path | Transport | Purpose |
-|---|---|---|
-| <A → B> | | |
+## Architecture and Data Boundaries
 
-## Data / Ownership
+- Components:
+- API boundaries:
+- Data ownership:
+- Invariants:
 
-- **<data category>**: <owner / location>
+## Task Strategy
 
-## Workstreams
+<!-- Each task must have a narrow, disjoint write set and explicit proof obligations. -->
 
-| ID | Workstream | Tasks |
-|---|---|---|
-| W1 | | TASK-NNN |
+| Order | Task | Write set | Depends on |
+|---|---|---|---|
+| 1 | TASK-NNN | | none |
 
-### Workstream details
-
-#### W1 — <name>
-- Algorithms:
-- Primary skill:
-- Secondary skills:
-- Test vectors:
-- Negative tests:
-- Files:
-
-## Out of Scope
-
--
-
-## Dependencies
-
-### External packages (to add)
-
-### Existing code dependencies (read-only)
-
-## Constraints
-
--
-
-## Current Focus
-
-**TASK-NNN: <title>** — <why this is next>
-
-## Completion Criteria
-
-1.
-2.
-
-## Acceptance Criteria
+## Acceptance and Verification
 
 1.
 
-## Security Considerations
+```text
+<verification command>
+```
 
-- Algorithms:
-- Required skills:
-- Attack surfaces:
-- Verification: `govulncheck ./...`, `go test -race ./...`
+## Planning Gate
 
-## Linked Tasks
-
-- `tasks/TASK-NNN.md` — <one-line summary>
+- **Self-challenge complete**: no
+- **Blocking questions resolved**: no
+- **User accepted**: no
+- **Tasks**: <!-- TASK-NNN IDs, or "none yet" -->
