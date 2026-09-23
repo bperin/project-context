@@ -57,6 +57,17 @@ task waves. Stop only when:
 
 `run` is persistent execution, not permission to invent missing scope.
 
+## Automatic planning-gap return
+
+When a worker returns `needs_planning`, the root coordinator immediately resumes
+the same plan at the smallest affected planning gate. It records the evidence,
+discovers the missing seam, revises the plan and affected packets, and dispatches
+the newly safe wave without treating the return as a user handoff. Ask the user
+only when the gap requires new external authority, a product-scope change, or a
+choice that cannot be resolved from accepted plan decisions and repository
+evidence. A user may grant standing acceptance for in-scope implementation
+architecture refinements; record that authorization in the plan.
+
 ## Single-active-plan invariant
 
 At most one plan may have a non-terminal state. Terminal states are `done`,
@@ -209,8 +220,10 @@ For each ready packet:
 
 When `needs_planning` occurs, halt affected and dependent packets. Persist the
 failed obligation, repository evidence, blocked boundary, and smallest required
-decision. The root agent revises the same plan, asks the user only if blocking,
-clears acceptance for material changes, and regenerates affected packets.
+decision. The root agent immediately revises the same plan and regenerates
+affected packets from accepted decisions and repository evidence. It asks the
+user only for new external authority, product-scope changes, or an unresolved
+choice; otherwise standing in-scope acceptance permits continued execution.
 
 ## PR readiness and completion
 

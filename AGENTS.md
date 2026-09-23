@@ -116,6 +116,12 @@ mutate manager state. Missing or contradictory planning returns
 challenger reviews each completed packet. Commits and state mutations are
 serial.
 
+The root automatically handles a `needs_planning` return: it discovers the
+smallest missing seam, revises the in-scope plan/task boundary from accepted
+decisions and repository evidence, and resumes execution. User involvement is
+reserved for new external authority, product-scope change, or an irreducible
+unresolved choice.
+
 After challenge pass, the coordinator runs integrated checks, commits the
 repository-scoped branch, merges it into that repository's `dev`, and fills the
 freed slot with the next safe packet. Workers never commit or merge; the loop

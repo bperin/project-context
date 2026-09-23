@@ -83,3 +83,8 @@ Open-ended product, architecture, workflow, API, and integration choices run
 mechanical changes record an ADHD skip rationale. Implementers never load planning
 skills, question the user, or widen a packet. Missing planning returns
 `needs_planning` to this root workflow.
+
+On `needs_planning`, the root automatically performs the smallest required
+discovery and in-scope plan/task revision, then resumes the safe wave. It asks
+the user only when resolving the gap needs new external authority, changes the
+accepted product scope, or leaves an irreducible choice.

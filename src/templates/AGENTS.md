@@ -117,6 +117,12 @@ If a packet is incomplete or contradictory, the worker stops and returns
 `needs_planning` with evidence. The root agent revises the existing plan and
 affected packets. Exactly one challenger reviews each completed packet.
 
+A `needs_planning` return is automatically owned by the root coordinator. It
+uses accepted plan decisions and repository evidence to revise the smallest
+affected plan/task boundary and resumes execution; it is not a user handoff.
+The coordinator asks the user only for new external authority, a product-scope
+change, or an unresolved choice outside those accepted decisions.
+
 The root agent actively supervises every builder and challenger to a terminal
 report. In Codex, it uses `wait_threads` with a bounded timeout and carries the
 returned cursor forward as `afterCursor`; a timeout is not completion. It does
