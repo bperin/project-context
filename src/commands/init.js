@@ -124,7 +124,7 @@ async function initCommand(options) {
   const srcWorkflows = path.join(__dirname, '..', 'workflows');
   if (fs.existsSync(srcWorkflows)) {
     for (const f of fs.readdirSync(srcWorkflows)) {
-      if (f.endsWith('.md') && !f.includes('template')) {
+      if (f.endsWith('.md') && !f.includes('template') && f !== 'overview.md') {
         copyWithHeader(path.join(srcWorkflows, f), path.join(wsDir, 'workflows', f));
       }
     }
@@ -144,19 +144,11 @@ async function initCommand(options) {
     }
   }
 
-  // Copy .agents/ skills + shared instructions
+  // Copy the sole local workflow skill. Shared skills are resolved from the
+  // canonical user-level registry recorded in data/skills.json.
   const srcSkills = path.join(__dirname, '..', 'skills');
-  const bundledSkills = path.join(__dirname, '..', '..', 'skills');
   const agentsDir = path.join(wsDir, '.agents');
   const skillsDir = path.join(agentsDir, 'skills');
-
-  // Copy shared AGENTS.md from src/skills/
-  if (fs.existsSync(srcSkills)) {
-    const agentsInstructions = path.join(srcSkills, 'AGENTS.md');
-    if (fs.existsSync(agentsInstructions)) {
-      copyWithHeader(agentsInstructions, path.join(agentsDir, 'AGENTS.md'));
-    }
-  }
 
   // Copy workflow skills from src/skills/
   if (fs.existsSync(srcSkills)) {
@@ -171,18 +163,6 @@ async function initCommand(options) {
       for (const f of skillFiles) {
         copyWithHeader(path.join(srcSkillDir, f), path.join(dstSkillDir, f));
       }
-    }
-  }
-
-  // Copy bundled language skills from skills/ (at package root)
-  // Skip if --no-bundled-skills is set. Language skills belong at the
-  // user level (~/.agents/skills/) or repo root, not in every workspace.
-  if (options.bundledSkills !== false && fs.existsSync(bundledSkills)) {
-    for (const skillName of fs.readdirSync(bundledSkills)) {
-      const srcSkillDir = path.join(bundledSkills, skillName);
-      if (!fs.statSync(srcSkillDir).isDirectory()) continue;
-      const dstSkillDir = path.join(skillsDir, skillName);
-      fs.cpSync(srcSkillDir, dstSkillDir, { recursive: true });
     }
   }
 

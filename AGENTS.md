@@ -35,12 +35,10 @@ project-context/
 │   ├── agents/                  # Narrow writer and challenger profiles
 │   ├── commands/                # Internal CLI mechanics
 │   ├── skills/
-│   │   ├── AGENTS.md
 │   │   └── pc-plan/SKILL.md     # Sole generated workflow skill
 │   ├── templates/               # PLAN, TASK, and generated AGENTS assets
 │   └── workflows/
-│       ├── pc-plan.md           # Full persisted lifecycle
-│       └── overview.md          # Compact lifecycle map
+│       └── pc-plan.md           # Coordinator-only lifecycle
 ├── scripts/task-done-hook.js
 └── test/
 ```
@@ -51,10 +49,9 @@ project-context/
 .<repository>-manager/
 ├── AGENTS.md
 ├── .agents/
-│   ├── AGENTS.md
 │   ├── agents/
 │   └── skills/pc-plan/SKILL.md
-├── workflows/{pc-plan.md,overview.md}
+├── workflows/pc-plan.md
 ├── templates/{PLAN-NNN.template.md,TASK-NNN.template.md}
 ├── plans/PLAN-NNN.md
 ├── tasks/TASK-NNN.md

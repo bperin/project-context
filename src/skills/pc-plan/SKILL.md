@@ -27,8 +27,8 @@ permissions:
     - Exec(git **)
 ---
 
-> **Read [`.agents/AGENTS.md`](../AGENTS.md) first.** It defines persistence,
-> authority, packet, concurrency, and state-transition rules.
+> **Read the manager root [`AGENTS.md`](../../../AGENTS.md) first.** It defines
+> persistence, authority, packet, concurrency, and state-transition rules.
 
 `pc-plan` is the only user-facing project-context workflow skill. Follow
 `workflows/pc-plan.md` for every action.
@@ -78,13 +78,7 @@ user to separate context, task, implementation, review, archive, inspect, UUID,
 epic, or specification skills.
 
 Planning records a `grilling` decision tree; `grill-me` is only its wrapper.
-Open-ended product, architecture, workflow, API, and integration choices run
-`adhd` and record its selected direction, alternatives, and traps. Closed
-mechanical changes record an ADHD skip rationale. Implementers never load planning
-skills, question the user, or widen a packet. Missing planning returns
-`needs_planning` to this root workflow.
-
-On `needs_planning`, the root automatically performs the smallest required
-discovery and in-scope plan/task revision, then resumes the safe wave. It asks
-the user only when resolving the gap needs new external authority, changes the
-accepted product scope, or leaves an irreducible choice.
+Use `adhd` only for genuinely open-ended design. Implementers never load
+planning skills, question the user, or widen a packet. Missing planning returns
+`needs_planning` to this root workflow, which performs the smallest required
+in-scope revision before resuming.

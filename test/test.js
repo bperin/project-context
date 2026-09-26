@@ -31,6 +31,7 @@ async function runTests() {
   const targetDir = path.join('/tmp', `pc-test-${Date.now()}`);
   const ws = '.test-manager';
   const aiDir = path.join(targetDir, ws);
+  const canonicalSkillsRoot = path.join(targetDir, '.canonical-skills');
   fs.mkdirSync(path.join(targetDir, 'src'), { recursive: true });
   fs.writeFileSync(path.join(targetDir, 'src', 'owned.js'), 'module.exports = {};\n');
   fs.writeFileSync(path.join(targetDir, 'src', 'other.js'), 'module.exports = {};\n');
@@ -205,6 +206,7 @@ Keep the API and data boundary unchanged.
     id: 'TASK-001', event: 'created', title: 'Narrow task', plan: 'PLAN-001', status: 'draft', triggers: 'node',
   });
   writeJSON(path.join(aiDir, 'data', 'skills.json'), {
+    sharedSkillsRoot: canonicalSkillsRoot,
     skills: [
       { skill: 'grilling', path: 'user-level', layer: 'user-local', workflowTrigger: 'planning' },
       { skill: 'adhd', path: 'user-level', layer: 'user-local', workflowTrigger: 'planning' },
@@ -212,6 +214,10 @@ Keep the API and data boundary unchanged.
     ],
     matrix: [],
   });
+  for (const skill of ['grilling', 'adhd', 'project-linter']) {
+    fs.mkdirSync(path.join(canonicalSkillsRoot, skill), { recursive: true });
+    fs.writeFileSync(path.join(canonicalSkillsRoot, skill, 'SKILL.md'), `# ${skill}\n`);
+  }
   writeJSON(path.join(aiDir, 'graph', 'nodes', 'owned.json'), {
     id: 'owned', path: 'test-repo/src/owned.js', type: 'source',
   });
@@ -229,6 +235,15 @@ Keep the API and data boundary unchanged.
   assert(taskPacket.parent.summary, 'TASK context missing compact parent summary');
   assert(!taskPacket.parent.body, 'TASK context includes full parent plan body');
   assert.strictEqual(taskPacket.grandparent, null);
+  assert.strictEqual(taskPacket.version, 2, 'TASK context packet version did not advance');
+  assert(!Object.hasOwn(taskPacket.target, 'body'), 'TASK context includes full task body');
+  assert(!Object.hasOwn(taskPacket.target, 'testing'), 'TASK context duplicates testing section');
+  assert(!Object.hasOwn(taskPacket.target, 'criteria'), 'TASK context duplicates criteria section');
+  assert.deepStrictEqual(taskPacket.target.source.path, 'tasks/TASK-001.md');
+  assert.match(taskPacket.target.source.sha256, /^[a-f0-9]{64}$/);
+  assert.deepStrictEqual(taskPacket.skillReferences, [
+    { name: 'project-linter', path: path.join(canonicalSkillsRoot, 'project-linter') },
+  ], 'TASK context did not resolve the selected canonical skill');
   const contract = taskPacket.target.contract;
   assert(contract.writeSet.includes('src/owned.js'), 'contract missing exact file');
   assert(contract.symbols.includes('ownedFunction'), 'contract missing exact symbol');
@@ -239,6 +254,65 @@ Keep the API and data boundary unchanged.
   assert(contract.proofObligations.includes('test output'), 'contract missing proof obligations');
   assert(contract.planningGapProtocol.includes('needs_planning'), 'contract missing planning-gap protocol');
   assert.deepStrictEqual(taskPacket.modules.map((module) => module.path), ['test-repo/src/owned.js']);
+
+  const noRepositoryTask = fs.readFileSync(path.join(aiDir, 'tasks', 'TASK-001.md'), 'utf8')
+    .replace(/TASK-001/g, 'TASK-008')
+    .replace(/## Repositories\n\n- `test-repo`\n\n/, '');
+  fs.writeFileSync(path.join(aiDir, 'tasks', 'TASK-008.md'), noRepositoryTask);
+  appendTaskEvent(aiDir, {
+    id: 'TASK-008', event: 'created', title: 'No repository declaration', plan: 'PLAN-001', status: 'draft', triggers: 'node',
+  });
+  const noRepositoryPacket = await captureContext({ target: targetDir, workspace: ws, id: 'TASK-008' });
+  assert.deepStrictEqual(noRepositoryPacket.modules.map((module) => module.path), ['test-repo/src/owned.js'], 'task graph included nodes outside its declared write set');
+
+  const requiredSections = {
+    goal: ['Goal', 'Change one owned symbol.'],
+    'write set': ['Relevant Files', '- \`src/owned.js\`'],
+    'required change': ['Required Change', 'Update the bounded implementation.'],
+    'acceptance criteria': ['Acceptance Criteria', '- The owned behavior passes.'],
+    tests: ['Tests', '- expected input succeeds'],
+    verification: ['Verification', '\`node test-owned.js\`'],
+  };
+  const requiredEntries = Object.entries(requiredSections);
+  for (let index = 0; index < requiredEntries.length; index += 1) {
+    const [missingLabel] = requiredEntries[index];
+    const id = `TASK-${String(index + 2).padStart(3, '0')}`;
+    const sections = requiredEntries
+      .filter(([, [heading]]) => heading !== requiredSections[missingLabel][0])
+      .map(([, [heading, content]]) => `## ${heading}\n\n${content}`)
+      .join('\n\n');
+    fs.writeFileSync(path.join(aiDir, 'tasks', `${id}.md`), `# ${id}: Incomplete task
+
+**UUID**: incomplete-task-${index}
+**Status**: draft
+**Parent**: PLAN-001
+**Dependencies**: none
+**Skills**:
+**Triggers**: node
+
+## Repositories
+
+- \`test-repo\`
+
+${sections}
+`);
+    appendTaskEvent(aiDir, {
+      id, event: 'created', title: 'Incomplete task', plan: 'PLAN-001', status: 'draft', triggers: 'node',
+    });
+    await assert.rejects(
+      () => contextCommand.buildPacket(aiDir, id),
+      new RegExp(`incomplete context contract: ${missingLabel}`),
+      `${missingLabel} omission produced a worker-ready packet`,
+    );
+  }
+
+  const planningResult = await captureContext({ target: targetDir, workspace: ws, id: 'TASK-002' });
+  assert.deepStrictEqual(planningResult, {
+    status: 'needs_planning',
+    target: 'TASK-002',
+    missing: ['goal'],
+    message: 'Task TASK-002 has incomplete context contract: goal',
+  }, 'missing contracts must return needs_planning instead of a worker-ready packet');
 
   fs.rmSync(targetDir, { recursive: true, force: true });
   console.log('PLAN+TASK tests passed.');

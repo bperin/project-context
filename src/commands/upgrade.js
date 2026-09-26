@@ -7,7 +7,7 @@ const {
   readIdentity,
   writeJSON,
   ensureContextPacketsIgnored,
-  ensurePlanningSkills,
+  ensureLanguageSkills,
   ensureMemoryLakeMcp,
   ensureMemoryLakeIdentity,
 } = require("./shared");
@@ -72,6 +72,8 @@ async function upgradeCommand(options) {
     path.join(wsDir, "workflows", "task-workflow.md"),
     path.join(wsDir, "workflows", "task-implementation.md"),
     path.join(wsDir, "workflows", "code-review.md"),
+    // Superseded by the coordinator-only pc-plan lifecycle reference.
+    path.join(wsDir, "workflows", "overview.md"),
     // Old templates no longer generated
     path.join(wsDir, "templates", "STATE.md"),
     path.join(wsDir, "templates", "current.md"),
@@ -99,6 +101,34 @@ async function upgradeCommand(options) {
     path.join(wsDir, "templates", "TASK-NNN.instructions.md"),
   ];
   const obsoleteSkillDirs = [
+    // Former package-root shared skill bundle. Remove this closed list only;
+    // project-owned local skills remain untouched.
+    "accelint-ts-performance",
+    "build-web3",
+    "ethereum",
+    "go-code-review",
+    "go-memory-oom-guard",
+    "go-security-expert",
+    "go-systems-programmer",
+    "golang-code-style",
+    "golang-concurrency",
+    "golang-error-handling",
+    "golang-performance",
+    "golang-security",
+    "golang-testing",
+    "implementing-digital-signatures-with-ed25519",
+    "js-ts-performance-readability",
+    "python-code-style",
+    "python-cybersecurity-tool-development",
+    "python-performance-optimization",
+    "python-testing-patterns",
+    "rust-performance",
+    "rust-security",
+    "rust-testing",
+    "typescript-code-review",
+    "typescript-security-review",
+    "typescript-unit-testing",
+    "wycheproof",
     // Old workflow names (pre-pc- prefix)
     "create-spec",
     "create-plan",
@@ -156,6 +186,11 @@ async function upgradeCommand(options) {
       console.log(`Removed obsolete file: ${path.relative(wsDir, f)}`);
     }
   }
+  const legacyAgentsInstructions = path.join(wsDir, ".agents", "AGENTS.md");
+  if (fs.existsSync(legacyAgentsInstructions)) {
+    fs.rmSync(legacyAgentsInstructions, { force: true });
+    console.log("Removed obsolete file: .agents/AGENTS.md");
+  }
   for (const skillName of obsoleteSkillDirs) {
     const d = path.join(wsDir, ".agents", "skills", skillName);
     if (fs.existsSync(d)) {
@@ -202,7 +237,7 @@ async function upgradeCommand(options) {
   // Copy workflow .md files
   if (fs.existsSync(srcWorkflows)) {
     for (const f of fs.readdirSync(srcWorkflows)) {
-      if (f.endsWith(".md") && !f.includes("template")) {
+      if (f.endsWith(".md") && !f.includes("template") && f !== "overview.md") {
         copyWithHeader(
           path.join(srcWorkflows, f),
           path.join(wsDir, "workflows", f),
@@ -230,10 +265,6 @@ async function upgradeCommand(options) {
   const skillsDir = path.join(agentsDir, "skills");
 
   if (fs.existsSync(srcSkills)) {
-    const agentsInstructions = path.join(srcSkills, "AGENTS.md");
-    if (fs.existsSync(agentsInstructions)) {
-      copyWithHeader(agentsInstructions, path.join(agentsDir, "AGENTS.md"));
-    }
     for (const skillName of fs.readdirSync(srcSkills)) {
       if (skillName === "AGENTS.md") continue;
       const srcSkillDir = path.join(srcSkills, skillName);
@@ -285,12 +316,8 @@ async function upgradeCommand(options) {
     }
   }
 
-  // Language skills are NOT copied by upgrade. The target repo's
-  // Makefile (or equivalent) vendors language-specific skills from
-  // ~/.agents/skills/ via `make skills`. Upgrade only manages workflow
-  // skills (src/skills/) and subagent profiles (src/agents/). Copying
-  // all bundled language skills here pollutes the target workspace
-  // with irrelevant skills (e.g. Rust skills in a Go repo).
+  // Shared skills are never copied into managers. The manifest records their
+  // canonical user-level references; upgrade owns only pc-plan and profiles.
 
   // Ensure data files exist (create if missing, preserve if existing)
   const language = detectLanguage(targetDir);
@@ -299,7 +326,7 @@ async function upgradeCommand(options) {
     createDataFiles(wsDir, language, repoName, repoName);
   }
   ensureMemoryLakeIdentity(wsDir, repoName);
-  ensurePlanningSkills(wsDir);
+  ensureLanguageSkills(wsDir, language);
 
   // Ensure .agents symlink exists (unless --no-symlink)
   if (options.symlink !== false) {

@@ -12,7 +12,6 @@
   "scripts": {
     "test": "node --test test/hook.test.js test/ready.test.js && node test/test.js && node test/stress-test.js && node test/agent-protocol.js",
     "start": "node bin/cli.js",
-    "sync-skills": "node scripts/sync-skills.js",
     "bundle": "esbuild bin/cli.js --bundle --platform=node --format=cjs --outfile=dist/project-context --keep-names"
   },
   "keywords": [

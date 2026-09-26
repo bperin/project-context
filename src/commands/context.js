@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const {
   readSpecs,
   readEpics,
@@ -123,17 +124,22 @@ function readMarkdown(aiDir, id) {
     : id.toUpperCase().startsWith('PLAN-') ? 'plans'
     : id.toUpperCase().startsWith('TASK-') ? 'tasks'
     : null;
-  if (!type) return { body: '', testing: '', criteria: '' };
+  if (!type) return { body: '', testing: '', criteria: '', source: null };
 
   const filePath = path.join(aiDir, type, `${id.toUpperCase()}.md`);
-  if (!fs.existsSync(filePath)) return { body: '', testing: '', criteria: '' };
+  if (!fs.existsSync(filePath)) return { body: '', testing: '', criteria: '', source: null };
 
-  const content = stripInstructions(fs.readFileSync(filePath, 'utf8'));
+  const rawContent = fs.readFileSync(filePath, 'utf8');
+  const content = stripInstructions(rawContent);
 
   return {
     body: content.trim(),
     testing: extractSection(content, 'Testing') || extractSection(content, 'Tests'),
     criteria: extractSection(content, 'Completion Criteria') || extractSection(content, 'Acceptance Criteria') || extractSection(content, 'Success Criteria'),
+    source: {
+      path: path.relative(aiDir, filePath).split(path.sep).join('/'),
+      sha256: crypto.createHash('sha256').update(rawContent).digest('hex'),
+    },
   };
 }
 
@@ -188,6 +194,52 @@ function taskContract(row, markdown) {
     proofObligations: firstSection(body, ['Proof Obligations']),
     planningGapProtocol: firstSection(body, ['Planning Gap Protocol']),
   };
+}
+
+const REQUIRED_TASK_CONTRACT_FIELDS = [
+  ['goal', 'goal'],
+  ['writeSet', 'write set'],
+  ['requiredChange', 'required change'],
+  ['acceptanceCriteria', 'acceptance criteria'],
+  ['tests', 'tests'],
+  ['verification', 'verification'],
+];
+
+function validateTaskContract(taskId, contract, source) {
+  const missing = REQUIRED_TASK_CONTRACT_FIELDS
+    .filter(([key]) => !String(contract[key] || '').trim())
+    .map(([, label]) => label);
+  if (missing.length > 0) {
+    const error = new Error(`Task ${taskId} has incomplete context contract: ${missing.join(', ')}`);
+    error.code = 'NEEDS_PLANNING';
+    error.missing = missing;
+    throw error;
+  }
+  if (!source || !source.path || !source.sha256) {
+    const error = new Error(`Task ${taskId} has no source fingerprint`);
+    error.code = 'NEEDS_PLANNING';
+    error.missing = ['source fingerprint'];
+    throw error;
+  }
+}
+
+function canonicalSkillReferences(skillsData, selectedSkills) {
+  const root = path.resolve(
+    skillsData.sharedSkillsRoot
+      || skillsData.canonicalSkillsRoot
+      || '/Users/brian/.agents/skills',
+  );
+  const missing = [];
+  const references = selectedSkills.map((name) => {
+    const skillPath = path.join(root, name);
+    if (!fs.existsSync(path.join(skillPath, 'SKILL.md'))) missing.push(name);
+    return { name, path: skillPath };
+  });
+
+  if (missing.length > 0) {
+    throw new Error(`Missing selected canonical skills: ${missing.join(', ')}`);
+  }
+  return references;
 }
 
 // collectSkills gathers skills from all applicable levels for a target.
@@ -307,7 +359,7 @@ async function buildPacket(aiDir, targetId, options = {}) {
   }
 
   const targetMd = readMarkdown(aiDir, row.id);
-  const parentMd = parent ? readMarkdown(aiDir, parent.id) : { body: '', testing: '', criteria: '' };
+  const parentMd = parent ? readMarkdown(aiDir, parent.id) : { body: '', testing: '', criteria: '', source: null };
 
   // Collect declared repositories from the task and its single planning parent.
   // to filter graph modules to only those repos.
@@ -332,35 +384,52 @@ async function buildPacket(aiDir, targetId, options = {}) {
           return declaredRepos.has(repo);
         });
       }
-      // Implementation packets already carry the exact task write set. Keep
-      // only graph nodes for those files instead of forwarding every module
-      // in a large repository.
+      // Implementation packets carry only graph nodes for the exact declared
+      // write set. A task without a matching graph node gets no graph context;
+      // it never receives an unbounded repository inventory.
       if (type === 'task') {
         const relevantFiles = parseRelevantFiles(targetMd.body);
-        if (relevantFiles.length > 0 && declaredRepos.size > 0) {
-          modules = modules.filter(m => [...declaredRepos].some(repo =>
-            relevantFiles.some(file => m.path === `${repo}/${file}` || m.path.startsWith(`${repo}/${file}/`))
-          ));
-        }
+        modules = modules.filter(m => relevantFiles.some(file => (
+          m.path === file || m.path.endsWith(`/${file}`) || m.path.startsWith(`${file}/`)
+        )));
       }
     }
   } catch (e) {}
 
+  const allSkills = [...new Set([
+    ...alwaysOn,
+    ...projectLocal,
+    ...userLocal,
+    ...primarySkills,
+    ...secondarySkills,
+    ...targetSkills,
+  ])];
+  const contract = type === 'task' ? taskContract(row, targetMd) : null;
+  if (type === 'task') validateTaskContract(row.id, contract, targetMd.source);
+  const skillReferences = canonicalSkillReferences(skillsData, allSkills);
+
+  const target = {
+    type,
+    id: row.id,
+    uuid: row.uuid || '',
+    title: row.title || '',
+    status: row.status || '',
+    dependencies: row.dependencies || row.parent || '',
+    skills: targetSkills,
+    commit: row.commit || '',
+  };
+  if (type === 'task') {
+    target.source = targetMd.source;
+    target.contract = contract;
+  } else {
+    target.body = targetMd.body;
+    target.testing = targetMd.testing;
+    target.criteria = targetMd.criteria;
+  }
+
   const packet = {
-    target: {
-      type,
-      id: row.id,
-      uuid: row.uuid || '',
-      title: row.title || '',
-      status: row.status || '',
-      dependencies: row.dependencies || row.parent || '',
-      skills: targetSkills,
-      commit: row.commit || '',
-      body: targetMd.body,
-      testing: targetMd.testing,
-      criteria: targetMd.criteria,
-      ...(type === 'task' ? { contract: taskContract(row, targetMd) } : {}),
-    },
+    version: type === 'task' ? 2 : 1,
+    target,
     parent: parent ? {
       type: parent.id.startsWith('EPIC-') ? 'epic' : parent.id.startsWith('SPEC-') ? 'spec' : 'plan',
       id: parent.id,
@@ -393,14 +462,8 @@ async function buildPacket(aiDir, targetId, options = {}) {
     // task's triggers, and the task's own declared skills. Not the
     // full parent/grandparent cascade — those are for context, not
     // for loading.
-    allSkills: [...new Set([
-      ...alwaysOn,
-      ...projectLocal,
-      ...userLocal,
-      ...primarySkills,
-      ...secondarySkills,
-      ...targetSkills,
-    ])],
+    allSkills,
+    skillReferences,
   };
 
   return packet;
@@ -433,9 +496,20 @@ async function contextCommand(options) {
       console.log(json);
     }
   } catch (err) {
+    if (err.code === 'NEEDS_PLANNING') {
+      const result = {
+        status: 'needs_planning',
+        target: targetId,
+        missing: err.missing,
+        message: err.message,
+      };
+      console.log(JSON.stringify(result, null, 2));
+      return result;
+    }
     console.error(err.message);
     process.exit(1);
   }
 }
 
 module.exports = contextCommand;
+module.exports.buildPacket = buildPacket;

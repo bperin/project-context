@@ -6,19 +6,19 @@ const path = require('path');
 const LANGUAGE_PRESETS = {
   node: {
     stack: 'JavaScript/Node',
+    skills: [],
+    matrix: [],
+  },
+  nextjs: {
+    stack: 'Next.js',
     skills: [
-      ['typescript-code-review', 'user-level', 'always-on', 'all', 'Code quality checks at session start'],
-      ['typescript-unit-testing', 'user-level', 'project-local', 'all', 'Any task in this JS/TS project'],
-      ['typescript-security-review', 'user-level', 'user-local', 'security', 'Security review for JS/TS code'],
-      ['accelint-ts-performance', 'user-level', 'user-local', 'performance', 'JS/TS performance audit and optimization'],
-      ['js-ts-performance-readability', 'user-level', 'user-local', 'api-routing', 'Readable, performant JS/TS'],
+      ['vercel-react-best-practices', 'user-level', 'always-on', 'all', 'Vercel React and Next.js performance and data-fetching baseline'],
+      ['typescript-magician', 'user-level', 'user-local', 'type-system', 'Explicit type-system design and complex TypeScript work'],
+      ['code-review-excellence', 'user-level', 'user-local', 'pr-review', 'Explicit pull-request review guidance'],
     ],
     matrix: [
-      ['api-validation', 'JavaScript/Node', 'typescript-unit-testing', 'typescript-code-review', 'REST API input validation, error handling'],
-      ['api-routing', 'JavaScript/Node', 'typescript-code-review', 'js-ts-performance-readability', 'Express route wiring, controller patterns'],
-      ['testing', 'JavaScript/Node', 'typescript-unit-testing', 'accelint-ts-performance', 'Test suite design, mocking, coverage'],
-      ['performance', 'JavaScript/Node', 'accelint-ts-performance', 'js-ts-performance-readability', 'Hot path optimization, allocation reduction'],
-      ['security', 'JavaScript/Node', 'typescript-security-review', 'typescript-code-review', 'XSS, injection, JWT/OAuth flaws, dependency CVEs'],
+      ['type-system', 'Next.js', 'typescript-magician', '', 'Complex TypeScript types, guards, and utilities'],
+      ['pr-review', 'Next.js', 'code-review-excellence', '', 'Explicit pull-request review'],
     ],
   },
   go: {
@@ -91,8 +91,19 @@ const PLANNING_SKILLS = [
   ['adhd', 'user-level', 'user-local', 'planning', 'Open-ended divergent exploration for planning only'],
 ];
 
+function packageLanguage(packagePath) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    const dependencies = { ...pkg.dependencies, ...pkg.devDependencies };
+    return Object.hasOwn(dependencies, 'next') ? 'nextjs' : 'node';
+  } catch (e) {
+    return 'node';
+  }
+}
+
 function detectLanguage(targetDir) {
-  if (fs.existsSync(path.join(targetDir, 'package.json'))) return 'node';
+  const packagePath = path.join(targetDir, 'package.json');
+  if (fs.existsSync(packagePath)) return packageLanguage(packagePath);
   if (fs.existsSync(path.join(targetDir, 'go.mod'))) return 'go';
   if (fs.existsSync(path.join(targetDir, 'Cargo.toml'))) return 'rust';
   if (fs.existsSync(path.join(targetDir, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, 'requirements.txt')) || fs.existsSync(path.join(targetDir, 'setup.py'))) return 'python';
@@ -100,7 +111,8 @@ function detectLanguage(targetDir) {
     for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       if (fs.existsSync(path.join(targetDir, entry.name, 'go.mod'))) return 'go';
-      if (fs.existsSync(path.join(targetDir, entry.name, 'package.json'))) return 'node';
+      const nestedPackage = path.join(targetDir, entry.name, 'package.json');
+      if (fs.existsSync(nestedPackage)) return packageLanguage(nestedPackage);
       if (fs.existsSync(path.join(targetDir, entry.name, 'Cargo.toml'))) return 'rust';
       if (fs.existsSync(path.join(targetDir, entry.name, 'pyproject.toml')) || fs.existsSync(path.join(targetDir, entry.name, 'requirements.txt'))) return 'python';
     }
@@ -489,6 +501,7 @@ function createDataFiles(aiDir, language, projectName, repoName) {
 
   // skills.json
   writeJSON(path.join(dataDir, 'skills.json'), {
+    sharedSkillsRoot: '/Users/brian/.agents/skills',
     skills: [...PLANNING_SKILLS, ...preset.skills].map(row => ({
       skill: row[0],
       path: row[1],
@@ -532,7 +545,75 @@ function ensurePlanningSkills(aiDir) {
     existing.add(row[0]);
     changed = true;
   }
+  if (!data.sharedSkillsRoot) {
+    data.sharedSkillsRoot = '/Users/brian/.agents/skills';
+    changed = true;
+  }
   if (changed || !fs.existsSync(skillsPath)) writeJSON(skillsPath, data);
+  return data;
+}
+
+const LEGACY_NODE_DEFAULTS = [
+  ['typescript-code-review', 'user-level', 'always-on', 'all', 'Code quality checks at session start'],
+  ['typescript-unit-testing', 'user-level', 'project-local', 'all', 'Any task in this JS/TS project'],
+  ['typescript-security-review', 'user-level', 'user-local', 'security', 'Security review for JS/TS code'],
+  ['accelint-ts-performance', 'user-level', 'user-local', 'performance', 'JS/TS performance audit and optimization'],
+  ['js-ts-performance-readability', 'user-level', 'user-local', 'api-routing', 'Readable, performant JS/TS'],
+];
+
+const LEGACY_NODE_MATRIX = [
+  ['api-validation', 'JavaScript/Node', 'typescript-unit-testing', 'typescript-code-review', 'REST API input validation, error handling'],
+  ['api-routing', 'JavaScript/Node', 'typescript-code-review', 'js-ts-performance-readability', 'Express route wiring, controller patterns'],
+  ['testing', 'JavaScript/Node', 'typescript-unit-testing', 'accelint-ts-performance', 'Test suite design, mocking, coverage'],
+  ['performance', 'JavaScript/Node', 'accelint-ts-performance', 'js-ts-performance-readability', 'Hot path optimization, allocation reduction'],
+  ['security', 'JavaScript/Node', 'typescript-security-review', 'typescript-code-review', 'XSS, injection, JWT/OAuth flaws, dependency CVEs'],
+];
+
+function isLegacyNodeDefault(entry) {
+  return LEGACY_NODE_DEFAULTS.some(([skill, pathName, layer, workflowTrigger, purpose]) => (
+    entry && entry.skill === skill && entry.path === pathName && entry.layer === layer
+      && entry.workflowTrigger === workflowTrigger && entry.purpose === purpose
+  ));
+}
+
+function isLegacyNodeMatrix(entry) {
+  return LEGACY_NODE_MATRIX.some(([trigger, language, primarySkills, secondarySkills, notes]) => (
+    entry && entry.trigger === trigger && entry.language === language
+      && entry.primarySkills === primarySkills && entry.secondarySkills === secondarySkills
+      && entry.notes === notes
+  ));
+}
+
+// Migrate only known generated defaults; similarly named project additions are
+// preserved because their registration metadata differs from the old preset.
+function ensureLanguageSkills(aiDir, language) {
+  const skillsPath = path.join(aiDir, 'data', 'skills.json');
+  const data = ensurePlanningSkills(aiDir);
+  const preset = LANGUAGE_PRESETS[language] || LANGUAGE_PRESETS.unknown;
+  const retained = (data.skills || []).filter((entry) => !isLegacyNodeDefault(entry));
+  data.matrix = (Array.isArray(data.matrix) ? data.matrix : []).filter((entry) => !isLegacyNodeMatrix(entry));
+  const existing = new Set(retained.map((entry) => entry && entry.skill));
+
+  if (language === 'nextjs') {
+    for (const row of preset.skills) {
+      if (existing.has(row[0])) continue;
+      retained.push({
+        skill: row[0], path: row[1], layer: row[2], workflowTrigger: row[3], purpose: row[4],
+      });
+      existing.add(row[0]);
+    }
+    const matrixTriggers = new Set(data.matrix.map((row) => row && row.trigger));
+    for (const row of preset.matrix) {
+      if (matrixTriggers.has(row[0])) continue;
+      data.matrix.push({
+        trigger: row[0], language: row[1], primarySkills: row[2], secondarySkills: row[3], notes: row[4],
+      });
+    }
+  }
+
+  data.skills = retained;
+  data.sharedSkillsRoot = data.sharedSkillsRoot || '/Users/brian/.agents/skills';
+  writeJSON(skillsPath, data);
   return data;
 }
 
@@ -572,4 +653,5 @@ module.exports = {
   // Init
   createDataFiles,
   ensurePlanningSkills,
+  ensureLanguageSkills,
 };

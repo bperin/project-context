@@ -8,7 +8,7 @@ const setStatusCommand = require('../src/commands/set-status');
 const syncCommand = require('../src/commands/sync');
 const updateCommand = require('../src/commands/update');
 const upgradeCommand = require('../src/commands/upgrade');
-const { readPlans, getTaskStates, readJSONL } = require('../src/commands/shared');
+const { readPlans, getTaskStates, readJSONL, readJSON } = require('../src/commands/shared');
 
 async function stressTest() {
   console.log('=== STARTING PLAN+TASK STRESS TESTS ===');
@@ -19,6 +19,44 @@ async function stressTest() {
   assert(fs.existsSync(path.join(emptyDir, '.test-manager', 'tasks')));
   assert(!fs.existsSync(path.join(emptyDir, '.test-manager', 'specs')));
   assert(!fs.existsSync(path.join(emptyDir, '.test-manager', 'epics')));
+  assert(!fs.existsSync(path.join(emptyDir, '.test-manager', '.agents', 'AGENTS.md')));
+  assert.deepStrictEqual(
+    readJSON(path.join(emptyDir, '.test-manager', 'data', 'skills.json')).skills
+      .filter((skill) => skill.skill !== 'grilling' && skill.skill !== 'adhd'),
+    [],
+    'plain Node managers must not receive a framework baseline',
+  );
+
+  const nextDir = path.join('/tmp', `stress-next-${Date.now()}`);
+  fs.mkdirSync(nextDir, { recursive: true });
+  fs.writeFileSync(path.join(nextDir, 'package.json'), JSON.stringify({
+    name: 'next-fixture',
+    devDependencies: { next: '^15.0.0' },
+  }));
+  await initCommand({ target: nextDir, workspace: '.next-manager', discover: false });
+  const nextSkills = readJSON(path.join(nextDir, '.next-manager', 'data', 'skills.json'));
+  assert.deepStrictEqual(
+    nextSkills.skills.filter((skill) => skill.layer !== 'user-local').map((skill) => skill.skill).sort(),
+    ['vercel-react-best-practices'],
+    'Next managers must receive only the Vercel automatic framework baseline',
+  );
+  assert(nextSkills.skills.some((skill) => skill.skill === 'typescript-magician' && skill.workflowTrigger === 'type-system'));
+  assert(nextSkills.skills.some((skill) => skill.skill === 'code-review-excellence' && skill.workflowTrigger === 'pr-review'));
+  assert.strictEqual(nextSkills.sharedSkillsRoot, '/Users/brian/.agents/skills');
+  nextSkills.matrix.push({
+    trigger: 'performance', language: 'JavaScript/Node', primarySkills: 'accelint-ts-performance',
+    secondarySkills: 'js-ts-performance-readability', notes: 'Hot path optimization, allocation reduction',
+  });
+  nextSkills.skills.push({
+    skill: 'typescript-code-review', path: 'user-level', layer: 'always-on', workflowTrigger: 'all',
+    purpose: 'Code quality checks at session start',
+  });
+  fs.writeFileSync(path.join(nextDir, '.next-manager', 'data', 'skills.json'), JSON.stringify(nextSkills, null, 2));
+  await upgradeCommand({ target: nextDir, workspace: '.next-manager' });
+  const migratedNextSkills = readJSON(path.join(nextDir, '.next-manager', 'data', 'skills.json'));
+  assert(!migratedNextSkills.skills.some((skill) => skill.skill === 'typescript-code-review'));
+  assert(migratedNextSkills.skills.some((skill) => skill.skill === 'vercel-react-best-practices'));
+  assert(!migratedNextSkills.matrix.some((row) => row.trigger === 'performance' && row.primarySkills === 'accelint-ts-performance'));
 
   const goDir = path.join('/tmp', `stress-go-${Date.now()}`);
   fs.mkdirSync(goDir, { recursive: true });
@@ -47,6 +85,31 @@ async function stressTest() {
     ['pc-plan'],
   );
 
+  const legacySkillDir = path.join(aiDir, '.agents', 'skills');
+  fs.mkdirSync(path.join(legacySkillDir, 'typescript-code-review'), { recursive: true });
+  fs.mkdirSync(path.join(legacySkillDir, 'project-added-skill'), { recursive: true });
+  fs.writeFileSync(path.join(aiDir, '.agents', 'AGENTS.md'), 'legacy generated instructions\n');
+  fs.writeFileSync(path.join(aiDir, 'workflows', 'overview.md'), 'legacy overview\n');
+  const legacySkillsPath = path.join(aiDir, 'data', 'skills.json');
+  const legacySkills = readJSON(legacySkillsPath);
+  legacySkills.skills.push(
+    { skill: 'typescript-code-review', path: 'user-level', layer: 'always-on', workflowTrigger: 'all', purpose: 'Code quality checks at session start' },
+    { skill: 'project-added-skill', path: 'project-local', layer: 'always-on', workflowTrigger: 'all', purpose: 'preserve me' },
+  );
+  legacySkills.matrix.push({
+    trigger: 'testing', language: 'JavaScript/Node', primarySkills: 'typescript-unit-testing',
+    secondarySkills: 'accelint-ts-performance', notes: 'Test suite design, mocking, coverage',
+  });
+  fs.writeFileSync(legacySkillsPath, JSON.stringify(legacySkills, null, 2));
+  await upgradeCommand({ target: fullDir, workspace: ws });
+  assert(!fs.existsSync(path.join(legacySkillDir, 'typescript-code-review')), 'upgrade kept a known bundled shared skill');
+  assert(fs.existsSync(path.join(legacySkillDir, 'project-added-skill')), 'upgrade removed an unknown local skill');
+  assert(!fs.existsSync(path.join(aiDir, '.agents', 'AGENTS.md')), 'upgrade kept generated shared agent instructions');
+  assert(!fs.existsSync(path.join(aiDir, 'workflows', 'overview.md')), 'upgrade kept generated overview guidance');
+  assert(!readJSON(legacySkillsPath).skills.some((skill) => skill.skill === 'typescript-code-review'), 'upgrade kept a legacy Node default');
+  assert(!readJSON(legacySkillsPath).matrix.some((row) => row.trigger === 'testing' && row.primarySkills === 'typescript-unit-testing'), 'upgrade kept a legacy Node matrix route');
+  assert(readJSON(legacySkillsPath).skills.some((skill) => skill.skill === 'project-added-skill'), 'upgrade removed an explicit project skill');
+
   await addCommand({ type: 'plan', title: 'First Plan', status: 'committed', target: fullDir, workspace: ws });
   await syncCommand({ target: fullDir, workspace: ws });
   assert.strictEqual(readPlans(aiDir)[0].status, 'committed', 'sync changed a childless plan');
@@ -74,6 +137,7 @@ async function stressTest() {
   assert(timeline.some((event) => event.task === 'TASK-002' && event.status === 'needs_planning'));
 
   fs.rmSync(emptyDir, { recursive: true, force: true });
+  fs.rmSync(nextDir, { recursive: true, force: true });
   fs.rmSync(goDir, { recursive: true, force: true });
   fs.rmSync(fullDir, { recursive: true, force: true });
   console.log('=== PLAN+TASK STRESS TESTS PASSED ===');

@@ -1,246 +1,66 @@
-# Workflow: pc-plan
+# Coordinator lifecycle: pc-plan
 
-`pc-plan` is the single user-facing workflow. It persists work in one compact
-`PLAN-NNN.md` plus append-only task JSONL and resumes from those artifacts
-without relying on conversation history.
+This is the coordinator-only reference behind the `/pc-plan` skill. Persist
+progress in `PLAN-NNN.md` and append-only task JSONL; never rely on
+conversation history for recovery.
 
 ## Actions
 
-### `start <goal>`
+- `start <goal>` — refuse if another plan is non-terminal; otherwise create a
+  compact plan and begin discovery.
+- `continue [PLAN-NNN]` — resolve the supplied or sole non-terminal plan and
+  resume its first incomplete gate.
+- `status [PLAN-NNN]` — report persisted status, blockers, readiness, proof,
+  and next action without mutation.
+- `run [PLAN-NNN]` — continue through safe gates and task waves until a user
+  gate, planning gap, failed required check, or completion.
 
-1. Inspect persisted plans, task state, and `data/identity.json`. If
-   `memoryLake.projectId` is present, load only relevant memory from that
-   project before repository discovery.
-2. Enforce the single-active-plan invariant. If any plan is non-terminal, do
-   not create another; identify it and continue or finish it first.
-3. Create one `PLAN-NNN.md`, record the goal, and set its first incomplete gate
-   to repository discovery.
-4. Run the planning gates in order until blocked by a user decision or explicit
-   acceptance.
+## Gates
 
-### `continue [PLAN-NNN]`
+Persist each gate before advancing:
 
-1. Resolve the supplied plan, or the sole non-terminal plan when no ID is given.
-2. Read the plan file and task JSONL. Treat them as the authoritative recovery
-   state. If configured, supplement them with MemoryLake results filtered to
-   the exact `memoryLake.projectId`; never search across the workspace without
-   that project filter.
-3. Reconcile stale derived status from append-only task events.
-4. Continue at the first incomplete gate. Do not repeat completed discovery,
-   questions, acceptance, task creation, or verified packets.
-5. Persist each completed gate before advancing.
+1. Discover repository instructions, relevant code, tests, dependencies, and
+   manager state.
+2. Draft one compact plan: goal, non-goals, evidence, approach, boundaries,
+   acceptance probes, proof obligations, and likely task order.
+3. Self-challenge with `grilling`; use `adhd` only for genuinely open-ended
+   product, architecture, workflow, API, or integration choices. Record the
+   decision, alternatives, traps, and remaining questions.
+4. Record blocking questions and stop; record advisory questions with their
+   current assumptions and continue.
+5. Revise from evidence and answers. A material revision clears acceptance.
+6. Obtain explicit user acceptance, mark the plan `committed`, and record
+   `User accepted: yes`.
+7. Create narrow tasks with exact write sets, boundaries, dependencies, tests,
+   verification commands, proof obligations, and planning-gap conditions.
+8. Dispatch the largest ready disjoint wave, up to three writers. Supervise
+   each writer and then exactly one challenger to a terminal report.
+9. On challenge pass, run combined checks, serially commit and merge the
+   repository workstream, then fill the next safe worker slot.
+10. Complete only after every task and proof obligation has evidence.
 
-### `status [PLAN-NNN]`
+## Packet and skill rules
 
-Read only. Report:
+Build a deterministic task packet only when its contract is complete. The
+packet includes exact source paths, graph nodes, a source fingerprint, compact
+parent summary, and selected canonical skill references. It never includes full
+task or parent bodies. A missing required contract field or selected skill
+returns `needs_planning` before dispatch.
 
-- plan ID, goal, status, revision, and current gate;
-- explicit acceptance state;
-- unresolved blocking questions;
-- advisory questions and current assumptions;
-- task counts by state, dependencies, and readiness;
-- active implementation packets and declared write sets;
-- proof obligations completed or outstanding;
-- planning gaps, failed checks, and the exact next action.
+Canonical shared skills live at
+`/Users/brian/.agents/skills/<skill-name>/SKILL.md`. `data/skills.json` records
+names, layers, triggers, and purpose—not copied skill content. For Next.js,
+select `vercel-react-best-practices`; `typescript-magician` is opt-in for
+`type-system` work and `code-review-excellence` for `pr-review`.
 
-### `run [PLAN-NNN]`
+## Planning-gap and memory rules
 
-Resume exactly like `continue`, then keep executing gates and dependency-ready
-task waves. Stop only when:
+When a worker returns `needs_planning`, halt affected work, preserve the
+evidence, and revise the smallest affected plan/task boundary from accepted
+decisions and repository evidence. Ask the user only for external authority, a
+product-scope change, or an irreducible choice.
 
-- the user must answer a blocking planning question;
-- the revised plan needs explicit user acceptance;
-- an implementer or challenger returns `needs_planning`;
-- a required check still fails after its bounded correction pass;
-- no safe dependency-ready packet exists; or
-- the plan is complete.
-
-`run` is persistent execution, not permission to invent missing scope.
-
-## Automatic planning-gap return
-
-When a worker returns `needs_planning`, the root coordinator immediately resumes
-the same plan at the smallest affected planning gate. It records the evidence,
-discovers the missing seam, revises the plan and affected packets, and dispatches
-the newly safe wave without treating the return as a user handoff. Ask the user
-only when the gap requires new external authority, a product-scope change, or a
-choice that cannot be resolved from accepted plan decisions and repository
-evidence. A user may grant standing acceptance for in-scope implementation
-architecture refinements; record that authorization in the plan.
-
-## Single-active-plan invariant
-
-At most one plan may have a non-terminal state. Terminal states are `done`,
-`superseded`, and `archived`. `draft`, `committed`, `in_progress`, and
-`needs_planning` are non-terminal. All actions enforce this invariant before
-creating or mutating work.
-
-If persisted state contains multiple non-terminal plans, stop and report the
-conflict. Do not choose one silently.
-
-## Ordered gates
-
-The first incomplete gate is authoritative:
-
-1. **Repository discovery** — read root instructions, relevant code, tests,
-   interfaces, dependency edges, and current manager state.
-2. **Compact draft** — capture goal, non-goals, repository evidence, approach,
-   boundaries, acceptance probes, proof obligations, and likely decomposition.
-3. **Deliberation** — use executable `grilling` (`grill-me` is only its
-   wrapper) to record a decision tree, settled decisions, and remaining
-   frontier. For open-ended product, architecture, workflow, API, or integration
-   decisions, run `adhd` and record its pre-flight, divergent alternatives,
-   rejected traps, and selected direction. Closed factual or mechanical changes
-   record a specific ADHD skip rationale.
-4. **Questions** — classify the grilling frontier as:
-   - **Blocking:** persist it and halt before acceptance or task creation.
-   - **Advisory:** persist the question and current assumption; continue.
-5. **Revision** — update the same compact plan from evidence, challenges, and
-   answers. A material revision repeats the applicable deliberation.
-6. **Explicit acceptance** — present the revised plan and wait for the user to
-   accept it. Persist who accepted which revision, set the plan status to
-   `committed`, and keep `User accepted: yes` in the Planning Gate. Any material
-   later revision clears acceptance and returns here.
-7. **Task decomposition** — create narrow, dependency-ordered packets.
-8. **Implementation waves** — run ready packets with bounded concurrency.
-9. **PR readiness** — verify state, evidence, checks, and scope cleanliness.
-10. **Completion** — mark the plan terminal and archive only when requested or
-    when the configured lifecycle calls for it.
-
-The same root planning agent owns gates 1-7 and integrates all evidence.
-Subagents may investigate independent questions or challenge a draft, but they
-do not author the plan, ask the user, or mutate manager state.
-
-## Project-scoped MemoryLake
-
-The project-local Codex config declares the `memorylake` MCP endpoint. The
-manager identity records the logical workspace and project names and may also
-record their non-secret IDs. Credentials belong in Codex OAuth storage or the
-process environment, never in the repository or manager files.
-
-When `data/identity.json` contains `memoryLake.projectId`:
-
-- every search must include that exact project ID;
-- every fact, document, and conversation write must target that project;
-- the root agent may read memory during discovery and resumption;
-- only the root agent writes durable memory after an accepted decision,
-  material revision, verified completion, or explicit user request; and
-- subagents return proposed memory facts with evidence instead of writing them.
-
-Store concise durable decisions, constraints, accepted assumptions, and
-verified outcomes. Do not store secrets, credentials, raw chain-of-thought,
-transient tool output, speculative ideas, or facts already contradicted by the
-repository. The plan and task log remain authoritative for workflow state;
-MemoryLake is supplemental cross-session context.
-
-If only the project name is present, resolve exactly one matching project in
-the configured workspace and persist its non-secret ID before using memory. If
-zero or multiple projects match, report the setup gap and continue from local
-manager state without a cross-project search.
-
-## Compact plan contract
-
-Keep each section short and decision-bearing:
-
-- goal and non-goals;
-- repository evidence;
-- chosen approach and material rejected alternatives;
-- API, data, state, and ownership boundaries;
-- blocking questions and resolution state;
-- advisory questions and current assumptions;
-- grilling decision-tree result and remaining frontier;
-- ADHD result or a closed-change skip rationale;
-- acceptance probes and proof obligations;
-- decomposition constraints and dependency order;
-- current gate, revision, acceptance receipt, and planning-gap returns.
-
-There are no epic or specification artifacts. Put code-level execution detail in
-task packets rather than growing the plan.
-
-## Narrow task packet contract
-
-Every task contains:
-
-- exact files and symbols it may change;
-- API/data/state boundaries;
-- dependencies and readiness conditions;
-- do-not-touch files, symbols, and behaviors;
-- success, failure, and boundary tests;
-- verification commands;
-- falsifiable proof obligations;
-- conditions that require `needs_planning`.
-
-Register tasks and state transitions through internal CLI mechanics so JSONL
-history remains append-only. The root agent is the only manager-state writer.
-
-## Implementation waves
-
-Many subagents may complete work over the life of a plan. Each implementation
-wave must fill every safe worker slot, up to three concurrent workers. A packet
-is safe only when its dependencies are done and its exact write set is disjoint
-from every active packet. Do not serialize independently ready packets merely
-for coordinator convenience. When fewer than three workers are active, the
-coordinator must identify the concrete dependency, ownership overlap, review,
-or planning constraint that prevents another dispatch; it then fills a newly
-safe slot immediately after a terminal worker report. This continues until no
-safe packet remains or the plan reaches a defined stop gate.
-
-For each ready packet:
-
-1. Select the maximal dependency-ready, non-overlapping set (maximum three),
-   persist all selected packets `in_progress` serially, and dispatch their
-   builders without waiting between dispatches.
-2. Build a compact context packet containing only project instructions, the
-   parent-plan summary, task contract, dependencies, and selected implementation
-   skills.
-3. Dispatch one pinned Luna-high implementer for each selected packet. It may change only its declared
-   files and symbols and must run its specified tests.
-4. **Supervise every dispatched worker to a terminal report.** In Codex, use
-   `wait_threads` with the worker thread ID and a bounded timeout; pass the
-   returned cursor as `afterCursor` on the next wait. Do not return to the user,
-   begin unrelated work, or silently abandon a worker after dispatch. A timeout
-   is progress information, not completion. New user input may interrupt a
-   wait, but must be reconciled with the active packet before further dispatch.
-5. If work exceeds the packet, contradicts a boundary, changes dependencies, or
-   invalidates a proof obligation, the implementer stops and returns
-   `needs_planning` with evidence. It never asks the user or expands scope.
-6. Dispatch exactly one challenger for the completed packet, then supervise it
-   with the same bounded-wait loop until it reports `pass`, bounded defects, or
-   `needs_planning`. It checks scope,
-   tests, edge cases, and proof evidence. It returns `pass`, bounded defects, or
-   `needs_planning`.
-7. On bounded defects, persist the report, dispatch one focused correction, and
-   supervise the correction plus challenger re-review before continuing. Never
-   correct a planning gap inside implementation.
-8. On `pass`, the coordinator verifies the integrated wave, commits it, and
-   merges the repository-scoped workstream into that repository's `dev` before
-   starting a dependent packet. Workers never commit or merge. The coordinator
-   then immediately selects and dispatches the next maximal safe wave before
-   returning control, unless a defined stop gate applies.
-
-When `needs_planning` occurs, halt affected and dependent packets. Persist the
-failed obligation, repository evidence, blocked boundary, and smallest required
-decision. The root agent immediately revises the same plan and regenerates
-affected packets from accepted decisions and repository evidence. It asks the
-user only for new external authority, product-scope changes, or an unresolved
-choice; otherwise standing in-scope acceptance permits continued execution.
-
-## PR readiness and completion
-
-After all packets are done:
-
-1. Run configured project checks.
-2. Confirm every task is `done`, every proof obligation has evidence, and no
-   plan or task is `needs_planning`.
-3. Reject undeclared file/symbol changes, transient context files, debug
-   artifacts, and accidental manager-state edits.
-4. Open the PR with the plan goal, completed packets, and verification summary.
-   Do not repeat code review; every packet already had one challenger.
-5. Persist completion. Keep append-only task history intact.
-
-## Internal mechanics
-
-Context generation, UUID creation, task registration, readiness selection,
-status transitions, graph rebuilding, inspection, synchronization, and archive
-operations are internal CLI details used by this workflow. They are not separate
-user-facing slash commands or skills.
+Read `data/identity.json` before MemoryLake use. Scope every operation to the
+exact `memoryLake.projectId`; store only accepted decisions, durable
+constraints, and verified outcomes; never search an unfiltered workspace. The
+root agent alone writes durable memory.

@@ -52,7 +52,6 @@ program
   .option('-w, --workspace <path>', 'Workspace directory name (default: project-context-{reponame})')
   .option('-t, --target <path>', 'Target project directory', '.')
   .option('-d, --discover', 'Run discovery to populate identity', false)
-  .option('--no-bundled-skills', 'Do not copy bundled language skills from the package root')
   .option('--no-symlink', 'Do not create the .agents symlink at the target root')
   .option('--no-hooks', 'Do not create .devin/hooks.v1.json')
   .action(async (options) => {
@@ -72,7 +71,6 @@ program
   .option('--source <dir>', 'Asset source root (defaults to this package\'s src/)')
   .option('--no-symlink', 'Do not create the .agents symlink at the target root')
   .option('--no-hooks', 'Do not regenerate .devin/hooks.v1.json')
-  .option('--no-bundled-skills', 'Do not copy bundled language skills from the package root')
   .action(async (options) => {
     try {
       options.workspace = resolveWorkspace(options);

@@ -5,7 +5,9 @@ const initCommand = require('../src/commands/init');
 
 async function testAgentProtocol() {
   console.log('=== RUNNING PLAN+TASK PROTOCOL TESTS ===');
-  const fixtureDir = path.join(__dirname, 'fixtures', 'sample-node-project');
+  const fixtureSource = path.join(__dirname, 'fixtures', 'sample-node-project');
+  const fixtureDir = path.join('/tmp', `pc-protocol-${Date.now()}`);
+  fs.cpSync(fixtureSource, fixtureDir, { recursive: true });
   const ws = '.sample-node-project-manager';
   const aiDir = path.join(fixtureDir, ws);
   const agentsLink = path.join(fixtureDir, '.agents');
@@ -29,14 +31,18 @@ async function testAgentProtocol() {
   assert.match(combined, /one plan|single-active-plan|Only one plan may be active/i, 'protocol does not enforce one active plan');
   assert.match(combined, /narrow task packet|Narrow task packet contract/i, 'protocol does not require narrow packets');
   assert.match(combined, /At most three|Maximum three|hard-capped at 3/i, 'protocol does not cap concurrent implementation at three');
-  assert.match(combined, /Human Summary|human-readable|Plain language/i, 'protocol omits human-readable planning output');
   assert.match(combined, /Resume Checkpoint|resume|reconstruct state/i, 'protocol omits resumable planning state');
   assert.match(combined, /needs_planning/i, 'protocol omits planning-gap return');
   assert.match(combined, /advisory/i, 'protocol omits advisory questions');
   assert.match(combined, /memoryLake\.projectId/i, 'protocol omits project-scoped MemoryLake identity');
   assert.match(combined, /never (?:perform|run|search).*unfiltered workspace|never search across the workspace/i, 'protocol allows cross-project memory search');
   assert.match(combined, /root agent.*(?:owns|writes).*memory|only the root agent writes durable memory/i, 'protocol does not reserve memory writes for the root agent');
-  assert(!combined.includes('/Users/brian/'), 'generated protocol contains a machine-specific path');
+  assert.match(
+    agentsMd,
+    /\/Users\/brian\/\.agents\/skills\/<skill-name>\/SKILL\.md/,
+    'manager does not reference canonical shared skills',
+  );
+  assert(!fs.existsSync(path.join(aiDir, '.agents', 'AGENTS.md')), 'duplicate generated .agents/AGENTS.md remains');
 
   const publicSkills = fs.readdirSync(path.join(aiDir, '.agents', 'skills'))
     .filter((name) => name.startsWith('pc-')).sort();
@@ -57,14 +63,15 @@ async function testAgentProtocol() {
   }
 
   const workflowNames = fs.readdirSync(path.join(aiDir, 'workflows')).filter((name) => name.endsWith('.md'));
-  assert(workflowNames.includes('pc-plan.md'), 'pc-plan workflow missing');
-  for (const legacy of ['pc-epic.md', 'pc-spec.md', 'pc-create-tasks.md', 'pc-implement.md']) {
+  assert.deepStrictEqual(workflowNames, ['pc-plan.md'], 'generated manager has redundant workflow guidance');
+  for (const legacy of ['overview.md', 'pc-epic.md', 'pc-spec.md', 'pc-create-tasks.md', 'pc-implement.md']) {
     assert(!workflowNames.includes(legacy), `legacy workflow ${legacy} was generated`);
   }
 
   fs.rmSync(aiDir, { recursive: true, force: true });
   try { fs.unlinkSync(agentsLink); } catch (_) {}
   fs.rmSync(codexDir, { recursive: true, force: true });
+  fs.rmSync(fixtureDir, { recursive: true, force: true });
   console.log('=== PLAN+TASK PROTOCOL TESTS PASSED ===');
 }
 
