@@ -51,30 +51,13 @@ const LANGUAGE_PRESETS = {
   },
   rust: {
     stack: 'Rust',
-    skills: [
-      ['rust-security', 'user-level', 'always-on', 'all', 'Supply chain safety, memory-safe FFI'],
-      ['rust-testing', 'user-level', 'project-local', 'all', 'Any task in this Rust project'],
-      ['rust-performance', 'user-level', 'user-local', 'performance', 'Performance optimization for Rust'],
-    ],
-    matrix: [
-      ['testing', 'Rust', 'rust-testing', 'rust-performance', 'Unit, integration, async, property-based, coverage'],
-      ['performance', 'Rust', 'rust-performance', 'rust-security', 'Latency, throughput, allocations, binary size'],
-      ['security', 'Rust', 'rust-security', 'rust-testing', 'cargo-audit, cargo-deny, RUSTSEC, safe FFI, fuzzing'],
-    ],
+    skills: [],
+    matrix: [],
   },
   python: {
     stack: 'Python',
-    skills: [
-      ['python-code-style', 'user-level', 'always-on', 'all', 'Linting, formatting, naming, docstrings'],
-      ['python-testing-patterns', 'user-level', 'project-local', 'all', 'Any task in this Python project'],
-      ['python-performance-optimization', 'user-level', 'user-local', 'performance', 'Performance optimization for Python'],
-      ['python-cybersecurity-tool-development', 'user-level', 'user-local', 'security', 'Python cybersecurity tool development'],
-    ],
-    matrix: [
-      ['testing', 'Python', 'python-testing-patterns', 'python-code-style', 'pytest, fixtures, mocking, TDD'],
-      ['performance', 'Python', 'python-performance-optimization', 'python-code-style', 'cProfile, memory profilers, bottlenecks'],
-      ['security', 'Python', 'python-cybersecurity-tool-development', 'python-code-style', 'Secure coding, async scanning, structured testing'],
-    ],
+    skills: [],
+    matrix: [],
   },
   unknown: {
     stack: 'Unknown',

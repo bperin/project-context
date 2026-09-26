@@ -27,6 +27,28 @@ async function stressTest() {
     'plain Node managers must not receive a framework baseline',
   );
 
+  const rustDir = path.join('/tmp', `stress-rust-${Date.now()}`);
+  fs.mkdirSync(rustDir, { recursive: true });
+  fs.writeFileSync(path.join(rustDir, 'Cargo.toml'), '[package]\nname = "rust-fixture"\nversion = "0.1.0"\n');
+  await initCommand({ target: rustDir, workspace: '.rust-manager', discover: false });
+  assert.deepStrictEqual(
+    readJSON(path.join(rustDir, '.rust-manager', 'data', 'skills.json')).skills
+      .filter((skill) => skill.skill !== 'grilling' && skill.skill !== 'adhd'),
+    [],
+    'Rust managers must not receive bundled language skills',
+  );
+
+  const pythonDir = path.join('/tmp', `stress-python-${Date.now()}`);
+  fs.mkdirSync(pythonDir, { recursive: true });
+  fs.writeFileSync(path.join(pythonDir, 'pyproject.toml'), '[project]\nname = "python-fixture"\nversion = "0.1.0"\n');
+  await initCommand({ target: pythonDir, workspace: '.python-manager', discover: false });
+  assert.deepStrictEqual(
+    readJSON(path.join(pythonDir, '.python-manager', 'data', 'skills.json')).skills
+      .filter((skill) => skill.skill !== 'grilling' && skill.skill !== 'adhd'),
+    [],
+    'Python managers must not receive bundled language skills',
+  );
+
   const nextDir = path.join('/tmp', `stress-next-${Date.now()}`);
   fs.mkdirSync(nextDir, { recursive: true });
   fs.writeFileSync(path.join(nextDir, 'package.json'), JSON.stringify({
@@ -137,6 +159,8 @@ async function stressTest() {
   assert(timeline.some((event) => event.task === 'TASK-002' && event.status === 'needs_planning'));
 
   fs.rmSync(emptyDir, { recursive: true, force: true });
+  fs.rmSync(rustDir, { recursive: true, force: true });
+  fs.rmSync(pythonDir, { recursive: true, force: true });
   fs.rmSync(nextDir, { recursive: true, force: true });
   fs.rmSync(goDir, { recursive: true, force: true });
   fs.rmSync(fullDir, { recursive: true, force: true });
